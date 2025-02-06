@@ -6,6 +6,7 @@ import Image from "next/image";
 import LoginModal from './LoginModal';
 import SignupModal from "./SignupModal";
 import GoogleTranslate from "./GoogleTranslate";
+import useAuth from "@/hooks/useAuth";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -14,7 +15,11 @@ const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearchBar, setShowSearchBar] = useState(false); // New state for search bar visibility
+  const [showSearchBar, setShowSearchBar] = useState(false);
+
+  // Use the custom auth hook
+  const { isAuthenticated, loading } = useAuth();
+  console.log('isAuthenticated:', isAuthenticated); // Debugging log
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,27 +72,30 @@ const Header = () => {
             <Link href="#" className="hover:text-gray-600">
               FAQ
             </Link>
-            <button
-              className="bg-[#002654] hover:bg-[#002654]/90 text-white rounded px-4 py-1 text-sm"
-            >
-              MY ACCOUNT ▼
-            </button>
 
-            <div className="hidden md:flex items-center space-x-4">
+            {isAuthenticated ? (
               <button
-                onClick={() => setShowLoginModal(true)}
-                className="rounded-full bg-purple-600 px-6 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                className="bg-[#002654] hover:bg-[#002654]/90 text-white rounded px-4 py-1 text-sm"
               >
-                Login
+                MY ACCOUNT ▼
               </button>
+            ) : (
+              <div className="hidden md:flex items-center space-x-4">
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="rounded-full bg-purple-600 px-6 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                >
+                  Login
+                </button>
 
-              <button
-                className="rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                onClick={() => setShowSignupModal(true)}
-              >
-                Sign Up
-              </button>
-            </div>
+                <button
+                  className="rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  onClick={() => setShowSignupModal(true)}
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -248,29 +256,36 @@ const Header = () => {
                 <Link href="/Sell" className="hover:text-purple-600">
                   Sell
                 </Link>
-                <button
-                  className="bg-[#002654] hover:bg-[#002654]/90 text-white rounded px-4 py-1 text-sm mt-2"
-                >
-                  MY ACCOUNT ▼
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowLoginModal(true);
-                  }}
-                  className="w-full rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                >
-                  Login
-                </button>
-                <button
-                  className="w-full rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowSignupModal(true);
-                  }}
-                >
-                  Sign Up
-                </button>
+
+                {/* Conditionally Render "My Account" or "Login/Sign Up" Buttons in Mobile Menu */}
+                {isAuthenticated ? (
+                  <button
+                    className="bg-[#002654] hover:bg-[#002654]/90 text-white rounded px-4 py-1 text-sm mt-2"
+                  >
+                    MY ACCOUNT ▼
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShowLoginModal(true);
+                      }}
+                      className="w-full rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                    >
+                      Login
+                    </button>
+                    <button
+                      className="w-full rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShowSignupModal(true);
+                      }}
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
               </div>
             </nav>
           )}
