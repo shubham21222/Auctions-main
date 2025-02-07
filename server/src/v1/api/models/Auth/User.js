@@ -116,7 +116,7 @@ UserSchema.methods.getResetPasswordToken = function () {
   
     // Set reset token and expiry time
     this.passwordResetToken = resetToken;
-    this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    this.passwordResetExpires = Date.now() + 15 * 60 * 1000; // 10 minutes
     
     return resetToken;
 };
