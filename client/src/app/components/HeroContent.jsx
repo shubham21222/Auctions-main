@@ -6,7 +6,7 @@ function HeroContent() {
     <FadeInStaggerTwo className="flex flex-col items-center justify-center text-center">
       <FadeInStaggerTwoChildren>
         <p className="text-sm sm:text-base md:text-lg font-semibold text-yellow-400 mb-2 sm:mb-4">
-          <span>Your trusted auction consultants</span>
+          <span>A Trusted Online Auction For Luxury Goods</span>
         </p>
       </FadeInStaggerTwoChildren>
 
@@ -22,8 +22,7 @@ function HeroContent() {
 
       <FadeInStaggerTwoChildren>
         <p className="text-xs sm:text-sm md:text-lg text-gray-200 max-w-2xl mx-auto mb-6 sm:mb-12">
-          We&apos;re dedicated to helping you discover and acquire rare, valuable, and unique items. With years of
-          expertise in auctions, we provide tailored solutions to meet your collecting and investment needs.
+          We&apos;re dedicated to helping you discover and acquire rare, valuable, and unique items. With decades of expertise, we provide tailored solutions to meet your collecting and investment needs.
         </p>
       </FadeInStaggerTwoChildren>
 

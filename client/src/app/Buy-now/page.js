@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <>
     <Header />
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 pt-[80px] to-gray-100">
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 pt-[40px] to-gray-100">
       <div className="container mx-auto px-6 py-12">
         {/* <CategoryNav /> */}
 

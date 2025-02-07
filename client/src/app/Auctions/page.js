@@ -41,12 +41,12 @@ export default function AuctionCalendar() {
     <>
     <Header />
       <LuxuryBackground />
-      <div className="container relative mx-auto px-4 mt-[100px] py-12">
+      <div className="container relative mx-auto px-4 mt-[40px] py-12">
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
-            <Sparkles className="h-4 w-4" />
-            <span>LUXURY AUCTIONS</span>
-            <Sparkles className="h-4 w-4" />
+            {/* <Sparkles className="h-4 w-4" /> */}
+            {/* <span>LUXURY AUCTIONS</span> */}
+            {/* <Sparkles className="h-4 w-4" /> */}
           </div>
           <h1 className="mb-4 text-5xl font-bold tracking-tight text-luxury-charcoal">Auction Calendar</h1>
           <p className="mx-auto max-w-2xl text-muted-foreground">

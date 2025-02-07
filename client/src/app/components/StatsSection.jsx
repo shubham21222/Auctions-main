@@ -19,7 +19,7 @@ const stats = [
   },
   {
     icon: <Gavel size={64} className="text-white" />, // Lucide icon for "Auctions"
-    value: "600+",
+    value: "1000+",
     label: "Auctions",
   },
 ];
