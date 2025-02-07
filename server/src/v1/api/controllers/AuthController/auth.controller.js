@@ -19,6 +19,7 @@ import { generateToken, verifyToken } from "../../config/jwt.js"
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import {sendToken}  from  "../../Utils/genToken.js"
+import {sendEmail} from "../../Utils/sendEmail.js"
 import crypto from 'crypto'
 
 
@@ -79,6 +80,7 @@ export const login = async (req, res, next) => {
         if (!email || !password) {
             return badRequest(res, "Please provide an email and password");
         }
+
 
         // Find user by email and select password field explicitly
         const findUser = await User.findOne({ email }).select("+password");
@@ -217,6 +219,195 @@ export const verifyUser = async (req, res, next) => {
         unknownError(res, error);
     }
 }
+
+
+// Forgot Password //
+
+
+
+// Forgot Password Controller
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        // Validate email input
+        if (!email) {
+            return badRequest(res, "Please provide an email.");
+        }
+
+        // Find user by email
+        const user = await User.findOne({ email });
+        if (!user) {
+            return badRequest(res, "User not found.");
+        }
+
+        // Generate reset password token
+        const resetToken = user.getResetPasswordToken();
+        console.log(resetToken);
+        await user.save({ validateBeforeSave: false });
+
+        // Construct reset URL
+        const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/resetpassword/${resetToken}`;
+
+        // Email Template
+        const message = `
+    <!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+        .header {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .footer {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-top: 1px solid #e0e0e0;
+            border-radius: 0 0 5px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Hello ${user.name},</h2>
+        </div>
+        <div class="content">
+            <p>We have received a request to reset your password for your account on <strong>Event Panel</strong>. If you did not request this change, you can ignore this email and your password will not be changed.</p>
+            
+            <p>To reset your password, please click on the following link and follow the instructions:</p>
+            
+            <p><a class="button" href="${resetUrl}">Reset Password</a></p>
+            
+            <p>This link will expire in <strong>15 minutes</strong> for security reasons. If you need to reset your password after this time, please make another request.</p>
+        </div>
+        <div class="footer">
+            <h3>Thank you,</h3>
+            <h3> Dear Team </h3>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+        // Send email
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: "Password Reset Request",
+                html: message, // Sending as HTML
+            });
+
+            return success(res, "Password reset email sent successfully.");
+        } catch (error) {
+            // Reset token values if email fails
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpires = undefined;
+            await user.save({ validateBeforeSave: false });
+
+            return unknownError(res, "Email could not be sent. Please try again later.");
+        }
+    } catch (error) {
+        return unknownError(res, error.message || "Something went wrong.");
+    }
+};
+
+
+// Reset Password //
+
+export const resetPassword = async (req, res , next) => {
+
+    try {
+
+        const { resetToken } = req.params;
+        const { password } = req.body;
+
+
+        if (!resetToken || !password) {
+            return badRequest(res, "Invalid token or password");
+        }
+
+        const user = await User.findOne({
+            passwordResetToken: resetToken,
+            passwordResetExpires: { $gt: Date.now() },
+        })
+
+        if (!user) {
+            return badRequest(res, "Invalid token or token expired");
+        }
+
+        user.password = password;
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+
+        await user.save();
+
+        return success(res, "Password reset successfully");
+
+        
+    } catch (error) {
+
+        unknownError(res, error);
+        
+    }
+
+}
+
+
+//Update User Profile //
+
+export const updateProfile = async (req, res, next) => {
+    try {
+        const { _id } = req.user._id; // Correct destructuring
+            validateMongoDbId(_id); // Ensuring a valid MongoDB ID
+      
+
+        const { name, email } = req.body;
+
+        if (!name?.trim() && !email?.trim()) {
+            return badRequest(res, "Please provide a valid name or email to update");
+        }
+
+        // Construct the update object dynamically
+        const updatedFields = {};
+        if (name?.trim()) updatedFields.name = name.trim();
+        if (email?.trim()) updatedFields.email = email.trim();
+
+        const user = await User.findByIdAndUpdate(_id, updatedFields, {
+            new: true,
+            runValidators: true,
+        });
+
+        return sendResponse(res, 200, true, "Profile updated successfully", "", user);
+    } catch (error) {
+        return unknownError(res, error);
+    }
+};
+
 
 
 
