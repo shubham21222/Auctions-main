@@ -107,6 +107,7 @@ export const login = async (req, res, next) => {
                     name: findUser.name,
                     email: findUser.email,
                     role: findUser.role,
+                    passwordResetToken: findUser.passwordResetToken,
                 },
                 token: token,
             });
@@ -134,6 +135,7 @@ export const login = async (req, res, next) => {
                 name: findUser.name,
                 email: findUser.email,
                 role: findUser.role,
+                passwordResetToken: findUser.passwordResetToken,
             },
             token: token,
         });
