@@ -28,7 +28,8 @@ app.get("/", (req, res) => {
 
 
   
-
+// Serve uploaded images statically
+app.use("/uploads", express.static("uploads"));
 
 // Add API ROUTES HERE //
 app.use("/v1/api", Routerlocation);
