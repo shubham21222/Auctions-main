@@ -412,6 +412,55 @@ export const updateProfile = async (req, res, next) => {
 
 
 
+// Update Password //
+
+export const updatePassword = async (req, res, next) => {
+    try {
+        // Extract user ID from request
+        const { _id } = req.user;
+        validateMongoDbId(_id); // Ensure it's a valid MongoDB ID
+
+        // Extract password fields from request body
+        const { oldPassword, newPassword, confirmPassword } = req.body;
+
+        // Validate required fields
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            return badRequest(res, "Please provide old password, new password, and confirm password");
+        }
+
+        // Check if new passwords match
+        if (newPassword !== confirmPassword) {
+            return badRequest(res, "New password and confirm password do not match");
+        }
+
+        // Find user by ID and include password field
+        const user = await User.findById(_id).select("+password");
+        if (!user) {
+            return badRequest(res, "User not found");
+        }
+
+        // Validate old password
+        const isPasswordMatch = await user.matchPassword(oldPassword);
+        if (!isPasswordMatch) {
+            return badRequest(res, "Invalid old password");
+        }
+
+        // Update password and set password change timestamp
+        user.password = newPassword;
+        user.passwordChangedAt = Date.now();
+
+        // Save updated user details
+        await user.save();
+
+        return success(res, "Password updated successfully");
+
+    } catch (error) {
+        unknownError(res, error);
+    }
+};
+
+
+
 
 
 

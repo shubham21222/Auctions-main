@@ -1,4 +1,6 @@
 import { Error } from 'mongoose';
+import mongoose from 'mongoose';
+
 
 //send success response --------------------------------------------------------
 async function success(res, message, items) {
@@ -117,6 +119,16 @@ async function invalid(res, message, items) {
 };
 //====================================================================================================
 
+
+// Validate MongoDB ObjectId
+async function isValidObjectId(res, id, message = "Invalid ID format") {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return badRequest(res, message, "Invalid ObjectId");
+    }
+    return true;
+}
+
+// -------------------------------------------------------------------------------------------------- 
 export {
     success,
     created,
@@ -130,5 +142,6 @@ export {
     alreadyExist,
     sendResponse,
     invalid,
-    onError
+    onError,
+    isValidObjectId
 }
