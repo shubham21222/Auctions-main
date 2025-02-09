@@ -1,10 +1,14 @@
+// hooks/useAuth.js
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useDispatch } from 'react-redux';
+import { setPasswordResetToken } from '@/redux/authSlice';
 
 const useAuth = () => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
+  const dispatch = useDispatch(); // Get the dispatch function
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,11 +39,16 @@ const useAuth = () => {
         
         // Check for status: true in the response
         setIsAuthenticated(response.data.status === true);
-        
+
+        // Save the passwordResetToken to Redux if it exists
+        if (response.data.items?.passwordResetToken) {
+          dispatch(setPasswordResetToken(response.data.items.passwordResetToken));
+        }
+
         // Log the authentication result
         console.log('Authentication result:', {
           responseStatus: response.data.status,
-          isNowAuthenticated: response.data.status === true
+          isNowAuthenticated: response.data.status === true,
         });
 
       } catch (error) {
@@ -52,7 +61,7 @@ const useAuth = () => {
 
     // Start verification immediately
     verifyToken();
-  }, [token]);
+  }, [token, dispatch]);
 
   // Debug logging for state changes
   useEffect(() => {
