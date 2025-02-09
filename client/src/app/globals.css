@@ -570,3 +570,20 @@ body {
   .w-full {
 	width: 100%;
   }
+
+
+
+  @keyframes borderPulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.05);
+        opacity: 0;
+    }
+}
+
+.animate-border-pulse {
+    animation: borderPulse 2s infinite;
+}

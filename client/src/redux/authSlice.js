@@ -1,4 +1,4 @@
-"use client";
+// redux/slices/authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
@@ -7,7 +7,9 @@ const initialState = {
   _id: null,
   success: null,
   superAdminDetails: null,
-  ad_details: null,
+  items: {
+    passwordResetToken: null, // Add this field
+  },
 };
 
 export const authSlice = createSlice({
@@ -38,6 +40,12 @@ export const authSlice = createSlice({
     setSuperAdminDetails: (state, action) => {
       state.superAdminDetails = action.payload;
     },
+    setPasswordResetToken: (state, action) => {
+      state.items.passwordResetToken = action.payload; // Add this reducer
+    },
+    clearPasswordResetToken: (state) => {
+      state.items.passwordResetToken = null; // Clear the token when needed
+    },
   },
 });
 
@@ -50,6 +58,8 @@ export const {
   setSuccess,
   removeSuccess,
   setSuperAdminDetails,
+  setPasswordResetToken,
+  clearPasswordResetToken,
 } = authSlice.actions;
 
 export default authSlice.reducer;

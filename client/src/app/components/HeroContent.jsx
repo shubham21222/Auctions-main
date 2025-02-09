@@ -28,13 +28,13 @@ function HeroContent() {
 
       <FadeInStaggerTwoChildren className="flex flex-col md:flex-row gap-2 sm:gap-4">
         <Link
-          href="/contact-us"
+          href="/Auctions"
           className="bg-yellow-400 text-gray-900 font-semibold px-4 sm:px-8 py-2 sm:py-3 rounded-full hover:bg-yellow-500 transition-colors duration-300 text-sm sm:text-base"
         >
           Explore Auctions
         </Link>
         <Link
-          href="/portfolio-one"
+          href="/Buy-now"
           className="border-2 border-yellow-400 text-yellow-400 font-semibold px-4 sm:px-8 py-2 sm:py-3 rounded-full hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300 text-sm sm:text-base"
         >
           Buy now
