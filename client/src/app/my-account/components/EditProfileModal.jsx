@@ -28,7 +28,6 @@ export default function EditProfileModal({ defaultValues, onSubmit }) {
         toast.error("No reset token available. Please verify your account first.");
         return;
       }
-      // Format the payload as { password: newPassword }
       const payload = {
         password: data.newPassword, // Use "password" instead of "newPassword"
       };
