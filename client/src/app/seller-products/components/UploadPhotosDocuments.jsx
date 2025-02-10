@@ -105,7 +105,7 @@ const UploadPhotosDocuments = ({ setCurrentStep }) => {
                 </div>
                 <div className="mt-6 flex justify-between">
                     <Button variant="outline" onClick={() => setCurrentStep(2)}>Back</Button>
-                    <Button onClick={() => setCurrentStep(4)}>Continue</Button>
+                    <Button onClick={() => setCurrentStep(4)} variant="outline">Continue</Button>
                 </div>
             </div>
         </>
