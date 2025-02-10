@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import usePasswordReset from "@/hooks/usePasswordReset";
 import { useSelector } from "react-redux";
+import config from "@/app/config_BASE_URL";
 
 export default function EditProfileModal({ defaultValues, onSubmit }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +34,7 @@ export default function EditProfileModal({ defaultValues, onSubmit }) {
       };
 
       const response = await axios.post(
-        `http://localhost:4000/v1/api/auth/resetPassword/${resetToken}`,
+        `${config.baseURL}/v1/api/auth/resetPassword/${resetToken}`,
         payload, // Send the formatted payload
         { headers: { Authorization: `${token}` } }
       );

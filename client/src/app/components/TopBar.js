@@ -5,6 +5,7 @@ import GoogleTranslate from "./GoogleTranslate";
 import axios from 'axios';
 import { useDispatch, useSelector } from 'react-redux';
 import { removeToken,removeUser } from "@/redux/authSlice";
+import config from "../config_BASE_URL";
 
 const TopBar = ({ setShowLoginModal, setShowSignupModal }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); // State for dropdown visibility
@@ -19,7 +20,7 @@ const TopBar = ({ setShowLoginModal, setShowSignupModal }) => {
       
       // Call the logout API with the token
       await axios.post(
-        'http://localhost:4000/v1/api/auth/logout',
+        `${config.baseURL}/v1/api/auth/logout`,
         {},
         {
           headers: {
