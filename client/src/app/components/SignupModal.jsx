@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
+import config from '../config_BASE_URL';
 
 const SignupModal = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
@@ -34,7 +35,7 @@ const SignupModal = ({ isOpen, onClose }) => {
       setLoading(true);
 
       // Send a POST request to the registration API
-      const response = await axios.post('http://localhost:4000/v1/api/auth/register', {
+      const response = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
         email,
         password,
       });

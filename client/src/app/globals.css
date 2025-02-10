@@ -587,3 +587,8 @@ body {
 .animate-border-pulse {
     animation: borderPulse 2s infinite;
 }
+
+
+.date{
+	border: 1px solid black;
+}

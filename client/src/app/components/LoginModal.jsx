@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
 import login from "../../../public/login.webp";
+import config from '../config_BASE_URL';
 
 const LoginModal = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +24,7 @@ const LoginModal = ({ isOpen, onClose }) => {
       setLoading(true);
 
       // Send login request to the backend
-      const response = await axios.post('http://localhost:4000/v1/api/auth/login', {
+      const response = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
         email,
         password,
       });
@@ -40,7 +41,7 @@ const LoginModal = ({ isOpen, onClose }) => {
       dispatch(setToken(token));
 
       // Verify the token using POST API
-      const verifyResponse = await axios.post(`http://localhost:4000/v1/api/auth/verify/${token}`, {
+      const verifyResponse = await axios.post(`${config.baseURL}/v1/api/auth/verify/${token}`, {
         token, // Pass the token in the request body
       });
       console.log('Token verified:', verifyResponse.data);

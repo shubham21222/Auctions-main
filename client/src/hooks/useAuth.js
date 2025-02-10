@@ -4,19 +4,20 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useDispatch } from 'react-redux';
 import { setPasswordResetToken } from '@/redux/authSlice';
+import config from '@/app/config_BASE_URL';
 
 const useAuth = () => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
   const dispatch = useDispatch(); // Get the dispatch function
-  
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const verifyToken = async () => {
       console.log('Verifying token...');
-      
+
       if (!token) {
         console.log('No token found. User is not authenticated.');
         setIsAuthenticated(false);
@@ -26,9 +27,9 @@ const useAuth = () => {
 
       try {
         console.log('Sending token to backend for verification:', token);
-        
+
         const response = await axios.post(
-          `http://localhost:4000/v1/api/auth/verify/${token}`,
+          `${config.baseURL}/v1/api/auth/verify/${token}`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -36,7 +37,7 @@ const useAuth = () => {
         );
 
         console.log('Backend verification response:', response.data);
-        
+
         // Check for status: true in the response
         setIsAuthenticated(response.data.status === true);
 
@@ -65,10 +66,10 @@ const useAuth = () => {
 
   // Debug logging for state changes
   useEffect(() => {
-    console.log('Auth State Updated:', { 
+    console.log('Auth State Updated:', {
       token: token ? 'present' : 'absent',
-      isAuthenticated, 
-      loading 
+      isAuthenticated,
+      loading
     });
   }, [token, isAuthenticated, loading]);
 
