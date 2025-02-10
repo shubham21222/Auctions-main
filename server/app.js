@@ -7,11 +7,7 @@ import { badRequest } from './src/v1/api/formatters/globalResponse.js'
 import compression from 'compression';
 
 import path from "path";
-import { fileURLToPath } from "url";
 
-// Get the equivalent of `__dirname` in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 
@@ -19,9 +15,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 import morgan from 'morgan';
 // Serve static files
-// Serve static files correctly
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/uploads/pdf", express.static(path.join(__dirname, "uploads/pdf")));
+
 
 
 app.use(express.json());
@@ -33,6 +27,11 @@ app.options('*', cors());
 app.use(urlencoded({ extended: false }));
 app.use(json());
 app.use(compression())
+
+
+// ✅ Fix: Serve files from absolute path
+const uploadsPath = path.join(process.cwd(), "uploads");
+app.use("/uploads", express.static(uploadsPath));
 
 
 // Root Route - Check if API is running
