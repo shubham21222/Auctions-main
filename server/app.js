@@ -6,15 +6,28 @@ import { badRequest } from './src/v1/api/formatters/globalResponse.js'
 // import userRoutes from "./src/v1/api/routes/user.routes.js"; // Ensure `.js` extension is added
 import compression from 'compression';
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Get the equivalent of `__dirname` in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+
+
 const app = express();
 import morgan from 'morgan';
+// Serve static files
+app.use(express.static(__dirname));
+app.use("/uploads/", express.static("uploads"));
+app.use("/uploads/pdf", express.static("uploads/pdf"));
 
 app.use(express.json());
 app.use(cors());
 app.options('*', cors());
 
-//image path
-app.use('/static', expressStatic('static'))
+
 
 app.use(urlencoded({ extended: false }));
 app.use(json());
