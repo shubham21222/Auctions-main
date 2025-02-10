@@ -200,7 +200,7 @@ export default function ItemForm({ setCurrentStep, selectedCategory }) {
                         <Button variant="outline" onClick={() => setCurrentStep(1)} className="w-full sm:w-auto">
                             Back
                         </Button>
-                        <Button onClick={() => setCurrentStep(3)} className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={() => setCurrentStep(3)} className="w-full sm:w-auto">
                             Continue
                         </Button>
                     </div>

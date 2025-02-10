@@ -10,6 +10,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+
 
 export default function ItemForm3({ setCurrentStep }) {
     const steps = ["Category", "Information", "Photos", "Logistics", "Review"];
@@ -19,60 +22,56 @@ export default function ItemForm3({ setCurrentStep }) {
     return (
         <>
             <div className="hidden sm:flex justify-between items-center mb-8 mt-[80px]">
-                           {steps.map((step, index) => (
-                               <div key={index} className="flex items-center space-x-2">
-                                   <div
-                                       className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all ${
-                                           index < currentStep
-                                               ? "bg-blue-500 text-white border-blue-500"
-                                               : "border-gray-400 text-gray-500"
-                                       }`}
-                                   >
-                                       {index < currentStep ? (
-                                           <CheckCircle size={16} className="text-white" />
-                                       ) : (
-                                           <span className="text-sm">{index + 1}</span>
-                                       )}
-                                   </div>
-                                   <span
-                                       className={`text-sm font-medium ${
-                                           index < currentStep ? "text-blue-500" : "text-gray-500"
-                                       }`}
-                                   >
-                                       {step}
-                                   </span>
-                                   {index < steps.length - 1 && <div className="w-12 h-[2px] bg-gray-300"></div>}
-                               </div>
-                           ))}
-                       </div>
-           
-                       {/* Mobile Stepper */}
-                       <div className="flex sm:hidden justify-between items-center mb-6">
-                           {steps.map((step, index) => (
-                               <div key={index} className="flex flex-col items-center">
-                                   <div
-                                       className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all ${
-                                           index < currentStep
-                                               ? "bg-blue-500 text-white border-blue-500"
-                                               : "border-gray-400 text-gray-500"
-                                       }`}
-                                   >
-                                       {index < currentStep ? (
-                                           <CheckCircle size={12} className="text-white" />
-                                       ) : (
-                                           <span className="text-xs">{index + 1}</span>
-                                       )}
-                                   </div>
-                                   <span
-                                       className={`text-xs font-medium mt-1 ${
-                                           index < currentStep ? "text-blue-500" : "text-gray-500"
-                                       }`}
-                                   >
-                                       {step}
-                                   </span>
-                               </div>
-                           ))}
-                       </div>
+                {steps.map((step, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                        <div
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all ${index < currentStep
+                                    ? "bg-blue-500 text-white border-blue-500"
+                                    : "border-gray-400 text-gray-500"
+                                }`}
+                        >
+                            {index < currentStep ? (
+                                <CheckCircle size={16} className="text-white" />
+                            ) : (
+                                <span className="text-sm">{index + 1}</span>
+                            )}
+                        </div>
+                        <span
+                            className={`text-sm font-medium ${index < currentStep ? "text-blue-500" : "text-gray-500"
+                                }`}
+                        >
+                            {step}
+                        </span>
+                        {index < steps.length - 1 && <div className="w-12 h-[2px] bg-gray-300"></div>}
+                    </div>
+                ))}
+            </div>
+
+            {/* Mobile Stepper */}
+            <div className="flex sm:hidden justify-between items-center mb-6">
+                {steps.map((step, index) => (
+                    <div key={index} className="flex flex-col items-center">
+                        <div
+                            className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all ${index < currentStep
+                                    ? "bg-blue-500 text-white border-blue-500"
+                                    : "border-gray-400 text-gray-500"
+                                }`}
+                        >
+                            {index < currentStep ? (
+                                <CheckCircle size={12} className="text-white" />
+                            ) : (
+                                <span className="text-xs">{index + 1}</span>
+                            )}
+                        </div>
+                        <span
+                            className={`text-xs font-medium mt-1 ${index < currentStep ? "text-blue-500" : "text-gray-500"
+                                }`}
+                        >
+                            {step}
+                        </span>
+                    </div>
+                ))}
+            </div>
             <div className="max-w-3xl mx-auto p-6 space-y-6">
                 <h2 className="text-2xl font-semibold text-center">Tell us about your item</h2>
                 <Card>
@@ -91,8 +90,12 @@ export default function ItemForm3({ setCurrentStep }) {
                             <Checkbox id="restricted-materials" />
                             <Label htmlFor="restricted-materials">Piece contains restricted materials (ivory, tortoiseshell, etc.)</Label>
                         </div>
-                        <Label>Date / Period of Work</Label>
-                        <Calendar selected={date} onSelect={setDate} />
+                        <Label className="mr-4">Date / Period of Work</Label>
+                        <DatePicker
+                            selected={date}
+                            onChange={(date) => setDate(date)}
+                            className="date rounded-md p-2 w-full"
+                        />
 
                         {/* Measurements Section */}
                         <h3 className="text-xl font-semibold">Measurements</h3>
@@ -166,7 +169,7 @@ export default function ItemForm3({ setCurrentStep }) {
 
                         <div className="flex justify-between mt-6">
                             <Button onClick={() => setCurrentStep(1)} variant="outline">Back</Button>
-                            <Button onClick={() => setCurrentStep(3)}>Continue</Button>
+                            <Button onClick={() => setCurrentStep(3)} variant="outline">Continue</Button>
                         </div>
                     </CardContent>
                 </Card>

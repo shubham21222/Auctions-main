@@ -101,12 +101,12 @@ const ContactLogisticsForm = ({ setCurrentStep }) => {
                                 {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
                             </div>
                             <div>
-                                <label className="block font-medium">Region</label>
+                                <label className="block font-medium">State</label>
                                 <select
                                     {...register('region', { required: 'Region is required' })}
                                     className="border rounded w-full p-2"
                                 >
-                                    <option value="">Select Region</option>
+                                    <option value="">Select State</option>
                                     <option value="North">North</option>
                                     <option value="South">South</option>
                                     <option value="East">East</option>
@@ -153,7 +153,7 @@ const ContactLogisticsForm = ({ setCurrentStep }) => {
 
                     <div className="mt-6 flex justify-between">
                         <Button variant="outline" onClick={() => setCurrentStep(3)}>Back</Button>
-                        <Button type="submit">Continue</Button>
+                        <Button type="submit" variant="outline">Continue</Button>
                     </div>
 
                     <p className="text-center mt-3 text-sm text-gray-500">
