@@ -19,9 +19,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 import morgan from 'morgan';
 // Serve static files
-app.use(express.static(__dirname));
-app.use("/uploads/", express.static("uploads"));
-app.use("/uploads/pdf", express.static("uploads/pdf"));
+// Serve static files correctly
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads/pdf", express.static(path.join(__dirname, "uploads/pdf")));
+
 
 app.use(express.json());
 app.use(cors());
@@ -54,7 +55,7 @@ app.use("/v1/api", Routerlocation);
 
 // app.all('*', async (req, res) => {
 //     await badRequest(res, 'Invalid URI');
-// });
+// });  
   
 
 
