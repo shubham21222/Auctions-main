@@ -26,7 +26,7 @@ const ContactPage = () => {
                 <MapPin className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Visit Us</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Address</h3>
                 <p className="text-gray-300 leading-relaxed">
                   269 South Beverly Drive<br />
                   Suite 142<br />
@@ -42,7 +42,7 @@ const ContactPage = () => {
                 <Phone className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Call Us</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Telephone</h3>
                 <a 
                   href="tel:310-402-2450" 
                   className="text-gray-300 hover:text-blue-400 transition-colors"
@@ -58,7 +58,7 @@ const ContactPage = () => {
                 <Mail className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Email Us</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Email</h3>
                 <a 
                   href="mailto:hello@nyelizabeth.com" 
                   className="text-gray-300 hover:text-blue-400 transition-colors"

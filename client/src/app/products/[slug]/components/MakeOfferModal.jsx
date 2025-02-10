@@ -61,6 +61,7 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product }) {
                 <Button 
                   onClick={handleSubmit} 
                   className="bg-blue-600 hover:bg-blue-900 text-white"
+                  
                 >
                   Continue
                 </Button>

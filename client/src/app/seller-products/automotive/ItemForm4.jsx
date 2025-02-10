@@ -100,7 +100,7 @@ export default function ItemForm4({ setCurrentStep }) {
 
                         <div className="flex justify-between mt-6">
                             <Button onClick={() => setCurrentStep(1)} variant="outline">Back</Button>
-                            <Button onClick={() => setCurrentStep(3)}>Continue</Button>
+                            <Button onClick={() => setCurrentStep(3)} variant="outline">Continue</Button>
                         </div>
                     </CardContent>
                 </Card>

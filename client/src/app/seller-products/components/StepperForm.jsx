@@ -128,9 +128,10 @@ export default function StepperForm({ selectedCategory, setSelectedCategory, set
             {/* Continue Button */}
             <div className="text-center mt-6 sm:mt-8">
                 <Button 
-                    className="w-full sm:w-auto bg-black text-white" 
+                    className="w-full  sm:w-auto bg-black text-white" 
                     onClick={handleContinue} 
                     disabled={!selectedCategory}
+                    variant="outline"
                 >
                     Continue
                 </Button>
