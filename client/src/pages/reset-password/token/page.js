@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
-const ResetPassword = ({ params }) => {
+const ResetPassword = () => {
   const router = useRouter();
-  const { token } = params; // Extract token from URL
+  const { token } = useParams(); // Correct way to get the token in Next.js app router
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
