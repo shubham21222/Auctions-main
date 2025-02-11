@@ -1,15 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditProfileModal from "./components/EditProfileModal";
+import { setEmail } from "@/redux/authSlice";
+
 
 export default function ProfilePage() {
     const [activeTab, setActiveTab] = useState("Profile");
     const tabs = ["Profile", "Saved Lots", "Bids", "Purchases", "Seller Portal", "Address"];
+    const auth = useSelector((state) => state.auth); // Access the Redux state
+    const dispatch = useDispatch();
+
+    // Fetch user profile data
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await axios.get("http://localhost:4000/v1/api/auth/updateProfile", {
+                    headers: {
+                        Authorization: `Bearer ${auth.token}`,
+                    },
+                });
+
+                // Dispatch the setEmail action to save the email in Redux
+                if (response.data.items && response.data.items.email) {
+                    dispatch(setEmail(response.data.items.email));
+                }
+            } catch (error) {
+                console.error("Error fetching profile data:", error);
+            }
+        };
+
+        fetchProfile();
+    }, [auth.token, dispatch]);
 
     return (
         <>
@@ -17,8 +45,8 @@ export default function ProfilePage() {
             <div className="max-w-7xl mt-[80px] mx-auto p-6">
                 <div className="bg-gray-100 p-4 rounded-lg text-center">
                     <h1 className="text-2xl font-semibold">My account</h1>
-                    <p className="text-lg font-medium mt-2">Welcome shubhamraikwar08j</p>
-                    <p className="text-blue-600">shubhamraikwar08j@gmail.com</p>
+                    <p className="text-lg font-medium mt-2">{auth.items.email ? auth.items.email.split("@")[0] : "Loading..."}</p>
+                    <p className="text-blue-600">{auth.items.email || "Loading..."}</p>
                 </div>
 
                 <div className="flex border-b mt-6 space-x-6">
@@ -45,8 +73,8 @@ export default function ProfilePage() {
                                     <span>Password</span>
                                 </div>
                                 <div className="grid grid-cols-4 gap-4 mt-2 text-gray-700">
-                                    <span>shubhamraikwar08j</span>
-                                    <span>shubhamraikwar08j@gmail.com</span>
+                                    <span>{auth.items.email ? auth.items.email.split("@")[0] : "Loading..."}</span>
+                                    <span>{auth.items.email || "Loading..."}</span>
                                     <span>-</span>
                                     <span>••••••••••</span>
                                 </div>
