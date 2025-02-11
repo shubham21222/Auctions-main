@@ -29,3 +29,23 @@ export const uploadImage = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+
+
+export const uploadMultipleImages = async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return badRequest(res, "Please upload at least one image");
+        }
+
+        // Generate image URLs for all uploaded files
+        const imageUrls = req.files.map(file => 
+            `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+        );
+
+        return success(res, "Images uploaded successfully", { imageUrls });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
