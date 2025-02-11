@@ -29,7 +29,7 @@ export default function AddCategoryDialog({ fetchCategories }) {
       if (response.status === 201) {
         toast.success("Category added successfully!");
         fetchCategories();
-        setNewCategory({ name: "", description: "" }); // Reset form
+        setNewCategory({ name: "", description: "" });
       }
     } catch (error) {
       console.error("Error adding category:", error);
