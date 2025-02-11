@@ -592,3 +592,11 @@ body {
 .date{
 	border: 1px solid black;
 }
+
+
+
+.btn {
+	background: linear-gradient(92.85deg, #05215A -4.29%, #055C91 117.27%);
+	color: white;
+  }
+  
