@@ -249,7 +249,8 @@ export const forgotPassword = async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         // Construct reset URL
-        const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/resetpassword/${resetToken}`;
+        // const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/resetpassword/${resetToken}`;
+        const resetUrl = `https://beta.nyelizabeth.com/reset-password/${resetToken}`;
 
         // Email Template
         const message = `
