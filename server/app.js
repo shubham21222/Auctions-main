@@ -6,19 +6,32 @@ import { badRequest } from './src/v1/api/formatters/globalResponse.js'
 // import userRoutes from "./src/v1/api/routes/user.routes.js"; // Ensure `.js` extension is added
 import compression from 'compression';
 
+import path from "path";
+
+
+
+
+
 const app = express();
 import morgan from 'morgan';
+// Serve static files
+
+
 
 app.use(express.json());
 app.use(cors());
 app.options('*', cors());
 
-//image path
-app.use('/static', expressStatic('static'))
+
 
 app.use(urlencoded({ extended: false }));
 app.use(json());
 app.use(compression())
+
+
+// ✅ Fix: Serve files from absolute path
+const uploadsPath = path.join(process.cwd(), "uploads");
+app.use("/uploads", express.static(uploadsPath));
 
 
 // Root Route - Check if API is running
@@ -28,8 +41,8 @@ app.get("/", (req, res) => {
 
 
   
-// Serve uploaded images statically
-app.use("/uploads", express.static("uploads"));
+// // Serve uploaded images statically
+// app.use("/uploads", express.static("uploads"));
 
 // Add API ROUTES HERE //
 app.use("/v1/api", Routerlocation);
@@ -41,7 +54,7 @@ app.use("/v1/api", Routerlocation);
 
 // app.all('*', async (req, res) => {
 //     await badRequest(res, 'Invalid URI');
-// });
+// });  
   
 
 
