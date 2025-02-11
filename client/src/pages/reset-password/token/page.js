@@ -4,18 +4,30 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
+// Prevent static page generation
+export const dynamic = 'force-dynamic';
+
 const ResetPassword = () => {
   const router = useRouter();
-  const { token } = useParams(); // Get the token from the URL
+  const params = useParams();
+  const token = params?.token;
+  
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(true);
 
   useEffect(() => {
-    if (!token) {
-      toast.error("Invalid token!");
-      router.push("/login");
-    }
+    // Delay the validation check to ensure client-side hydration
+    const timer = setTimeout(() => {
+      if (!token) {
+        toast.error("Invalid token!");
+        router.push("/login");
+      }
+      setIsValidating(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [token, router]);
 
   const handleResetPassword = async () => {
@@ -26,6 +38,11 @@ const ResetPassword = () => {
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match!");
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters long!");
       return;
     }
 
@@ -49,40 +66,54 @@ const ResetPassword = () => {
       toast.success("Password reset successful!");
       router.push("/login");
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to reset password");
     } finally {
       setLoading(false);
     }
   };
 
+  // Show loading state while validating token
+  if (isValidating) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render the form if there's no token
   if (!token) {
-    return null; // Render nothing until the token is available
+    return null;
   }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h2 className="text-2xl font-bold">Reset Password</h2>
-      <input
-        type="password"
-        placeholder="New Password"
-        className="border rounded-md p-2 w-80 mt-4"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <input
-        type="password"
-        placeholder="Confirm Password"
-        className="border rounded-md p-2 w-80 mt-2"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-      />
-      <button
-        onClick={handleResetPassword}
-        className="bg-blue-500 text-white p-2 rounded-md mt-4 w-80"
-        disabled={loading}
-      >
-        {loading ? "Resetting..." : "Reset Password"}
-      </button>
+      <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center mb-6">Reset Password</h2>
+        <div className="space-y-4">
+          <input
+            type="password"
+            placeholder="New Password"
+            className="w-full border rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            className="w-full border rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+          <button
+            onClick={handleResetPassword}
+            className="w-full bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+            disabled={loading}
+          >
+            {loading ? "Resetting..." : "Reset Password"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
