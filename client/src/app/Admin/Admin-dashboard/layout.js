@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bell, Home, Package, ShoppingCart, Users, DollarSign, Settings, LogOut } from "lucide-react";
+import { Bell, Home, Package, ShoppingCart, Users, DollarSign, Settings, LogOut, ListOrdered } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -45,6 +45,14 @@ export default function DashboardLayout({ children }) {
               Private Sales
             </Button>
           </Link>
+
+          <Link href="/Admin/Admin-dashboard/category">
+            <Button variant="ghost" className="w-full justify-start">
+              <ListOrdered className="mr-2 h-4 w-4" />
+              Category
+            </Button>
+          </Link>
+
           {/* <Link href="/dashboard/users">
             <Button variant="ghost" className="w-full justify-start">
               <Users className="mr-2 h-4 w-4" />
