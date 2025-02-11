@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 const ResetPassword = () => {
   const router = useRouter();
-  const { token } = useParams(); // Correct way to get the token in Next.js app router
+  const { token } = useParams(); // Get the token from the URL
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      toast.error("Invalid token!");
+      router.push("/login");
+    }
+  }, [token, router]);
 
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {
@@ -47,6 +54,10 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
+
+  if (!token) {
+    return null; // Render nothing until the token is available
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
