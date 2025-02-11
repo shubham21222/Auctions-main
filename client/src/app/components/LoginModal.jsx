@@ -2,17 +2,18 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useDispatch } from 'react-redux';
-import { setToken } from '@/redux/authSlice'; // Import Redux action
+import { setToken, setEmail } from '@/redux/authSlice'; // Import Redux actions
 import { Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
 import login from "../../../public/login.webp";
 import config from '../config_BASE_URL';
+import Link from 'next/link';
 
 const LoginModal = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  const [emailInput, setEmailInput] = useState(''); // Renamed to avoid conflict with setEmail
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch(); // Redux dispatch
@@ -25,7 +26,7 @@ const LoginModal = ({ isOpen, onClose }) => {
 
       // Send login request to the backend
       const response = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
-        email,
+        email: emailInput,
         password,
       });
 
@@ -45,6 +46,17 @@ const LoginModal = ({ isOpen, onClose }) => {
         token, // Pass the token in the request body
       });
       console.log('Token verified:', verifyResponse.data);
+
+      // Extract email from the verify response
+      const userEmail = verifyResponse.data.items?.email;
+
+      if (userEmail) {
+        // Save the email in Redux
+        dispatch(setEmail(userEmail));
+        console.log('Email saved in Redux:', userEmail);
+      } else {
+        console.error('Email not found in verify response:', verifyResponse.data);
+      }
 
       // Show success toast notification
       toast.success('Login successful!', {
@@ -155,8 +167,8 @@ const LoginModal = ({ isOpen, onClose }) => {
                     <input
                       type="email"
                       placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm md:text-base"
                       required
                     />
@@ -191,7 +203,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     {loading ? 'Logging in...' : 'Login'}
                   </motion.button>
                   <div className="text-center text-sm text-gray-600">
-                    <a href="#" className="text-blue-600 hover:underline">Forgot Password?</a>
+                    <Link href="/forget-password" className="text-blue-600 hover:underline">Forgot Password?</Link>
                   </div>
                   <div className="text-center text-sm text-gray-600">
                     Don't have an account?{' '}
