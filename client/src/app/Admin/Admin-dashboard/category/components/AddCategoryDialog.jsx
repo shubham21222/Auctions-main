@@ -28,7 +28,7 @@ export default function AddCategoryDialog({ fetchCategories }) {
       );
       if (response.status === 201) {
         toast.success("Category added successfully!");
-        fetchCategories(); // Refresh the list after adding
+        fetchCategories();
         setNewCategory({ name: "", description: "" }); // Reset form
       }
     } catch (error) {
