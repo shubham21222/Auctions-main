@@ -14,6 +14,7 @@ import {
     onError,
     isValidObjectId
 } from "../../../../../src/v1/api/formatters/globalResponse.js";
+import favorite from "../../models/Favorite/favorite.js";
 import ProductModel from "../../models/Products/product.model.js"
 import mongoose from "mongoose";
 
@@ -128,6 +129,7 @@ export const getFilteredProducts = async (req, res) => {
                     created_at: 1,
                     updated_at: 1,
                     details: 1,
+                    favorite: 1,
                     category: {
                         _id: 1,
                         name: 1
