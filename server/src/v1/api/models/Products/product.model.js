@@ -48,6 +48,11 @@ const productSchema = new mongoose.Schema({
         default: 'Not Sold'
     },
 
+    favorite: {
+        type: Boolean,
+        default: false
+    },
+
 
     sortByPrice: {
         type: String,
@@ -69,7 +74,9 @@ const productSchema = new mongoose.Schema({
     updated_at: {
         type: Date,
         default: Date.now
-    }
+    },
+
+
 },{
     timestamps: true
 })
