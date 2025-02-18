@@ -133,10 +133,9 @@ export default function Checkout() {
                 <div className="w-full h-48 bg-gray-200 animate-pulse rounded-lg mb-4" />
               )}
 
-              {/* Product Name */}
+             
               <p className="text-gray-700 font-medium">{productDetails.productName}</p>
 
-              {/* Price Breakdown */}
               <div className="mt-4 text-gray-600 space-y-1">
                 <p>
                   Subtotal:{" "}
