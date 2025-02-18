@@ -18,7 +18,10 @@ import {
 import {validateMongoDbId} from "../../Utils/validateMongodbId.js"
 import productModel from "../../models/Products/product.model.js"
 import categoryModel from "../../models/Category/category.model.js"
+import UserModel from "../../models/Auth/User.js"
+import stripe from "../../config/stripeConfig.js"
 import mongoose from "mongoose"
+import { response } from "express"
 
 
 //Geerate LOT //
@@ -52,6 +55,8 @@ export const createAuction = async (req, res) => {
         if (!categoryExists) {
             return badRequest(res, "Category not found");
         }
+
+
 
         // Generate LOT number
         const lotNumber = await generateLotNumber();
@@ -216,9 +221,134 @@ export const getAuctions = async (req, res) => {
             },
         ]);
 
-        return success(res, 'Auctions retrieved successfully.', auctions);
+
+         // Format the startDate and endDate after aggregation
+         const formattedAuctions = auctions.map(auction => ({
+            ...auction,
+            startDateFormatted: formatAuctionDate(auction.startDate),
+            endDateFormatted: formatAuctionDate(auction.endDate),
+        }));
+
+        return success(res, 'Auctions retrieved successfully.', formattedAuctions);
     } catch (error) {
         console.error('Error fetching auctions:', error);
         return unknownError(res, error.message);
     }
 };
+
+
+// User join the Auction //
+
+export const joinAuction = async (req, res) => {
+    try {
+
+
+        const UserId = req.user._id;
+        const {auctionId} = req.body;
+
+        if(!auctionId){
+            return badRequest(res, "Please provide Auction ID");
+        }
+
+
+        const findUser = await UserModel.findById(UserId)
+        if(!findUser){
+            return badRequest(res, "User not found")
+        }
+
+        // find auction by id //
+
+        const findAuction = await auctionModel.findById(auctionId)
+        if(!findAuction){
+            return badRequest(res, "Auction not found")
+        }
+
+        // check if user already joined //
+        if(findAuction.participants.includes(UserId)){
+            return badRequest(res, "User already joined the auction")
+        }
+
+        // check end date of auction should be greater than current date //
+
+        if(findAuction.endDate < Date.now()){
+            return badRequest(res, "Auction has ended")
+        }
+
+        let paymentAmount = 100;
+        if(findUser.walletBalance < paymentAmount){
+            return badRequest(res, "Please add funds to your wallet to join the auction")
+        }
+
+        findUser.walletBalance -= paymentAmount;
+        await findUser.save();
+
+
+        findAuction.participants.push(UserId);
+        await findAuction.save();
+
+        return success(res, "User joined the auction successfully", findAuction)
+    } catch (error) {
+        console.log("error" , error)
+        return unknownError(res, error);
+    }
+}
+
+
+// add balance in wallet //
+
+export const AddBalance = async (req, res) => {
+    try {
+
+        const UserId = req.user._id;
+        if(!UserId){
+            return badRequest(res , 'Please Provide the UserId')
+        }
+
+        const findUser = await UserModel.findById(UserId)
+        if(!findUser){
+            return badRequest(res, "User not found")
+        }
+
+
+        const {name , email , mobile} = findUser
+        
+        const { amount, currency } = req.body;
+
+        // Validate input
+        if (!amount || !currency) {
+            return badRequest(res, "Amount or currency not provided.");
+        }
+
+        // Create a PaymentIntent
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount * 100, // Convert to cents
+            currency,
+            payment_method_types: ["card"],
+            metadata: { 
+                CustomerName: name,
+                CustomerEmail: email,
+                CustomerMobile: mobile,
+                integration_check: "wallet_topup" },
+        });
+
+
+
+
+
+        // Return client_secret to frontend
+        // return response(res, 200, "Add Balance Successfully", {
+        //     clientSecret: paymentIntent.client_secret,
+        // });
+
+
+        return success(res, "Add Balance Successfully", paymentIntent)
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        return unknownError(res, error);
+    }
+};
+
+
+
+
+

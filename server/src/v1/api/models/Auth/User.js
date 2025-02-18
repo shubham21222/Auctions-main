@@ -103,7 +103,22 @@ const UserSchema = new mongoose.Schema({
             required: false
         }],
 
-        walletBalance: { type: Number, default: 1000 }, // Default balance
+        walletBalance: { type: Number, default: 0 }, // Default balance
+
+
+        // payment connectivity //
+
+        payments: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Payment',
+            required: false
+        }],
+
+        Payment_Status:{
+            type:String,
+            enum:['PENDING','PAID'],
+            default:'PENDING'
+        }
 
 },{
     timestamps: true,
