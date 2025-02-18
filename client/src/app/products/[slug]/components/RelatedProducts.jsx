@@ -3,14 +3,16 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import products from "@/app/data/ProductData";
 
-
 export default function RelatedProducts({ product }) {
+    // Ensure product is defined and has a slug
+    const currentSlug = product?.slug || "";
+
     return (
         <section className="mt-16">
             <h2 className="text-xl font-bold text-gray-900 mb-6">You May Also Like</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {products
-                    .filter((p) => p.slug !== product.slug)
+                    .filter((p) => p.slug !== currentSlug)
                     .slice(0, 4)
                     .map((relatedProduct) => (
                         <div key={relatedProduct.slug} className="group relative">

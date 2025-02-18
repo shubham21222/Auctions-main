@@ -144,12 +144,12 @@ export default function Checkout() {
                 </p>
                 <p>
                   Hold Amount (Non-refundable):{" "}
-                  <span className="font-bold text-red-500">-$100</span>
+                  <span className="font-bold text-green-500">+$100</span>
                 </p>
                 <p className="text-lg font-semibold">
                   Total:{" "}
                   <span className="font-bold text-green-600">
-                    ${(parseFloat(productDetails.offerPrice) - 100).toLocaleString()}
+                    ${(parseFloat(productDetails.offerPrice) + 100).toLocaleString()}
                   </span>
                 </p>
               </div>
