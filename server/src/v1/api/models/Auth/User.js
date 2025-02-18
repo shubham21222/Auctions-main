@@ -87,6 +87,24 @@ const UserSchema = new mongoose.Schema({
         type: Date,
       },
 
+      // Product connectivity //
+
+        products: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+            required: false
+        }],
+
+        // Auction connectivity //
+
+        auctions: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Auction',
+            required: false
+        }],
+
+        walletBalance: { type: Number, default: 1000 }, // Default balance
+
 },{
     timestamps: true,
 })
