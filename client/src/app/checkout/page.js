@@ -158,7 +158,6 @@ export default function Checkout() {
                 Submit Offer
               </button>
 
-              {/* Terms and Conditions */}
               <p className="text-xs text-gray-500 text-center mt-3">
                 By submitting an offer you agree to our{" "}
                 <a href="#" className="text-blue-600 hover:underline">
