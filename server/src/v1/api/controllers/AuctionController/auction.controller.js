@@ -366,6 +366,8 @@ export const stripeWebhook = async (req, res) => {
 
 
     const sig = req.headers["stripe-signature"];
+
+    console.log("sig->>>>>>>>>>>>" , sig)
     const endpointSecret = "whsec_rJ5wqkU5Pb49zRsd8qxMPrkDolhqTMal";
 
 
