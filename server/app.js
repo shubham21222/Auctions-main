@@ -18,7 +18,15 @@ import morgan from 'morgan';
 
 
 
-app.use(express.json());
+// ✅ Apply JSON Parsing to All Routes Except Stripe Webhook
+app.use((req, res, next) => {
+  if (req.originalUrl === "/v1/api/auction/stripe-webhook") {
+      next(); // 🚀 Skip JSON parsing for Stripe webhook
+  } else {
+      express.json()(req, res, next);
+  }
+});
+
 app.use(cors());
 app.options('*', cors());
 
