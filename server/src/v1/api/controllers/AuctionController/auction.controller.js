@@ -361,8 +361,15 @@ export const AddBalance = async (req, res) => {
 // Webhook function
 // Webhook Function
 export const stripeWebhook = async (req, res) => {
+
+    console.log("req-row---------- >>>>>> " , req.rawBody)
+
+
     const sig = req.headers["stripe-signature"];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const endpointSecret = "whsec_rJ5wqkU5Pb49zRsd8qxMPrkDolhqTMal";
+
+
+    console.log("endpointSecret------------- >>>>>>> " , endpointSecret)
 
     if (!endpointSecret) {
         console.error("🚨 Missing Stripe Webhook Signature or Secret");
@@ -371,7 +378,7 @@ export const stripeWebhook = async (req, res) => {
 
     let event;
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
     } catch (err) {
         console.error("❌ Webhook signature verification failed:", err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
