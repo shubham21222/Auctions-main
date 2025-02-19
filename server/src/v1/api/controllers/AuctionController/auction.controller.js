@@ -22,6 +22,7 @@ import UserModel from "../../models/Auth/User.js"
 import stripe from "../../config/stripeConfig.js"
 import mongoose from "mongoose"
 import { response } from "express"
+import { ObjectId } from "mongodb"
 
 
 //Geerate LOT //
@@ -118,9 +119,6 @@ export const getAuctions = async (req, res) => {
             matchStage.category = new mongoose.Types.ObjectId(category); // Assuming category is a single ObjectId
         }
 
-        console.log(matchStage)
-
-
         // Filter auctions by type (if provided)
 
         if (auctionType) {
@@ -133,6 +131,8 @@ export const getAuctions = async (req, res) => {
         if (status) {
             matchStage.status = status; // ACTIVE or ENDED
         }
+
+
 
         // Search by product title or description
         if (searchQuery) {
@@ -172,6 +172,8 @@ export const getAuctions = async (req, res) => {
         } else {
             sortStage.startDate = 1; // Default sort by startDate (Oldest First)
         }
+
+        
 
 
         // Aggregation pipeline
@@ -220,6 +222,8 @@ export const getAuctions = async (req, res) => {
                 },
             },
         ]);
+
+
 
 
          // Format the startDate and endDate after aggregation
@@ -309,8 +313,10 @@ export const AddBalance = async (req, res) => {
             return badRequest(res, "User not found")
         }
 
+        console.log("findUser" , findUser)
 
-        const {name , email , mobile} = findUser
+
+        const {name , email , mobile } = findUser
         
         const { amount, currency } = req.body;
 
@@ -325,10 +331,11 @@ export const AddBalance = async (req, res) => {
             currency,
             payment_method_types: ["card"],
             metadata: { 
+                CustomerId: findUser._id.toString(),
                 CustomerName: name,
                 CustomerEmail: email,
                 CustomerMobile: mobile,
-                integration_check: "wallet_topup" },
+                integration_check: "auction_payment" },
         });
 
         
@@ -346,6 +353,87 @@ export const AddBalance = async (req, res) => {
 };
 
 
+
+// called the webhook //
+
+// Webhook function
+// Webhook Function
+export const stripeWebhook = async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!sig || !endpointSecret) {
+        console.error("🚨 Missing Stripe Webhook Signature or Secret");
+        return res.status(400).send("Webhook signature or secret missing.");
+    }
+
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    } catch (err) {
+        console.error("❌ Webhook signature verification failed:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log(`✅ Received Event: ${event.type}`);
+
+    try {
+        switch (event.type) {
+            case "payment_intent.succeeded":
+                const paymentIntent = event.data.object;
+                console.log(`💰 Payment successful: ${paymentIntent.id}`);
+
+                if (paymentIntent.metadata?.CustomerId) {
+                    const userId = ObjectId(paymentIntent.metadata.CustomerId);
+                    const user = await UserModel.findById(userId);
+
+                    if (!user) {
+                        console.error("❌ User not found for ID:", userId);
+                        return res.status(400).send("User not found.");
+                    }
+
+                    // Check if this payment was for an auction
+                    if (paymentIntent.metadata.integration_check == "auction_payment") {
+                        console.log("🏆 Auction payment detected. Updating winner status.");
+                    
+                        const updatedUser = await UserModel.findOneAndUpdate(
+                            { _id: userId },
+                            {
+                                $set: {
+                                    Payment_Status: "PAID",
+                                    walletBalance: 100, // Ensure this is the correct logic
+                                },
+                            },
+                            { new: true } // This should be outside the $set
+                        );
+                    
+                        console.log("✅ Updated User:", updatedUser);
+                    }
+                    
+
+                    // Check if this payment was for wallet top-up
+                    if (paymentIntent.metadata.integration_check == "wallet_topup") {
+                        console.log("💰 Wallet top-up detected. Adding balance.");
+                        user.walletBalance += paymentIntent.amount / 100; // Convert cents to dollars
+                        await user.save();
+                    }
+                }
+                break;
+
+            case "payment_intent.payment_failed":
+                console.log(`❌ Payment failed: ${event.data.object.id}`);
+                break;
+
+            default:
+                console.log(`⚠️ Unhandled event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
+    } catch (error) {
+        console.error("🚨 Webhook Processing Error:", error);
+        return res.status(500).send("Internal Server Error.");
+    }
+};
 
 
 

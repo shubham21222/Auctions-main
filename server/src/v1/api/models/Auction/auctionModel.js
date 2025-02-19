@@ -26,13 +26,7 @@ const auctionSchema = new mongoose.Schema({
     startDate: { type: Date, default: Date.now },
     endDate: { 
         type: Date, 
-        required: true,
-        validate: {
-            validator: function(value) {
-                return value > Date.now();
-            },
-            message: "End date must be in the future."
-        }
+        required: true
     },
     bids: [bidSchema],
     winner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -50,9 +44,6 @@ const auctionSchema = new mongoose.Schema({
 auctionSchema.pre("save", function (next) {
     if (this.isNew) {
         this.currentBid = this.startingBid;
-    }
-    if (this.endDate <= Date.now()) {
-        this.status = "ENDED";
     }
 
     next();
