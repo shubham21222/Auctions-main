@@ -364,7 +364,7 @@ export const stripeWebhook = async (req, res) => {
     const sig = req.headers["stripe-signature"];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!sig || !endpointSecret) {
+    if (!endpointSecret) {
         console.error("🚨 Missing Stripe Webhook Signature or Secret");
         return res.status(400).send("Webhook signature or secret missing.");
     }
@@ -381,6 +381,48 @@ export const stripeWebhook = async (req, res) => {
 
     try {
         switch (event.type) {
+
+
+            case "payment_intent.created":
+                console.log(`🔄 Payment Intent Created for: ${paymentIntent.id}`);
+
+                if (paymentIntent.metadata?.CustomerId) {
+                    const userId = ObjectId(paymentIntent.metadata.CustomerId);
+                    const user = await UserModel.findById(userId);
+
+                    if (!user) {
+                        console.error("❌ User not found for ID:", userId);
+                        return res.status(400).send("User not found.");
+                    }
+
+                    // Check if this payment was for an auction
+                    if (paymentIntent.metadata.integration_check == "auction_payment") {
+                        console.log("🏆 Auction payment detected. Updating winner status.");
+                    
+                        const updatedUser = await UserModel.findOneAndUpdate(
+                            { _id: userId },
+                            {
+                                $set: {
+                                    Payment_Status: "PROCESSING"
+                                },
+                            },
+                            { new: true } // This should be outside the $set
+                        );
+                    
+                        console.log("✅ Updated User:", updatedUser);
+                    }
+                    
+
+                    // Check if this payment was for wallet top-up
+                    if (paymentIntent.metadata.integration_check == "wallet_topup") {
+                        console.log("💰 Wallet top-up detected. Adding balance.");
+                        user.walletBalance += paymentIntent.amount / 100; // Convert cents to dollars
+                        await user.save();
+                    }
+                }
+        
+                break;
+
             case "payment_intent.succeeded":
                 const paymentIntent = event.data.object;
                 console.log(`💰 Payment successful: ${paymentIntent.id}`);

@@ -116,7 +116,7 @@ const UserSchema = new mongoose.Schema({
 
         Payment_Status:{
             type:String,
-            enum:['PENDING','PAID'],
+            enum:['PENDING','PAID','PROCESSING'],
             default:'PENDING'
         }
 
