@@ -100,13 +100,12 @@ export const getFilteredProducts = async (req, res) => {
                 sortStage.created_at = sortOrder == "asc" ? 1 : -1; // Oldest-Newest or Newest-Oldest
             }
         } else {
-            sortStage.created_at = -1; // Default sorting (newest first)
+            sortStage.createdAt = -1; // Default sorting (newest first)
         }
 
 
         const products = await ProductModel.aggregate([
             { $match: matchStage },
-            { $sort: sortStage },
             {
                 $lookup: {
                     from: "categories",
@@ -116,6 +115,7 @@ export const getFilteredProducts = async (req, res) => {
                 }
             },
             { $unwind: "$category" },
+            { $sort: sortStage },
             {
                 $project: {
                     title: 1,
@@ -141,7 +141,7 @@ export const getFilteredProducts = async (req, res) => {
 
         return success(res, "Products fetched successfully", products);
     } catch (error) {
-        return unknownError(res, error.message);
+        return unknownError(res, error);
     }
 };
 

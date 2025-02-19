@@ -332,10 +332,6 @@ export const AddBalance = async (req, res) => {
         });
 
         
-
-
-
-
         // Return client_secret to frontend
         // return response(res, 200, "Add Balance Successfully", {
         //     clientSecret: paymentIntent.client_secret,
