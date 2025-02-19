@@ -20,7 +20,8 @@ import morgan from 'morgan';
 
 // ✅ Apply JSON Parsing to All Routes Except Stripe Webhook
 app.use((req, res, next) => {
-  if (req.originalUrl === "/v1/api/auction/stripe-webhook") {
+  console.log("req" , req.originalUrl)
+  if (req.originalUrl == "/v1/api/auction/stripe-webhook") {
       next(); // 🚀 Skip JSON parsing for Stripe webhook
   } else {
       express.json()(req, res, next);
