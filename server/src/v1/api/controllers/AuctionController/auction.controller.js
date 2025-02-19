@@ -23,6 +23,8 @@ import stripe from "../../config/stripeConfig.js"
 import mongoose from "mongoose"
 import { response } from "express"
 import { ObjectId } from "mongodb"
+import dotenv from "dotenv"
+dotenv.config()
 
 
 //Geerate LOT //
