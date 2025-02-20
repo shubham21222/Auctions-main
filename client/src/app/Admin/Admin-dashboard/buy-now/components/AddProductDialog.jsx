@@ -160,7 +160,6 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             <FormField label="Offer Amount" id="offerAmount" type="number" value={newProduct.offerAmount} 
               onChange={(e) => setNewProduct({ ...newProduct, offerAmount: e.target.value })} />
 
-            {/* Category Dropdown */}
             <SelectField
               label="Category"
               id="category"
@@ -170,7 +169,6 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
               className="bg-white"
             />
 
-            {/* Image Inputs */}
             {imageInputs.map((input, index) => (
               <div key={index} className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Image {index + 1}</Label>
