@@ -27,7 +27,7 @@ export default function CategoryManagement() {
     try {
       setLoading(true);
       const response = await axios.get(`${config.baseURL}/v1/api/category/all`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `${token}` },
       });
       setCategories(response.data.items);
     } catch (error) {
@@ -41,7 +41,7 @@ export default function CategoryManagement() {
   const handleDeleteCategory = async (id) => {
     try {
       const response = await axios.delete(`${config.baseURL}/v1/api/category/delete/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `${token}` },
       });
       if (response.status === 200) {
         toast.success("Category deleted successfully!");

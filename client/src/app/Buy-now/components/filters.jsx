@@ -1,34 +1,48 @@
-'use client'
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { motion } from "framer-motion"
-import { Search, Filter } from "lucide-react"
-import { useState } from "react"
+'use client';
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { motion } from "framer-motion";
+import { Search, Filter } from "lucide-react";
+import { useState } from "react";
 
-export function Filters() {
+export function Filters({
+  categories, // Receive categories as a prop
+  selectedCategories,
+  setSelectedCategories,
+  selectedStatus,
+  setSelectedStatus,
+  selectedPriceRange,
+  setSelectedPriceRange,
+  selectedSortField,
+  setSelectedSortField,
+  selectedSortOrder,
+  setSelectedSortOrder,
+  searchQuery,
+  setSearchQuery,
+}) {
   const [isOpen, setIsOpen] = useState({
     search: false,
     categories: false,
     status: false,
     priceRange: false,
-  })
+  });
 
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const toggleSection = (section) => {
-    setIsOpen((prev) => ({ ...prev, [section]: !prev[section] }))
-  }
+    setIsOpen((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   return (
     <div className="relative">
       {/* Mobile Dropdown Toggle */}
       <div className="lg:hidden">
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
           className="flex items-center space-x-2"
         >
@@ -52,6 +66,8 @@ export function Filters() {
                 <Input
                   type="search"
                   placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 transition-colors duration-300"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -60,18 +76,26 @@ export function Filters() {
 
             {/* Categories Section */}
             <div className="space-y-4">
-              <h3 className="font-bold text-lg text-blue-700">
-                Categories
-              </h3>
+              <h3 className="font-bold text-lg text-blue-700">Categories</h3>
               <div className="space-y-3">
-                {["Jewelry", "Fashion", "Uncategorized"].map((category) => (
-                  <div key={category} className="flex items-center space-x-3">
+                {categories.map((category) => (
+                  <div key={category._id} className="flex items-center space-x-3">
                     <Checkbox
-                      id={category.toLowerCase()}
+                      id={category._id}
+                      checked={selectedCategories.includes(category._id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCategories((prev) => [...prev, category._id]);
+                        } else {
+                          setSelectedCategories((prev) =>
+                            prev.filter((cat) => cat !== category._id)
+                          );
+                        }
+                      }}
                       className="data-[state=checked]:bg-blue-600"
                     />
-                    <Label htmlFor={category.toLowerCase()} className="cursor-pointer">
-                      {category}
+                    <Label htmlFor={category._id} className="cursor-pointer">
+                      {category.name}
                     </Label>
                   </div>
                 ))}
@@ -80,15 +104,14 @@ export function Filters() {
 
             {/* Status Section */}
             <div className="space-y-4">
-              <h3 className="font-bold text-lg text-blue-700">
-                Status
-              </h3>
-              <RadioGroup defaultValue="all" className="space-y-3">
+              <h3 className="font-bold text-lg text-blue-700">Status</h3>
+              <RadioGroup
+                value={selectedStatus}
+                onValueChange={setSelectedStatus}
+                className="space-y-3"
+              >
                 {["Sold", "Not Sold"].map((status) => (
-                  <div
-                    key={status}
-                    className="flex items-center space-x-3"
-                  >
+                  <div key={status} className="flex items-center space-x-3">
                     <RadioGroupItem
                       value={status.toLowerCase()}
                       id={status.toLowerCase()}
@@ -104,15 +127,14 @@ export function Filters() {
 
             {/* Price Range Section */}
             <div className="space-y-4">
-              <h3 className="font-bold text-lg text-blue-700">
-                Price Range
-              </h3>
-              <RadioGroup defaultValue="all" className="space-y-3">
+              <h3 className="font-bold text-lg text-blue-700">Price Range</h3>
+              <RadioGroup
+                value={selectedPriceRange}
+                onValueChange={setSelectedPriceRange}
+                className="space-y-3"
+              >
                 {["High Price", "Low Price"].map((price) => (
-                  <div
-                    key={price}
-                    className="flex items-center space-x-3"
-                  >
+                  <div key={price} className="flex items-center space-x-3">
                     <RadioGroupItem
                       value={price.toLowerCase()}
                       id={price.toLowerCase()}
@@ -129,6 +151,14 @@ export function Filters() {
             {/* Reset Filters Button */}
             <Button
               variant="outline"
+              onClick={() => {
+                setSelectedCategories([]);
+                setSelectedStatus("");
+                setSelectedPriceRange("");
+                setSelectedSortField("created_at");
+                setSelectedSortOrder("asc");
+                setSearchQuery("");
+              }}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-6 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Reset Filters
@@ -149,6 +179,8 @@ export function Filters() {
             <Input
               type="search"
               placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 transition-colors duration-300"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -157,18 +189,26 @@ export function Filters() {
 
         {/* Categories Section */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-blue-700">
-            Categories
-          </h3>
+          <h3 className="font-bold text-lg text-blue-700">Categories</h3>
           <div className="space-y-3">
-            {["Jewelry", "Fashion", "Uncategorized"].map((category) => (
-              <div key={category} className="flex items-center space-x-3">
+            {categories.map((category) => (
+              <div key={category._id} className="flex items-center space-x-3">
                 <Checkbox
-                  id={category.toLowerCase()}
+                  id={category._id}
+                  checked={selectedCategories.includes(category._id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedCategories((prev) => [...prev, category._id]);
+                    } else {
+                      setSelectedCategories((prev) =>
+                        prev.filter((cat) => cat !== category._id)
+                      );
+                    }
+                  }}
                   className="data-[state=checked]:bg-blue-600"
                 />
-                <Label htmlFor={category.toLowerCase()} className="cursor-pointer">
-                  {category}
+                <Label htmlFor={category._id} className="cursor-pointer">
+                  {category.name}
                 </Label>
               </div>
             ))}
@@ -177,15 +217,14 @@ export function Filters() {
 
         {/* Status Section */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-blue-700">
-            Status
-          </h3>
-          <RadioGroup defaultValue="all" className="space-y-3">
+          <h3 className="font-bold text-lg text-blue-700">Status</h3>
+          <RadioGroup
+            value={selectedStatus}
+            onValueChange={setSelectedStatus}
+            className="space-y-3"
+          >
             {["Sold", "Not Sold"].map((status) => (
-              <div
-                key={status}
-                className="flex items-center space-x-3"
-              >
+              <div key={status} className="flex items-center space-x-3">
                 <RadioGroupItem
                   value={status.toLowerCase()}
                   id={status.toLowerCase()}
@@ -201,15 +240,14 @@ export function Filters() {
 
         {/* Price Range Section */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-blue-700">
-            Price Range
-          </h3>
-          <RadioGroup defaultValue="all" className="space-y-3">
+          <h3 className="font-bold text-lg text-blue-700">Price Range</h3>
+          <RadioGroup
+            value={selectedPriceRange}
+            onValueChange={setSelectedPriceRange}
+            className="space-y-3"
+          >
             {["High Price", "Low Price"].map((price) => (
-              <div
-                key={price}
-                className="flex items-center space-x-3"
-              >
+              <div key={price} className="flex items-center space-x-3">
                 <RadioGroupItem
                   value={price.toLowerCase()}
                   id={price.toLowerCase()}
@@ -226,11 +264,19 @@ export function Filters() {
         {/* Reset Filters Button */}
         <Button
           variant="outline"
+          onClick={() => {
+            setSelectedCategories([]);
+            setSelectedStatus("");
+            setSelectedPriceRange("");
+            setSelectedSortField("created_at");
+            setSelectedSortOrder("asc");
+            setSearchQuery("");
+          }}
           className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-6 shadow-lg hover:shadow-xl transition-all duration-300"
         >
           Reset Filters
         </Button>
       </motion.div>
     </div>
-  )
+  );
 }

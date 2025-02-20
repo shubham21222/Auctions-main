@@ -7,64 +7,51 @@ import Footer from "@/app/components/Footer";
 import ProductDetails from "./components/ProductDetails"; // Import the ProductDetails component
 
 export default function ProductPage() {
-    const { slug } = useParams(); // Extract slug from URL (e.g., 214047)
-    const [products, setProducts] = useState([]); // Store all products fetched from API
-    const [product, setProduct] = useState(null); // Store the matched product
+    const { slug } = useParams(); // Extract slug (product ID) from URL
+    const [product, setProduct] = useState(null); // Store the fetched product
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchProducts() {
+        async function fetchProduct() {
             try {
                 setIsLoading(true);
-                const response = await fetch(`/api/products`); // Fetch all products
+                const response = await fetch(`http://localhost:4000/v1/api/product/${slug}`); // Fetch product by ID
                 if (!response.ok) {
-                    throw new Error("Failed to fetch products");
+                    throw new Error("Failed to fetch product");
                 }
                 const data = await response.json();
 
-                // Clean up keys to remove BOM (\ufeff)
-                const cleanedProducts = data.products.map((product) => {
-                    const cleanedProduct = {};
-                    for (const key in product) {
-                        const cleanKey = key.replace("\ufeff", ""); // Remove BOM
-                        cleanedProduct[cleanKey] = product[key];
-                    }
-                    return cleanedProduct;
-                });
+                // Check if the API returned a valid product
+                if (data.status && data.items) {
+                    const apiProduct = data.items;
 
-                setProducts(cleanedProducts);
+                    // Transform the product data to match the expected structure
+                    const transformedProduct = {
+                        name: apiProduct.title || "Product Name",
+                        description: apiProduct.description || "No description available.",
+                        price: {
+                            min: parseFloat(apiProduct.price) || 0,
+                            max: parseFloat(apiProduct.price) || 0,
+                        },
+                        location: "Beverly Hills, CA", // Default location
+                        images: apiProduct.image?.map((img) => img.trim()) || [],
+                    };
+
+                    setProduct(transformedProduct);
+                } else {
+                    console.error("Invalid product data:", data);
+                }
             } catch (error) {
-                console.error("Error fetching products:", error);
+                console.error("Error fetching product:", error);
             } finally {
                 setIsLoading(false);
             }
         }
 
-        fetchProducts();
-    }, []);
-
-    useEffect(() => {
-        if (products.length > 0 && slug) {
-            const matchedProduct = products.find(
-                (p) => p.ID == slug // Use the cleaned "ID" field
-            );
-
-            // Transform the product data to match the expected structure
-            if (matchedProduct) {
-                const transformedProduct = {
-                    name: matchedProduct.Name || "Product Name",
-                    description: matchedProduct.Description || "No description available.",
-                    price: {
-                        min: parseFloat(matchedProduct["Regular price"]) || 0,
-                        max: parseFloat(matchedProduct["Regular price"]) || 0,
-                    },
-                    location: "Beverly Hills, CA", // Default location from the API description
-                    images: matchedProduct.Images?.split(",").map((img) => img.trim()) || [],
-                };
-                setProduct(transformedProduct);
-            }
+        if (slug) {
+            fetchProduct();
         }
-    }, [products, slug]);
+    }, [slug]);
 
     if (!product && !isLoading) {
         return (

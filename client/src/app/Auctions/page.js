@@ -50,7 +50,7 @@ export default function AuctionCalendar() {
           </div>
           <h1 className="mb-4 text-5xl font-bold tracking-tight text-luxury-charcoal">Auction Calendar</h1>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Discover extraordinary pieces from the world's most prestigious collections. Each auction is carefully
+            Discover extraordinary pieces from the world&apos;s most prestigious collections. Each auction is carefully
             curated to bring you the finest in luxury.
           </p>
         </div>

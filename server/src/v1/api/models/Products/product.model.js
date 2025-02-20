@@ -49,7 +49,7 @@ const productSchema = new mongoose.Schema({
     },
 
     favorite: {
-        type: Boolean,
+        type: Boolean,  
         default: false
     },
 
