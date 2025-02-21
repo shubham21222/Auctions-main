@@ -1,4 +1,4 @@
-"use client"; // Client-side only component
+"use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { toast } from "react-hot-toast";
@@ -15,7 +15,6 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Animation variants for smooth entrance
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -33,29 +32,46 @@ const ResetPassword = () => {
 
     try {
       setLoading(true);
-      const res = await fetch(`${config.baseURL}/v1/api/auth/resetPassword/${token}`, {
+      const apiUrl = `${config.baseURL}/v1/api/auth/resetPassword/${token}`;
+      console.log("Request URL:", apiUrl);
+      console.log("Request Payload:", JSON.stringify({ password }));
+
+      const res = await fetch(apiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }), // Payload: {"password": "Harshal@111"}
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json", // Ensure server responds with JSON
+        },
+        body: JSON.stringify({ password }),
       });
 
-      const data = await res.json();
+      const textResponse = await res.text(); // Get raw response text for debugging
+      console.log("Response Status:", res.status);
+      console.log("Raw Response:", textResponse);
+
+      let data;
+      try {
+        data = JSON.parse(textResponse); // Attempt to parse as JSON
+      } catch (e) {
+        console.error("Failed to parse response as JSON:", e);
+        throw new Error("Server returned invalid JSON: " + textResponse);
+      }
 
       if (!res.ok) {
-        throw new Error(data.message || "Failed to reset password");
+        throw new Error(data.message || `Server error: ${res.status}`);
       }
 
       toast.success("Password reset successful!", { position: "top-center" });
-      setTimeout(() => router.push("/"), 1000); // Redirect to home after 1s
+      setTimeout(() => router.push("/"), 1000);
     } catch (error) {
-      toast.error(error.message, { position: "top-center" });
+      console.error("Full Error:", error);
+      toast.error(error.message || "An unexpected error occurred", { position: "top-center" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Only render on client-side (avoid SSR issues)
-  if (!router.isReady) return null; // Wait for router to be ready
+  if (!router.isReady) return null;
 
   return (
     <>
@@ -72,7 +88,6 @@ const ResetPassword = () => {
           </h2>
 
           <div className="space-y-6">
-            {/* New Password Input */}
             <div className="relative">
               <input
                 type="password"
@@ -84,7 +99,6 @@ const ResetPassword = () => {
               <span className="absolute inset-y-0 right-3 flex items-center text-gray-400">🔒</span>
             </div>
 
-            {/* Confirm Password Input */}
             <div className="relative">
               <input
                 type="password"
@@ -96,7 +110,6 @@ const ResetPassword = () => {
               <span className="absolute inset-y-0 right-3 flex items-center text-gray-400">🔒</span>
             </div>
 
-            {/* Reset Button */}
             <motion.button
               onClick={handleResetPassword}
               className={`w-full p-3 rounded-lg text-white font-semibold transition-all duration-300 ${
@@ -110,14 +123,12 @@ const ResetPassword = () => {
             </motion.button>
           </div>
 
-          {/* Token Display (Optional Debugging) */}
           {token && (
             <p className="text-center text-sm text-gray-500 mt-4">
               Token: <span className="font-mono text-blue-600">{token}</span>
             </p>
           )}
 
-          {/* Back to Login Link */}
           <p className="text-center text-sm mt-4">
             <Link href="/" className="text-blue-600 hover:underline transition-colors">
               Back to Login
@@ -130,10 +141,9 @@ const ResetPassword = () => {
   );
 };
 
-// Disable SSR for this page
 export const getServerSideProps = async () => {
   return {
-    props: {}, // No props needed since it's client-side only
+    props: {},
   };
 };
 
