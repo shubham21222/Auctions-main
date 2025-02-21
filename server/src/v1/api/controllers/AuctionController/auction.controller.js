@@ -362,7 +362,7 @@ export const AddBalance = async (req, res) => {
 // Webhook Function
 export const stripeWebhook = async (req, res) => {
 
-    console.log("req-row---------- >>>>>> " , req.body)
+    console.log("req-row---------- >>>>>> "  , req.body)
 
 
     const sig = req.headers["stripe-signature"];
