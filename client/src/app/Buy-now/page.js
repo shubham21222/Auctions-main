@@ -6,6 +6,7 @@ import { Filters } from "./components/filters";
 import { ProductCard } from "./components/product-card";
 import { Skeleton } from "@/components/ui/skeleton"; 
 import { LuxuryBackground } from "../Auctions/components/luxury-background";
+import config from "../config_BASE_URL";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -46,7 +47,7 @@ export default function Home() {
     async function fetchAllProducts() {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:4000/v1/api/product/filter");
+        const response = await fetch(`${config.baseURL}/v1/api/product/filter`);
         if (!response.ok) {
           throw new Error("Failed to fetch products");
         }
@@ -82,7 +83,7 @@ export default function Home() {
           searchQuery: searchQuery,
         }).toString();
 
-        const response = await fetch(`http://localhost:4000/v1/api/product/filter?${queryParams}`);
+        const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryParams}`);
         if (!response.ok) {
           throw new Error("Failed to fetch filtered products");
         }

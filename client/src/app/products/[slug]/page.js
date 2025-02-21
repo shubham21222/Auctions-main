@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import ProductDetails from "./components/ProductDetails"; // Import the ProductDetails component
+import config from "@/app/config_BASE_URL";
 
 export default function ProductPage() {
     const { slug } = useParams(); // Extract slug (product ID) from URL
@@ -15,7 +16,7 @@ export default function ProductPage() {
         async function fetchProduct() {
             try {
                 setIsLoading(true);
-                const response = await fetch(`http://localhost:4000/v1/api/product/${slug}`); // Fetch product by ID
+                const response = await fetch(`${config.baseURL}/v1/api/product/${slug}`); // Fetch product by ID
                 if (!response.ok) {
                     throw new Error("Failed to fetch product");
                 }
