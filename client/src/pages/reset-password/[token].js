@@ -3,6 +3,10 @@ import { useRouter } from "next/router";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react"; // You'll need to install lucide-react for icons
 import Link from "next/link";
+import "../../app/globals.css"
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
+
 
 const ResetPassword = () => {
     const router = useRouter();
@@ -50,6 +54,8 @@ const ResetPassword = () => {
     };
 
     return (
+        <>
+        <Header />
         <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md transform transition-all hover:scale-105">
                 <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
@@ -140,6 +146,8 @@ const ResetPassword = () => {
                 </p>
             </div>
         </div>
+        <Footer />
+        </>
     );
 };
 
