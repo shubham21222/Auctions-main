@@ -14,7 +14,7 @@ export default function ProductPage() {
 
     useEffect(() => {
         async function fetchProduct() {
-            try {
+            try {   
                 setIsLoading(true);
                 const response = await fetch(`${config.baseURL}/v1/api/product/${slug}`); // Fetch product by ID
                 if (!response.ok) {
