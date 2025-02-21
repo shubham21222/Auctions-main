@@ -5,7 +5,7 @@ import Routerlocation from "./src/v1/api/index.js";
 import { badRequest } from './src/v1/api/formatters/globalResponse.js'
 // import userRoutes from "./src/v1/api/routes/user.routes.js"; // Ensure `.js` extension is added
 import compression from 'compression';
-
+import { stripeWebhook } from "./src/v1/api/controllers/AuctionController/auction.controller.js"
 import path from "path";
 
 
@@ -15,6 +15,9 @@ import path from "path";
 const app = express();
 import morgan from 'morgan';
 // Serve static files
+
+// ✅ Stripe Webhook Route (MUST be before express.json())
+app.post("/v1/api/auction", express.raw({ type: "application/json" }), stripeWebhook);
 
 
 
