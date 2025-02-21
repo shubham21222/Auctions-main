@@ -359,21 +359,18 @@ export const AddBalance = async (req, res) => {
 // called the webhook //
 
 // Webhook function
-// Webhook Function
+
+
 export const stripeWebhook = async (req, res) => {
-
-    console.log("req-row---------- >>>>>> "  , req.body)
-
+    console.log("req-row---------- >>>>>> ", req.body);
 
     const sig = req.headers["stripe-signature"];
-
-    console.log("sig->>>>>>>>>>>>" , sig)
     const endpointSecret = "whsec_rJ5wqkU5Pb49zRsd8qxMPrkDolhqTMal";
 
+    console.log("sig->>>>>>>>>>>>", sig);
+    console.log("endpointSecret------------- >>>>>>>", endpointSecret);
 
-    console.log("endpointSecret------------- >>>>>>> " , endpointSecret)
-
-    if (!endpointSecret) {
+    if (!sig || !endpointSecret) {
         console.error("🚨 Missing Stripe Webhook Signature or Secret");
         return res.status(400).send("Webhook signature or secret missing.");
     }
@@ -389,14 +386,14 @@ export const stripeWebhook = async (req, res) => {
     console.log(`✅ Received Event: ${event.type}`);
 
     try {
+        const paymentIntent = event.data.object; // ✅ Declare before using
+
         switch (event.type) {
-
-
             case "payment_intent.created":
                 console.log(`🔄 Payment Intent Created for: ${paymentIntent.id}`);
 
                 if (paymentIntent.metadata?.CustomerId) {
-                    const userId = ObjectId(paymentIntent.metadata.CustomerId);
+                    const userId = new ObjectId(paymentIntent.metadata.CustomerId);
                     const user = await UserModel.findById(userId);
 
                     if (!user) {
@@ -404,40 +401,25 @@ export const stripeWebhook = async (req, res) => {
                         return res.status(400).send("User not found.");
                     }
 
-                    // Check if this payment was for an auction
                     if (paymentIntent.metadata.integration_check == "auction_payment") {
                         console.log("🏆 Auction payment detected. Updating winner status.");
-                    
+
                         const updatedUser = await UserModel.findOneAndUpdate(
                             { _id: userId },
-                            {
-                                $set: {
-                                    Payment_Status: "PROCESSING"
-                                },
-                            },
-                            { new: true } // This should be outside the $set
+                            { $set: { Payment_Status: "PROCESSING" } },
+                            { new: true }
                         );
-                    
+
                         console.log("✅ Updated User:", updatedUser);
                     }
-                    
-
-                    // Check if this payment was for wallet top-up
-                    if (paymentIntent.metadata.integration_check == "wallet_topup") {
-                        console.log("💰 Wallet top-up detected. Adding balance.");
-                        user.walletBalance += paymentIntent.amount / 100; // Convert cents to dollars
-                        await user.save();
-                    }
                 }
-        
                 break;
 
             case "payment_intent.succeeded":
-                const paymentIntent = event.data.object;
                 console.log(`💰 Payment successful: ${paymentIntent.id}`);
 
                 if (paymentIntent.metadata?.CustomerId) {
-                    const userId = ObjectId(paymentIntent.metadata.CustomerId);
+                    const userId = new ObjectId(paymentIntent.metadata.CustomerId);
                     const user = await UserModel.findById(userId);
 
                     if (!user) {
@@ -445,36 +427,45 @@ export const stripeWebhook = async (req, res) => {
                         return res.status(400).send("User not found.");
                     }
 
-                    // Check if this payment was for an auction
                     if (paymentIntent.metadata.integration_check == "auction_payment") {
                         console.log("🏆 Auction payment detected. Updating winner status.");
-                    
+
                         const updatedUser = await UserModel.findOneAndUpdate(
                             { _id: userId },
-                            {
-                                $set: {
-                                    Payment_Status: "PAID",
-                                    walletBalance: 100, // Ensure this is the correct logic
-                                },
-                            },
-                            { new: true } // This should be outside the $set
+                            { $set: { Payment_Status: "PAID", walletBalance: user.walletBalance + (paymentIntent.amount / 100) } },
+                            { new: true }
                         );
-                    
+
                         console.log("✅ Updated User:", updatedUser);
                     }
-                    
 
-                    // Check if this payment was for wallet top-up
-                    if (paymentIntent.metadata.integration_check == "wallet_topup") {
-                        console.log("💰 Wallet top-up detected. Adding balance.");
-                        user.walletBalance += paymentIntent.amount / 100; // Convert cents to dollars
-                        await user.save();
-                    }
                 }
                 break;
 
             case "payment_intent.payment_failed":
-                console.log(`❌ Payment failed: ${event.data.object.id}`);
+                if (paymentIntent.metadata?.CustomerId) {
+                    const userId = new ObjectId(paymentIntent.metadata.CustomerId);
+                    const user = await UserModel.findById(userId);
+
+                    if (!user) {
+                        console.error("❌ User not found for ID:", userId);
+                        return res.status(400).send("User not found.");
+                    }
+
+                    if (paymentIntent.metadata.integration_check == "auction_payment") {
+                        console.log("🏆 Auction payment detected. Updating winner status.");
+
+                        const updatedUser = await UserModel.findOneAndUpdate(
+                            { _id: userId },
+                            { $set: { Payment_Status: "FAILED", walletBalance: 0 } },
+                            { new: true }
+                        );
+
+                        console.log("✅ Updated User:", updatedUser);
+                    }
+
+                }
+                console.log(`❌ Payment failed: ${paymentIntent.id}`);
                 break;
 
             default:
@@ -487,6 +478,7 @@ export const stripeWebhook = async (req, res) => {
         return res.status(500).send("Internal Server Error.");
     }
 };
+
 
 
 
