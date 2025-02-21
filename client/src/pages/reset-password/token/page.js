@@ -81,7 +81,6 @@ const ResetPassword = () => {
     );
   }
 
-  // Don't render the form if there's no token
   if (!token) {
     return null;
   }
@@ -89,7 +88,7 @@ const ResetPassword = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-6">Reset Password</h2>
+        <h2 className="text-2xl font-bold text-center mb-6">Reset Passwordssss</h2>
         <div className="space-y-4">
           <input
             type="password"
