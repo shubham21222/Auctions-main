@@ -6,7 +6,7 @@ import {
     getAuctions,
     joinAuction,
     AddBalance,
-    stripeWebhook
+    // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
 
@@ -28,6 +28,6 @@ router.post("/addBalance" , IsAuthenticated , AddBalance)
 // Stripe Webhook //
 
 
-router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
+// router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
 
 export default router;
