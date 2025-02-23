@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Image from "next/image";
+import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -17,13 +18,12 @@ export default function PastAuctions() {
   const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sortBy, setSortBy] = useState("date-ascending");
+  const [sortBy, setSortBy] = useState("date-descending"); // Changed to date-descending for latest on top
   const [auctionDate, setAuctionDate] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // New state for search
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // Number of auctions per page
+  const itemsPerPage = 6;
 
-  // Fetch data from API
   useEffect(() => {
     const fetchAuctions = async () => {
       try {
@@ -40,7 +40,6 @@ export default function PastAuctions() {
     fetchAuctions();
   }, []);
 
-  // Sorting logic
   const sortedAuctions = React.useMemo(() => {
     let sorted = [...auctions];
     if (sortBy === "date-ascending") {
@@ -53,11 +52,8 @@ export default function PastAuctions() {
     return sorted;
   }, [auctions, sortBy]);
 
-  // Filter by date and search query
   const filteredAuctions = React.useMemo(() => {
     let filtered = sortedAuctions;
-
-    // Filter by date
     if (auctionDate) {
       filtered = filtered.filter(
         (auction) =>
@@ -65,28 +61,23 @@ export default function PastAuctions() {
           new Date(auction.auction_date).toISOString().split("T")[0] === auctionDate
       );
     }
-
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter((auction) =>
         auction.auction_title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-
     return filtered;
   }, [sortedAuctions, auctionDate, searchQuery]);
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredAuctions.length / itemsPerPage);
   const paginatedAuctions = filteredAuctions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Pagination button range
   const getPaginationRange = () => {
     const range = [];
-    const delta = 2; // Number of pages to show on either side of current page
+    const delta = 2;
     const left = Math.max(1, currentPage - delta);
     const right = Math.min(totalPages, currentPage + delta);
 
@@ -122,7 +113,7 @@ export default function PastAuctions() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
+                  setCurrentPage(1);
                 }}
               />
             </div>
@@ -149,7 +140,7 @@ export default function PastAuctions() {
                 value={auctionDate}
                 onChange={(e) => {
                   setAuctionDate(e.target.value);
-                  setCurrentPage(1); // Reset to first page on date change
+                  setCurrentPage(1);
                 }}
               />
             </div>
@@ -158,9 +149,9 @@ export default function PastAuctions() {
               variant="secondary"
               className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               onClick={() => {
-                setSortBy("date-ascending");
+                setSortBy("date-descending"); // Reset to date-descending for latest on top
                 setAuctionDate("");
-                setSearchQuery(""); // Reset search query
+                setSearchQuery("");
                 setCurrentPage(1);
               }}
             >
@@ -172,46 +163,49 @@ export default function PastAuctions() {
           <div className="lg:col-span-3 space-y-6">
             {paginatedAuctions.length > 0 ? (
               paginatedAuctions.map((auction) => (
-                <div
+                <Link
                   key={auction.auction_title}
-                  className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  href={`/past-auctions/${auction.auction_title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  passHref
                 >
-                  <div className="sm:col-span-1">
-                    <div className="aspect-square relative rounded-lg overflow-hidden border">
-                      <Image
-                        src={auction.image_urls[0] || "/placeholder.svg"}
-                        alt={auction.auction_title}
-                        fill
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer">
+                    <div className="sm:col-span-1">
+                      <div className="aspect-square relative rounded-lg overflow-hidden border">
+                        <Image
+                          src={auction.image_urls[0] || "/placeholder.svg"}
+                          alt={auction.auction_title}
+                          fill
+                          className="object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                      </div>
+                    </div>
+                    <div className="sm:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
+                          {auction.auction_title}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Date:</span> {auction.auction_date || "N/A"}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Location:</span> {auction.location}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Status:</span>{" "}
+                          <span
+                            className={
+                              auction.auction_status === "Auction Ended"
+                                ? "text-red-500"
+                                : "text-green-500"
+                            }
+                          >
+                            {auction.auction_status}
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="sm:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
-                        {auction.auction_title}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Date:</span> {auction.auction_date || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Location:</span> {auction.location}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Status:</span>{" "}
-                        <span
-                          className={
-                            auction.auction_status === "Auction Ended"
-                              ? "text-red-500"
-                              : "text-green-500"
-                          }
-                        >
-                          {auction.auction_status}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                </Link>
               ))
             ) : (
               <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow-sm">
@@ -234,9 +228,7 @@ export default function PastAuctions() {
                   <Button
                     key={index}
                     variant={page === currentPage ? "default" : "outline"}
-                    className={`w-10 h-10 p-0 text-sm font-medium ${
-                      page === "..." ? "cursor-default hover:bg-transparent" : ""
-                    }`}
+                    className={`w-10 h-10 p-0 text-sm font-medium ${page === "..." ? "cursor-default hover:bg-transparent" : ""}`}
                     onClick={() => typeof page === "number" && setCurrentPage(page)}
                     disabled={page === "..."}
                   >

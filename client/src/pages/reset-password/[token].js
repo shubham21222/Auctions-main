@@ -88,7 +88,7 @@ const ResetPassword = () => {
                     {/* Logo */}
                     <div className="flex justify-center mb-6">
                         <Image
-                            src="/logo.png" // Replace with your logo path
+                            src="https://images.liveauctioneers.com/houses/logos/lg/nouriel_large.jpg?width=140&quality=80" // Replace with your logo path
                             alt="Logo"
                             width={100}
                             height={100}
