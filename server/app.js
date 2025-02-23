@@ -7,7 +7,7 @@ import { badRequest } from './src/v1/api/formatters/globalResponse.js'
 import compression from 'compression';
 import { stripeWebhook } from "./src/v1/api/controllers/AuctionController/auction.controller.js"
 import path from "path";
-
+import{Orderwebhook} from "./src/v1/api/controllers/OrderController/order.controller.js"
 
 
 
@@ -18,6 +18,10 @@ import morgan from 'morgan';
 
 // ✅ Stripe Webhook Route (MUST be before express.json())
 app.post("/v1/api/auction/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
+
+// Stripe webhook for order create //
+
+app.post("/v1/api/auction/order-webhook" , express.raw({ type: "application/json" }) , Orderwebhook)
 
 
 

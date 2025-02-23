@@ -5,6 +5,7 @@ import  uploadImage  from "./routes/upload/uploadRoutes.js";
 import Products  from "./routes/Product/product.routes.js"
 import favorite from "./routes/Favorite/favorite.routes.js";
 import Auction from "./routes/Auction/auction.routes.js";
+import Order from "./routes/order/order.routes.js"
 
 const router = Router();
 
@@ -33,6 +34,11 @@ router.use("/favorite", favorite);
 
 // Add API routes here for AUCTION //
 router.use("/auction", Auction);
+
+
+// Add API routes here for Order //
+
+router.use("/order" , Order)
 
 
 
