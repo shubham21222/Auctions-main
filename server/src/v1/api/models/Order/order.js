@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema({
                 default: 1
             },
             Offer_Amount: {
-                type: String,
+                type: Number,
                 required: true
             }
         }

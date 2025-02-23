@@ -89,6 +89,122 @@ export const createOrder = async(req,res)=>{
     }
 }
 
+// Get All Orders API //
+
+export const getAllOrders = async (req, res) => {
+    try {
+        let { page = 1, limit = 100, search = ""  } = req.query;
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        const matchStage = {};
+
+        if (search) {
+            matchStage.$or = [
+                { "userDetails.name": { $regex: search, $options: "i" } },
+                { "userDetails.email": { $regex: search, $options: "i" } },
+                { "productsDetails.name": { $regex: search, $options: "i" } },
+                { OrderId : {$regex: search, $options: "i"}}
+            ];
+        }
+
+        const orders = await Order.aggregate([
+            // Lookup User Data
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: "$userDetails" },
+
+            // Lookup Product Data (keep products array intact)
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "productsDetails"
+                }
+            },
+
+            // Match search query (after lookup)
+            { $match: matchStage },
+
+            // Sort orders by newest first
+            { $sort: { createdAt: -1 } },
+
+            // Sort and paginate
+            { $sort: { createdAt: -1 } },
+            { $skip: (page - 1) * limit },
+            { $limit: limit },
+
+            // Project required fields
+            {
+                $project: {
+                    _id: 1,
+                    totalAmount: 1,
+                    paymentStatus: 1,
+                    OrderId:1,
+                    status:1,
+                    createdAt: 1,
+                    "userDetails.name": 1,
+                    "userDetails.email": 1,
+                    "productsDetails.name": 1,
+                    "productsDetails.price": 1,
+                    "productsDetails.title": 1,
+                    "productsDetails.image":1
+
+
+                }
+            }
+        ]);
+
+        // Count total documents after filtering
+        const countResult = await Order.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: "$userDetails" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "productsDetails"
+                }
+            },
+            { $match: matchStage },
+            { $count: "totalDocs" }
+        ]);
+
+        const totalDocs = countResult.length > 0 ? countResult[0].totalDocs : 0;
+        const totalPages = Math.ceil(totalDocs / limit);
+
+        return res.status(200).json({
+            message: "Orders fetched successfully",
+            orders,
+            pagination: {
+                page,
+                totalPages,
+                totalOrders: totalDocs
+            }
+        });
+
+    } catch (error) {
+        console.log("Error fetching orders:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
 
 // Called the webhook //
 
