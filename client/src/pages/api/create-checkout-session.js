@@ -1,7 +1,7 @@
 // pages/api/create-checkout-session.js
 import Stripe from "stripe";
 
-const stripe = new Stripe("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", {
+const stripe = new Stripe("", {
   apiVersion: "2022-11-15",
 });
 
