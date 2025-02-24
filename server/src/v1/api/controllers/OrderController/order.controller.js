@@ -212,7 +212,7 @@ export const getAllOrders = async (req, res) => {
 export const Orderwebhook = async(req,res)=>{
 
     const sig = req.headers["stripe-signature"];
-    const endpointSecret = "whsec_rJ5wqkU5Pb49zRsd8qxMPrkDolhqTMal";
+    const endpointSecret = "whsec_JPMQnOynsdQvQwNBE7nsZ5TDAMpdKzyP";
     if (!endpointSecret) {
         console.error("🚨 Missing Stripe Webhook Signature or Secret");
         return res.status(400).send("Webhook signature or secret missing.");

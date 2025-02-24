@@ -21,7 +21,7 @@ app.post("/v1/api/auction/stripe-webhook", express.raw({ type: "application/json
 
 // Stripe webhook for order create //
 
-app.post("/v1/api/auction/order-webhook" , express.raw({ type: "*/*" }) , Orderwebhook)
+app.post("/v1/api/auction/order-webhook" , express.raw({ type: "application/json" }) , Orderwebhook)
 
 // ✅ Use a middleware to prevent express.json() from affecting webhooks
 app.use((req, res, next) => {
