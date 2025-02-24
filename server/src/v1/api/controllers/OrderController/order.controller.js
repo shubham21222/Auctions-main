@@ -238,7 +238,8 @@ export const Orderwebhook = async(req,res)=>{
                 console.log(`💰 Payment successful: ${paymentIntent.id}`);
 
                   // 🔥 Fetch full PaymentIntent details from Stripe
-            const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntentId);
+                  const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntent.id);
+
             console.log("✅ Retrieved PaymentIntent:", paymentIntent);
 
                 if (paymentIntents.metadata?.CustomerId) {
