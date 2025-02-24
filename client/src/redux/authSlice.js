@@ -1,13 +1,12 @@
-// redux/slices/authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
     token: null,
-    user: null,
-    _id: null,
+    user: null, // Will store the full user object including Payment_Status
+    _id: null, // User ID (already present)
     success: null,
     superAdminDetails: null,
-    isLoggedIn: false, // Add isLoggedIn field, default to false
+    isLoggedIn: false, // Tracks login status
     items: {
         email: null,
         passwordResetToken: null,
@@ -20,19 +19,21 @@ export const authSlice = createSlice({
     reducers: {
         setToken: (state, action) => {
             state.token = action.payload;
-            state.isLoggedIn = true; // Set isLoggedIn to true when token is set
+            state.isLoggedIn = true;
         },
         removeToken: (state) => {
             state.token = null;
-            state.isLoggedIn = false; // Set isLoggedIn to false when token is removed
+            state.isLoggedIn = false;
         },
         setUser: (state, action) => {
-            state.user = action.payload;
-            state.isLoggedIn = true; // Set isLoggedIn to true when user is set
+            state.user = action.payload; // Store the full user object
+            state._id = action.payload._id; // Extract and set user ID
+            state.isLoggedIn = true;
         },
         removeUser: (state) => {
             state.user = null;
-            state.isLoggedIn = false; // Set isLoggedIn to false when user is removed
+            state._id = null;
+            state.isLoggedIn = false;
         },
         setUserId: (state, action) => {
             state._id = action.payload;
@@ -61,9 +62,15 @@ export const authSlice = createSlice({
         setLoggedIn: (state, action) => {
             state.isLoggedIn = action.payload;
         },
+        updatePaymentStatus: (state, action) => {
+            if (state.user) {
+                state.user.Payment_Status = action.payload; // Update Payment_Status in user object
+            }
+        },
     },
 });
 
+// Export actions
 export const {
     setUserId,
     setToken,
@@ -78,10 +85,14 @@ export const {
     setEmail,
     clearEmail,
     setLoggedIn,
+    updatePaymentStatus, // New action to update Payment_Status
 } = authSlice.actions;
 
-// Selector to access isLoggedIn from the Redux state
+// Selectors
 export const selectIsLoggedIn = (state) => state.auth.isLoggedIn;
+export const selectUser = (state) => state.auth.user;
+export const selectUserId = (state) => state.auth._id;
+export const selectPaymentStatus = (state) => state.auth.user?.Payment_Status;
 
 export default authSlice.reducer;
 
