@@ -23,9 +23,14 @@ app.post("/v1/api/auction/stripe-webhook", express.raw({ type: "application/json
 
 app.post("/v1/api/auction/order-webhook" , express.raw({ type: "application/json" }) , Orderwebhook)
 
+// ✅ Use a middleware to prevent express.json() from affecting webhooks
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/v1/api/auction/stripe-webhook") || req.originalUrl.startsWith("/v1/api/auction/order-webhook")) {
+      return next(); // Skip express.json() for webhooks
+  }
+  express.json()(req, res, next);
+});
 
-
-app.use(express.json());
 app.use(cors());
 app.options('*', cors());
 
