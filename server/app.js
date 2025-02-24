@@ -67,7 +67,7 @@ app.use("/v1/api", Routerlocation);
 
 
 // Not Found Middleware (Handles Undefined Routes)
-app.use(notFoundMiddleware);
+// app.use(notFoundMiddleware);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
