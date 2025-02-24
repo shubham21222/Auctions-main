@@ -1,22 +1,22 @@
-'use client';
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useDispatch } from 'react-redux';
-import { setToken, setEmail } from '@/redux/authSlice'; // Import Redux actions
-import { Eye, EyeOff } from 'lucide-react';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
+"use client";
+import React, { useState } from "react";
+import axios from "axios";
+import { useDispatch } from "react-redux";
+import { setToken, setEmail, setUser, setUserId } from "@/redux/authSlice"; // Import Redux actions
+import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import toast, { Toaster } from "react-hot-toast";
 import login from "../../../public/login.webp";
-import config from '../config_BASE_URL';
-import Link from 'next/link';
+import config from "../config_BASE_URL";
+import Link from "next/link";
 
 const LoginModal = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [emailInput, setEmailInput] = useState(''); // Renamed to avoid conflict with setEmail
-  const [password, setPassword] = useState('');
+  const [emailInput, setEmailInput] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch(); // Redux dispatch
+  const dispatch = useDispatch();
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -30,12 +30,11 @@ const LoginModal = ({ isOpen, onClose }) => {
         password,
       });
 
-      // Extract token from the response
-      const token = response.data.items?.token; // Ensure proper extraction
-      console.log('Token received:', token); // Debugging: Check if token is extracted correctly
+      const token = response.data.items?.token;
+      console.log("Token received:", token);
 
       if (!token) {
-        throw new Error('No token received from the server.');
+        throw new Error("No token received from the server.");
       }
 
       // Store token in Redux
@@ -43,63 +42,64 @@ const LoginModal = ({ isOpen, onClose }) => {
 
       // Verify the token using POST API
       const verifyResponse = await axios.post(`${config.baseURL}/v1/api/auth/verify/${token}`, {
-        token, // Pass the token in the request body
+        token,
       });
-      console.log('Token verified:', verifyResponse.data);
+      console.log("Token verified:", verifyResponse.data);
 
-      // Extract email from the verify response
-      const userEmail = verifyResponse.data.items?.email;
+      // Extract user data from verify response
+      const userData = verifyResponse.data.items;
 
-      if (userEmail) {
-        // Save the email in Redux
-        dispatch(setEmail(userEmail));
-        console.log('Email saved in Redux:', userEmail);
+      if (userData) {
+        // Save the full user object (including Payment_Status) in Redux
+        dispatch(setUser(userData));
+        // Save user ID separately
+        dispatch(setUserId(userData._id));
+        // Save email in Redux
+        dispatch(setEmail(userData.email));
+        console.log("User data saved in Redux:", userData);
       } else {
-        console.error('Email not found in verify response:', verifyResponse.data);
+        console.error("User data not found in verify response:", verifyResponse.data);
       }
 
       // Show success toast notification
-      toast.success('Login successful!', {
+      toast.success("Login successful!", {
         style: {
-          background: '#32CD32', // Green background
-          color: '#fff', // White text
+          background: "#32CD32",
+          color: "#fff",
         },
-        icon: '✅', // Checkmark icon
+        icon: "✅",
       });
 
-      setLoading(false); // Stop loading
-      onClose(); // Close the modal after successful login
+      setLoading(false);
+      onClose();
     } catch (err) {
-      console.error('Error during login or verification:', err.response?.data || err.message);
+      console.error("Error during login or verification:", err.response?.data || err.message);
 
-      // Handle verification failure
-      if (err.response?.data?.message === 'Verification failed') {
-        toast.error('Verification failed. Please log in again with correct credentials.', {
+      if (err.response?.data?.message === "Verification failed") {
+        toast.error("Verification failed. Please log in again with correct credentials.", {
           style: {
-            background: '#FF4500', // Orange background
-            color: '#fff', // White text
+            background: "#FF4500",
+            color: "#fff",
           },
-          icon: '❌', // Cross icon
+          icon: "❌",
         });
       } else {
-        // Generic error message for other issues
-        toast.error(err.response?.data?.message || 'An error occurred. Please try again.', {
+        toast.error(err.response?.data?.message || "An error occurred. Please try again.", {
           style: {
-            background: '#FF4500', // Orange background
-            color: '#fff', // White text
+            background: "#FF4500",
+            color: "#fff",
           },
-          icon: '❌', // Cross icon
+          icon: "❌",
         });
       }
 
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
   return (
     <>
-      {/* Toast Container */}
-      <Toaster position="top-right" reverseOrder={false} />
+      {/* <Toaster position="top-right" reverseOrder={false} /> */}
 
       <AnimatePresence>
         {isOpen && (
@@ -128,7 +128,6 @@ const LoginModal = ({ isOpen, onClose }) => {
 
               {/* Right Side - Login Form */}
               <div className="w-full md:w-1/2 p-6 md:p-8 relative">
-                {/* Close Button */}
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 transition-colors"
@@ -136,7 +135,6 @@ const LoginModal = ({ isOpen, onClose }) => {
                   ✕
                 </button>
 
-                {/* Logo and Title */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -150,11 +148,12 @@ const LoginModal = ({ isOpen, onClose }) => {
                     height={80}
                     className="mb-4 w-16 h-16 md:w-20 md:h-20"
                   />
-                  <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-2">Log in to your account</h2>
+                  <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-2">
+                    Log in to your account
+                  </h2>
                   <p className="text-sm text-gray-600 mb-6">Welcome back! Please enter your details.</p>
                 </motion.div>
 
-                {/* Login Form */}
                 <motion.form
                   onSubmit={handleSubmit}
                   initial={{ opacity: 0 }}
@@ -177,7 +176,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <div className="relative">
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -200,14 +199,18 @@ const LoginModal = ({ isOpen, onClose }) => {
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-2.5 rounded-lg hover:opacity-90 transition-all duration-300 text-sm md:text-base"
                   >
-                    {loading ? 'Logging in...' : 'Login'}
+                    {loading ? "Logging in..." : "Login"}
                   </motion.button>
                   <div className="text-center text-sm text-gray-600">
-                    <Link href="/forget-password" className="text-blue-600 hover:underline">Forgot Password?</Link>
+                    <Link href="/forget-password" className="text-blue-600 hover:underline">
+                      Forgot Password?
+                    </Link>
                   </div>
                   <div className="text-center text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <a href="#" className="text-blue-600 hover:underline">Join</a>
+                    Don&apos;t have an account?{" "}
+                    <a href="#" className="text-blue-600 hover:underline">
+                      Join
+                    </a>
                   </div>
                 </motion.form>
               </div>
