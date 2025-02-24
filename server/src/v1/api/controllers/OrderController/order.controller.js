@@ -67,7 +67,8 @@ export const createOrder = async(req,res)=>{
 
              totalAmount:totalAmount,
              paymentIntentId: paymentIntent.id,
-             paymentStatus: "PENDING"
+             paymentStatus: "PENDING",
+             client_secret:paymentIntent.client_secret || ""
              })
 
              const result = await order.save();
@@ -241,7 +242,7 @@ export const Orderwebhook = async (req, res) => {
 
                 // Update Order based on paymentIntentId
                 const updatedOrder = await Order.findOneAndUpdate(
-                    { paymentIntentId: paymentIntent.id },
+                    { client_secret: paymentIntent.client_secret },
                     {
                         $set: {
                             paymentStatus: "SUCCEEDED"
@@ -265,7 +266,7 @@ export const Orderwebhook = async (req, res) => {
 
                 // Update Order to failed status
                 const updatedOrder = await Order.findOneAndUpdate(
-                    { paymentIntentId: paymentIntent.id },
+                    { client_secret: paymentIntent.client_secret },
                     {
                         $set: {
                             paymentStatus: "FAILED"

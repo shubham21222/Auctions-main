@@ -44,6 +44,10 @@ const orderSchema = new mongoose.Schema({
         default: "Processing"
     },
 
+    client_secret:{
+        type: String,
+    },
+
     OrderId:{
      type:String,
      unique: true
