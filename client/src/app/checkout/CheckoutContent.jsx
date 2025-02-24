@@ -86,6 +86,7 @@ export default function CheckoutContent() {
     }
 
     try {
+      // Step 1: Create Stripe Checkout Session with product image
       const stripeResponse = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,7 +99,7 @@ export default function CheckoutContent() {
                   name: `${productDetails.productName} - Auction Offer`,
                   images: productDetails.productImage ? [decodeURIComponent(productDetails.productImage)] : [],
                 },
-                unit_amount: Math.round((parseFloat(productDetails.offerPrice) + 100) * 100),
+                unit_amount: Math.round((parseFloat(productDetails.offerPrice) + 100) * 100), // Total in cents
               },
               quantity: 1,
             },
@@ -119,6 +120,7 @@ export default function CheckoutContent() {
 
       const stripeSessionId = stripeData.id;
 
+      // Step 2: Create order in your backend
       const payload = {
         products: [
           {
@@ -144,6 +146,7 @@ export default function CheckoutContent() {
       const orderData = await orderResponse.json();
       if (!orderResponse.ok) throw new Error(orderData.message || "Failed to create order");
 
+      // Step 3: Redirect to Stripe Checkout
       const stripe = await import("@stripe/stripe-js").then((mod) =>
         mod.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
       );
