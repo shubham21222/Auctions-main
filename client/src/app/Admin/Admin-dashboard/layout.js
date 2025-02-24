@@ -53,6 +53,14 @@ export default function DashboardLayout({ children }) {
             </Button>
           </Link>
 
+
+          <Link href="/Admin/Admin-dashboard/orders">
+            <Button variant="ghost" className="w-full justify-start">
+              <ListOrdered className="mr-2 h-4 w-4" />
+              Orders
+            </Button>
+          </Link>
+
           {/* <Link href="/dashboard/users">
             <Button variant="ghost" className="w-full justify-start">
               <Users className="mr-2 h-4 w-4" />

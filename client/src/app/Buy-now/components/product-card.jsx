@@ -41,7 +41,7 @@ export function ProductCard({ image, name, price, slug }) {
       setIsLiked(wishlistProducts.includes(slug))
     } catch (error) {
       console.error("Error fetching wishlist:", error)
-      toast.error("An error occurred while fetching your wishlist.")
+      // toast.error("An error occurred while fetching your wishlist.")
     }
   }
 
@@ -90,7 +90,7 @@ export function ProductCard({ image, name, price, slug }) {
       }
     } catch (error) {
       console.error("Error toggling wishlist:", error)
-      toast.error("An error occurred while updating your wishlist.")
+      // toast.error("An error occurred while updating your wishlist.")
     }
   }
 
@@ -102,7 +102,7 @@ export function ProductCard({ image, name, price, slug }) {
   return (
     <>
       {/* Add the Toaster component for displaying notifications */}
-      <Toaster position="top-right" />
+      {/* <Toaster position="top-right" /> */}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

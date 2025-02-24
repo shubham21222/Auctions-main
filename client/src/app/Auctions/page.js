@@ -98,7 +98,7 @@ export default function AuctionCalendar() {
       }
     } catch (error) {
       console.error("Payment initiation error:", error.message);
-      toast.error("An error occurred. Please try again.");
+      // toast.error("An error occurred. Please try again.");
     }
   };
 
