@@ -18,7 +18,6 @@ import {
     onError
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
 
-import { ObjectId } from "mongodb";
 
 // create the Order Api //
 
@@ -210,80 +209,94 @@ export const getAllOrders = async (req, res) => {
 // Called the webhook //
 
 
-export const Orderwebhook = async (req, res) => {
+export const Orderwebhook = async(req,res)=>{
+
     const sig = req.headers["stripe-signature"];
     const endpointSecret = "whsec_JPMQnOynsdQvQwNBE7nsZ5TDAMpdKzyP";
-
     if (!endpointSecret) {
-        console.error("🚨 Missing Stripe Webhook Secret");
-        return res.status(400).send("Webhook secret missing.");
+        console.error("🚨 Missing Stripe Webhook Signature or Secret");
+        return res.status(400).send("Webhook signature or secret missing.");
     }
 
     let event;
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+
     } catch (err) {
         console.error("❌ Webhook signature verification failed:", err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    console.log("✅ Webhook Event Received:", event.type);
+    console.log("✅ Webhook Full Event:", JSON.stringify(event, null, 2));
+
 
     try {
         switch (event.type) {
-            case "payment_intent.succeeded": {
-                const paymentIntentId = event.data.object.id;
 
-                // 🔥 Fetch full PaymentIntent to ensure metadata is included
-                const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-                console.log(`💰 Payment Successful: ${paymentIntent.id}, Metadata:`, paymentIntent.metadata);
+            case "payment_intent.succeeded":
+                const paymentIntent = event.data.object;
+                console.log(`💰 Payment successful: ${paymentIntent.id}`);
 
-                if (paymentIntent.metadata?.CustomerId) {
-                    const userId = new ObjectId(paymentIntent.metadata.CustomerId);
+                  // 🔥 Fetch full PaymentIntent details from Stripe
+            const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntentId);
+            console.log("✅ Retrieved PaymentIntent:", paymentIntent);
+
+                if (paymentIntents.metadata?.CustomerId) {
+                    const userId = ObjectId(paymentIntent.metadata.CustomerId);
                     const user = await User.findById(userId);
+
                     if (!user) {
-                        console.error("❌ User not found:", userId);
+                        console.error("❌ User not found for ID:", userId);
                         return res.status(400).send("User not found.");
                     }
 
-                    if (paymentIntent.metadata.integration_check == "MakeOrder") {
-                        console.log("🏆 Auction payment detected. Updating order status.");
+                    // Check if this payment was for an auction
+                    if (paymentIntents.metadata.integration_check == "MakeOrder") {
+                        console.log("🏆 Auction payment detected. Updating winner status.");
+                    
                         const updatedOrder = await Order.findOneAndUpdate(
                             { user: userId },
-                            { $set: { paymentStatus: "SUCCEEDED" } },
-                            { new: true }
+                            {
+                                $set: {
+                                    paymentStatus: "SUCCEEDED"
+                                },
+                            },
+                            { new: true } // This should be outside the $set
                         );
-                        console.log("✅ Order Updated:", updatedOrder);
+                    
+                        console.log("✅ Updated User:", updatedOrder);
                     }
                 }
                 break;
-            }
 
-            case "payment_intent.payment_failed": {
-                const paymentIntentId = event.data.object.id;
-                const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-                console.log(`❌ Payment Failed: ${paymentIntent.id}, Metadata:`, paymentIntent.metadata);
-
-                if (paymentIntent.metadata?.CustomerId) {
-                    const userId = new ObjectId(paymentIntent.metadata.CustomerId);
+            case "payment_intent.payment_failed":
+                if (paymentIntents.metadata?.CustomerId) {
+                    const userId = ObjectId(paymentIntents.metadata.CustomerId);
                     const user = await User.findById(userId);
+
                     if (!user) {
-                        console.error("❌ User not found:", userId);
+                        console.error("❌ User not found for ID:", userId);
                         return res.status(400).send("User not found.");
                     }
 
-                    if (paymentIntent.metadata.integration_check == "MakeOrder") {
-                        console.log("🏆 Auction payment failed. Updating order status.");
+                    // Check if this payment was for an auction
+                    if (paymentIntents.metadata.integration_check == "MakeOrder") {
+                        console.log("🏆 Auction payment detected. Updating winner status.");
+                    
                         const updatedOrder = await Order.findOneAndUpdate(
                             { user: userId },
-                            { $set: { paymentStatus: "FAILED" } },
-                            { new: true }
+                            {
+                                $set: {
+                                    paymentStatus: "FAILED"
+                                },
+                            },
+                            { new: true } // This should be outside the $set
                         );
-                        console.log("✅ Order Updated:", updatedOrder);
+                    
+                        console.log("✅ Updated User:", updatedOrder);
                     }
                 }
                 break;
-            }
 
             default:
                 console.log(`⚠️ Unhandled event type: ${event.type}`);
@@ -294,4 +307,5 @@ export const Orderwebhook = async (req, res) => {
         console.error("🚨 Webhook Processing Error:", error);
         return res.status(500).send("Internal Server Error.");
     }
-};
+
+}
