@@ -16,7 +16,6 @@ export default function CheckoutContent() {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
 
-  console.log("Using Endpoint Secret:=============================================", process.env.STRIPE_WEBHOOK_SECRET);
 
   const [productDetails, setProductDetails] = useState({
     productId: "",
