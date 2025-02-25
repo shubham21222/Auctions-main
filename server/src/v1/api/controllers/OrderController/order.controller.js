@@ -206,6 +206,42 @@ export const getAllOrders = async (req, res) => {
 };
 
 
+export const updateOrderStatus = async (req, res) => {
+    try {
+        const {paymentStatus , _id } = req.body;
+
+
+        if (!_id || !paymentStatus) {
+            return badRequest(res, "Please provide order ID and payment status");
+        }
+
+        // Validate paymentStatus
+        const validStatuses = ["PENDING", "SUCCEEDED", "FAILED", "CANCELLED", "REFUNDED"];
+        if (!validStatuses.includes(paymentStatus)) {
+            return badRequest(res, "Invalid payment status");
+        }
+
+        // Find and update the order
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id },  // Match using _id
+            { $set: { paymentStatus } },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedOrder) {
+            return notFound(res, "Order not found");
+        }
+
+        return success(res, "Order status updated successfully", updatedOrder);
+    } catch (error) {
+        console.error("🚨 Error updating order status:", error);
+        return unknownError(res, "Internal Server Error");
+    }
+};
+
+
+
+
 
 // Called the webhook //
 
