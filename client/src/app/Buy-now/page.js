@@ -9,9 +9,9 @@ import { LuxuryBackground } from "../Auctions/components/luxury-background";
 import config from "../config_BASE_URL";
 
 export default function Home() {
-  const [allProducts, setAllProducts] = useState([]); // Store all fetched products
-  const [originalProducts, setOriginalProducts] = useState([]); // Store original unfiltered products
-  const [displayedProducts, setDisplayedProducts] = useState([]); // Products for current page
+  const [allProducts, setAllProducts] = useState([]);
+  const [originalProducts, setOriginalProducts] = useState([]);
+  const [displayedProducts, setDisplayedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,7 +88,6 @@ export default function Home() {
       }
     }
 
-    // Only fetch if filters are applied; otherwise, reset to original
     if (
       selectedCategories.length > 0 ||
       selectedStatus ||
@@ -99,7 +98,7 @@ export default function Home() {
     ) {
       fetchFilteredProducts();
     } else {
-      setAllProducts(originalProducts); // Reset to original products when filters are cleared
+      setAllProducts(originalProducts);
     }
   }, [
     selectedCategories,
@@ -133,8 +132,44 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setAllProducts(originalProducts); // Reset to original products
-    setCurrentPage(1); // Reset to first page
+    setAllProducts(originalProducts);
+    setCurrentPage(1);
+  };
+
+  // Generate pagination items with truncation
+  const getPaginationItems = () => {
+    const items = [];
+    const maxVisiblePages = 5; // Show up to 5 page numbers at a time
+
+    if (totalPages <= maxVisiblePages) {
+      // If total pages are less than maxVisiblePages, show all
+      for (let i = 1; i <= totalPages; i++) {
+        items.push(i);
+      }
+    } else {
+      // Show first page, last page, current page, and adjacent pages
+      const leftBound = Math.max(2, currentPage - 1);
+      const rightBound = Math.min(totalPages - 1, currentPage + 1);
+
+      // Always show page 1
+      items.push(1);
+
+      // Add ellipsis if there's a gap after page 1
+      if (leftBound > 2) items.push("...");
+
+      // Add middle pages (current and adjacent)
+      for (let i = leftBound; i <= rightBound; i++) {
+        items.push(i);
+      }
+
+      // Add ellipsis if there's a gap before last page
+      if (rightBound < totalPages - 1) items.push("...");
+
+      // Always show last page
+      items.push(totalPages);
+    }
+
+    return items;
   };
 
   return (
@@ -165,7 +200,7 @@ export default function Home() {
                 setSelectedSortOrder={setSelectedSortOrder}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onReset={handleReset} // Pass reset handler
+                onReset={handleReset}
               />
             </aside>
             <div className="flex-1 space-y-8">
@@ -210,7 +245,7 @@ export default function Home() {
               )}
 
               {totalPages > 1 && (
-                <div className="flex justify-center items-center mt-8 space-x-2">
+                <div className="flex justify-center items-center mt-8 space-x-2 flex-wrap gap-2">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
@@ -219,17 +254,20 @@ export default function Home() {
                     Previous
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  {getPaginationItems().map((item, index) => (
                     <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
+                      key={index}
+                      onClick={() => typeof item === "number" && handlePageChange(item)}
+                      disabled={item === "..."}
                       className={`px-4 py-2 rounded-full ${
-                        currentPage === page
+                        currentPage === item
                           ? "bg-blue-800 text-white"
+                          : item === "..."
+                          ? "bg-transparent text-gray-500 cursor-default"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                       } transition-all`}
                     >
-                      {page}
+                      {item}
                     </button>
                   ))}
 

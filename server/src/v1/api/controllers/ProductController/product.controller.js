@@ -19,35 +19,70 @@ import ProductModel from "../../models/Products/product.model.js"
 import mongoose from "mongoose";
 
 
+
 // Create a new product
 
 
 export const createProduct = async (req, res) => {
     try {
-        const { title, price, estimateprice, offerAmount, category, image, status, sortByPrice, description, created_at , details} = req.body;
+        // Check if the request body is an array or single object
+        const productsData = Array.isArray(req.body) ? req.body : [req.body];
+        
+        // Array to store created products
+        const createdProducts = [];
+        
+        // Check for existing titles
+        const existingTitles = await ProductModel.find({
+            title: { $in: productsData.map(product => product.title) }
+        });
+        
+        const existingTitleSet = new Set(existingTitles.map(product => product.title));
+        
+        // Validate and create products
+        for (const productData of productsData) {
+            const { 
+                title, 
+                price, 
+                estimateprice, 
+                offerAmount, 
+                category, 
+                image, 
+                status, 
+                sortByPrice, 
+                description, 
+                created_at, 
+                details 
+            } = productData;
 
-        const existingProduct = await ProductModel.findOne({ title });
-        if (existingProduct) {
-            return badRequest(res, "A product with this title already exists. Please use a different title.");
+            // Skip if title already exists
+            if (existingTitleSet.has(title)) {
+                continue; // Skip this product if title exists
+            }
+
+            // Create new product
+            const product = new ProductModel({
+                title,
+                price,
+                estimateprice,
+                offerAmount,
+                category,
+                image,
+                status,
+                sortByPrice,
+                description,
+                created_at: created_at || Date.now(),
+                details
+            });
+
+            const savedProduct = await product.save();
+            createdProducts.push(savedProduct);
         }
 
-        // Create new product
-        const product = new ProductModel({
-            title,
-            price,
-            estimateprice,
-            offerAmount,
-            category,
-            image,
-            status,
-            sortByPrice,
-            description,
-            created_at,
-            details
-        });
+        if (createdProducts.length === 0) {
+            return badRequest(res, "No products were created. All submitted titles may already exist.");
+        }
 
-        await product.save();
-        return success(res, "Product created successfully", product);
+        return success(res, `Successfully created ${createdProducts.length} product(s)`, createdProducts);
     } catch (error) {
         return unknownError(res, error.message);
     }
@@ -59,51 +94,59 @@ export const createProduct = async (req, res) => {
 
 export const getFilteredProducts = async (req, res) => {
     try {
-        const { category, status, sortByPrice, sortField, sortOrder, searchQuery } = req.query;
+        const { 
+            category, 
+            status, 
+            sortByPrice, 
+            sortField, 
+            sortOrder, 
+            searchQuery,
+            page = 1,    // Default to page 1
+            limit = 9    // Default to 9 items per page
+        } = req.query;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit); // Calculate skip for pagination
 
         let matchStage = {};
 
-        // Filter by multiple categories (if provided)
+        // Filter by multiple categories
         if (category) {
-            const categoryArray = category.split(","); // Accepts multiple categories as CSV
+            const categoryArray = category.split(",");
             matchStage.category = {
-                $in: categoryArray.map(id => new mongoose.Types.ObjectId(id.trim()))
+                $in: categoryArray.map(id => {
+                    if (!isValidObjectId(id.trim())) throw new Error(`Invalid category ID: ${id}`);
+                    return new mongoose.Types.ObjectId(id.trim());
+                })
             };
         }
 
-
-        // Filter by status (if provided)
+        // Filter by status
         if (status) {
             matchStage.status = status;
         }
 
-        // Search filter (title & description)
+        // Search filter
         if (searchQuery) {
             matchStage.$or = [
-                { title: { $regex: searchQuery, $options: "i" } },  // Case-insensitive search in title
-                { description: { $regex: searchQuery, $options: "i" } } // Case-insensitive search in description
+                { title: { $regex: searchQuery, $options: "i" } },
+                { description: { $regex: searchQuery, $options: "i" } }
             ];
         }
 
         let sortStage = {};
-
-        // Handle sorting by price (High to Low or Low to High)
         if (sortByPrice) {
-            sortStage.price = sortByPrice == "High Price" ? -1 : 1;
-        }
-        // Handle general sorting fields (title, created_at)
-
-        else if (sortField && sortOrder) {
-            if (sortField == "title") {
-                sortStage.title = sortOrder == "asc" ? 1 : -1; // A-Z or Z-A
-            } else if (sortField == "created_at") {
-                sortStage.created_at = sortOrder == "asc" ? 1 : -1; // Oldest-Newest or Newest-Oldest
+            sortStage.price = sortByPrice === "High Price" ? -1 : 1;
+        } else if (sortField && sortOrder) {
+            if (sortField === "title") {
+                sortStage.title = sortOrder === "asc" ? 1 : -1;
+            } else if (sortField === "created_at") {
+                sortStage.created_at = sortOrder === "asc" ? 1 : -1;
             }
         } else {
-            sortStage.createdAt = -1; // Default sorting (newest first)
+            sortStage.created_at = -1; // Default to newest first
         }
 
-
+        // Aggregation pipeline with pagination
         const products = await ProductModel.aggregate([
             { $match: matchStage },
             {
@@ -116,6 +159,8 @@ export const getFilteredProducts = async (req, res) => {
             },
             { $unwind: "$category" },
             { $sort: sortStage },
+            { $skip: skip },        // Skip for pagination
+            { $limit: parseInt(limit) }, // Limit for pagination
             {
                 $project: {
                     title: 1,
@@ -130,18 +175,23 @@ export const getFilteredProducts = async (req, res) => {
                     updated_at: 1,
                     details: 1,
                     favorite: 1,
-                    category: {
-                        _id: 1,
-                        name: 1
-                    }
+                    category: { _id: 1, name: 1 }
                 }
             }
-        ]);
+        ]).allowDiskUse(true); // Enable external sorting
 
+        // Get total count for pagination (optional, remove if not needed)
+        const total = await ProductModel.countDocuments(matchStage);
 
-        return success(res, "Products fetched successfully", products);
+        return success(res, "Products fetched successfully", { 
+            items: products,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / parseInt(limit))
+        });
     } catch (error) {
-        return unknownError(res, error);
+        return unknownError(res, error.message);
     }
 };
 
@@ -206,6 +256,4 @@ export const getProductById = async (req, res) => {
         return unknownError(res, error.message);
     }
 };
-
-
 

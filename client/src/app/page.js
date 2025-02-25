@@ -11,6 +11,7 @@ import NewsletterForm from "./components/NewsletterForm";
 import { ProductCard } from "./Buy-now/components/product-card";
 import PartnersSection from "./components/PartnersSection";
 import PopularArtists from "./components/Artsits";
+import LatestProducts from "./components/LatestProducts";
 
 export default function Home() {
 
@@ -61,12 +62,13 @@ export default function Home() {
         </div>
       </div>
       <AboutUs />
+      <LatestProducts />
       {/* <HeroThumbs /> */}
-      <div className="grid mx-auto max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* <div className="grid mx-auto max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {products.map((product, index) => (
           <ProductCard key={index} {...product} />
         ))}
-      </div>
+      </div> */}
       <StatsSection />
       <TrendingBrands />
       <PopularArtists />
