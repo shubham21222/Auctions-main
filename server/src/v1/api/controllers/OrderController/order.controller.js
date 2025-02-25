@@ -210,9 +210,95 @@ export const getAllOrders = async (req, res) => {
 // Called the webhook //
 
 
+// export const Orderwebhook = async (req, res) => {
+//     const sig = req.headers["stripe-signature"];
+//     const endpointSecret = "whsec_JPMQnOynsdQvQwNBE7nsZ5TDAMpdKzyP"; // Store in env for security
+
+//     if (!endpointSecret) {
+//         console.error("🚨 Missing Stripe Webhook Secret");
+//         return res.status(400).send("Webhook secret missing.");
+//     }
+
+//     let event;
+//     try {
+//         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+//     } catch (err) {
+//         console.error("❌ Webhook signature verification failed:", err.message);
+//         return res.status(400).send(`Webhook Error: ${err.message}`);
+//     }
+
+//     console.log("✅ Webhook Full Event:", JSON.stringify(event, null, 2));
+
+//     try {
+//         switch (event.type) {
+//             case "payment_intent.succeeded": {
+//                 const paymentIntent = event.data.object;
+//                 console.log(`💰 Payment successful: ${paymentIntent.id}`);
+
+//                 // 🔥 Fetch full PaymentIntent details from Stripe
+//                 const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntent.id);
+
+//                 console.log("✅ Retrieved PaymentIntent:", paymentIntents);
+
+//                 // Update Order based on paymentIntentId
+//                 const updatedOrder = await Order.findOneAndUpdate(
+//                     { client_secret: paymentIntent.client_secret },
+//                     {
+//                         $set: {
+//                             paymentStatus: "SUCCEEDED"
+//                         },
+//                     },
+//                     { new: true }
+//                 );
+
+//                 if (!updatedOrder) {
+//                     console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
+//                     return res.status(400).send("Order not found.");
+//                 }
+
+//                 console.log("✅ Order updated successfully:", updatedOrder);
+//                 break;
+//             }
+
+//             case "payment_intent.payment_failed": {
+//                 const paymentIntent = event.data.object;
+//                 console.log(`❌ Payment failed: ${paymentIntent.id}`);
+
+//                 // Update Order to failed status
+//                 const updatedOrder = await Order.findOneAndUpdate(
+//                     { client_secret: paymentIntent.client_secret },
+//                     {
+//                         $set: {
+//                             paymentStatus: "FAILED"
+//                         },
+//                     },
+//                     { new: true }
+//                 );
+
+//                 if (!updatedOrder) {
+//                     console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
+//                     return res.status(400).send("Order not found.");
+//                 }
+
+//                 console.log("✅ Order updated successfully:", updatedOrder);
+//                 break;
+//             }
+
+//             default:
+//                 console.log(`⚠️ Unhandled event type: ${event.type}`);
+//         }
+
+//         res.json({ received: true });
+//     } catch (error) {
+//         console.error("🚨 Webhook Processing Error:", error);
+//         return res.status(500).send("Internal Server Error.");
+//     }
+// };
+
+
 export const Orderwebhook = async (req, res) => {
     const sig = req.headers["stripe-signature"];
-    const endpointSecret = "whsec_JPMQnOynsdQvQwNBE7nsZ5TDAMpdKzyP"; // Store in env for security
+    const endpointSecret = "whsec_JPMQnOynsdQvQwNBE7nsZ5TDAMpdKzyP"; // Store securely in env
 
     if (!endpointSecret) {
         console.error("🚨 Missing Stripe Webhook Secret");
@@ -229,68 +315,58 @@ export const Orderwebhook = async (req, res) => {
 
     console.log("✅ Webhook Full Event:", JSON.stringify(event, null, 2));
 
-    try {
-        switch (event.type) {
-            case "payment_intent.succeeded": {
-                const paymentIntent = event.data.object;
-                console.log(`💰 Payment successful: ${paymentIntent.id}`);
+    // Respond immediately to Stripe to prevent timeout errors
+    res.json({ received: true });
 
-                // 🔥 Fetch full PaymentIntent details from Stripe
-                const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntent.id);
+    // Delay processing by 10 seconds
+    setTimeout(async () => {
+        try {
+            switch (event.type) {
+                case "payment_intent.succeeded": {
+                    const paymentIntent = event.data.object;
+                    console.log(`💰 Payment successful: ${paymentIntent.id}`);
 
-                console.log("✅ Retrieved PaymentIntent:", paymentIntents);
+                    const paymentIntents = await stripe.paymentIntents.retrieve(paymentIntent.id);
+                    console.log("✅ Retrieved PaymentIntent:", paymentIntents);
 
-                // Update Order based on paymentIntentId
-                const updatedOrder = await Order.findOneAndUpdate(
-                    { client_secret: paymentIntent.client_secret },
-                    {
-                        $set: {
-                            paymentStatus: "SUCCEEDED"
-                        },
-                    },
-                    { new: true }
-                );
+                    const updatedOrder = await Order.findOneAndUpdate(
+                        { client_secret: paymentIntent.client_secret },
+                        { $set: { paymentStatus: "SUCCEEDED" } },
+                        { new: true }
+                    );
 
-                if (!updatedOrder) {
-                    console.error("❌ Order not found for PaymentIntent:", paymentIntent.id);
-                    return res.status(400).send("Order not found.");
+                    if (!updatedOrder) {
+                        console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
+                    } else {
+                        console.log("✅ Order updated successfully:", updatedOrder);
+                    }
+                    break;
                 }
 
-                console.log("✅ Order updated successfully:", updatedOrder);
-                break;
-            }
+                case "payment_intent.payment_failed": {
+                    const paymentIntent = event.data.object;
+                    console.log(`❌ Payment failed: ${paymentIntent.id}`);
 
-            case "payment_intent.payment_failed": {
-                const paymentIntent = event.data.object;
-                console.log(`❌ Payment failed: ${paymentIntent.id}`);
+                    const updatedOrder = await Order.findOneAndUpdate(
+                        { client_secret: paymentIntent.client_secret },
+                        { $set: { paymentStatus: "FAILED" } },
+                        { new: true }
+                    );
 
-                // Update Order to failed status
-                const updatedOrder = await Order.findOneAndUpdate(
-                    { client_secret: paymentIntent.client_secret },
-                    {
-                        $set: {
-                            paymentStatus: "FAILED"
-                        },
-                    },
-                    { new: true }
-                );
-
-                if (!updatedOrder) {
-                    console.error("❌ Order not found for PaymentIntent:", paymentIntent.id);
-                    return res.status(400).send("Order not found.");
+                    if (!updatedOrder) {
+                        console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
+                    } else {
+                        console.log("✅ Order updated successfully:", updatedOrder);
+                    }
+                    break;
                 }
 
-                console.log("✅ Order updated successfully:", updatedOrder);
-                break;
+                default:
+                    console.log(`⚠️ Unhandled event type: ${event.type}`);
             }
-
-            default:
-                console.log(`⚠️ Unhandled event type: ${event.type}`);
+        } catch (error) {
+            console.error("🚨 Webhook Processing Error:", error);
         }
-
-        res.json({ received: true });
-    } catch (error) {
-        console.error("🚨 Webhook Processing Error:", error);
-        return res.status(500).send("Internal Server Error.");
-    }
+    }, 10000); // 10-second delay
 };
+

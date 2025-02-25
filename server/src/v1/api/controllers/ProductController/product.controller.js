@@ -102,7 +102,7 @@ export const getFilteredProducts = async (req, res) => {
             sortOrder, 
             searchQuery,
             page = 1,    // Default to page 1
-            limit = 9    // Default to 9 items per page
+            limit = 10    // Default to 9 items per page
         } = req.query;
 
         const skip = (parseInt(page) - 1) * parseInt(limit); // Calculate skip for pagination
