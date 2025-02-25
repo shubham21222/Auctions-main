@@ -18,8 +18,9 @@ export default function ProductDetails({ isLoading, product, productId }) {
   const handleMakeOfferClick = () => {
     if (!isLoggedIn) {
       toast.error("Please log in to make an offer.");
-      return;
+      return; // Do nothing further if not logged in
     }
+    // If logged in, open the modal
     setIsModalOpen(true);
   };
 
@@ -74,11 +75,11 @@ export default function ProductDetails({ isLoading, product, productId }) {
       {isLoading ? (
         <Skeleton className="w-full h-16 rounded-xl" />
       ) : (
-        <motion.div whileHover={{ scale: isLoggedIn ? 1.02 : 1 }} whileTap={{ scale: isLoggedIn ? 0.98 : 1 }}>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 text-base py-4 rounded-xl shadow-lg hover:shadow-xl"
             onClick={handleMakeOfferClick}
-            disabled={!isLoggedIn}
+            // Removed disabled={!isLoggedIn}
           >
             Make an Offer
           </Button>

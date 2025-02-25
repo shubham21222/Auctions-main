@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = {
-  light: "",
-  dark: ".dark"
+  light: ".light",
+  dark: ""
 }
 
 const ChartContext = React.createContext(null)

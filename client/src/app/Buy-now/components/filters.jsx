@@ -9,7 +9,7 @@ import { Search, Filter } from "lucide-react";
 import { useState } from "react";
 
 export function Filters({
-  categories, // Receive categories as a prop
+  categories,
   selectedCategories,
   setSelectedCategories,
   selectedStatus,
@@ -22,6 +22,7 @@ export function Filters({
   setSelectedSortOrder,
   searchQuery,
   setSearchQuery,
+  onReset, // Add a callback to notify Home of reset
 }) {
   const [isOpen, setIsOpen] = useState({
     search: false,
@@ -34,6 +35,16 @@ export function Filters({
 
   const toggleSection = (section) => {
     setIsOpen((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleReset = () => {
+    setSelectedCategories([]);
+    setSelectedStatus("");
+    setSelectedPriceRange("");
+    setSelectedSortField("created_at");
+    setSelectedSortOrder("asc");
+    setSearchQuery("");
+    if (onReset) onReset(); // Notify parent component of reset
   };
 
   return (
@@ -58,7 +69,6 @@ export function Filters({
           animate={{ opacity: 1, y: 0 }}
           className="absolute z-10 top-full left-0 w-full mt-2 p-4 bg-white rounded-2xl shadow-lg lg:hidden"
         >
-          {/* Existing filter sections */}
           <div className="space-y-4">
             {/* Search Section */}
             <div className="space-y-2">
@@ -151,14 +161,7 @@ export function Filters({
             {/* Reset Filters Button */}
             <Button
               variant="outline"
-              onClick={() => {
-                setSelectedCategories([]);
-                setSelectedStatus("");
-                setSelectedPriceRange("");
-                setSelectedSortField("created_at");
-                setSelectedSortOrder("asc");
-                setSearchQuery("");
-              }}
+              onClick={handleReset}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-6 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Reset Filters
@@ -264,14 +267,7 @@ export function Filters({
         {/* Reset Filters Button */}
         <Button
           variant="outline"
-          onClick={() => {
-            setSelectedCategories([]);
-            setSelectedStatus("");
-            setSelectedPriceRange("");
-            setSelectedSortField("created_at");
-            setSelectedSortOrder("asc");
-            setSearchQuery("");
-          }}
+          onClick={handleReset}
           className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-6 shadow-lg hover:shadow-xl transition-all duration-300"
         >
           Reset Filters

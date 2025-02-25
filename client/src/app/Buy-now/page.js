@@ -9,9 +9,14 @@ import { LuxuryBackground } from "../Auctions/components/luxury-background";
 import config from "../config_BASE_URL";
 
 export default function Home() {
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // Store all fetched products
+  const [originalProducts, setOriginalProducts] = useState([]); // Store original unfiltered products
+  const [displayedProducts, setDisplayedProducts] = useState([]); // Products for current page
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 9;
+  const [totalPages, setTotalPages] = useState(1);
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -29,51 +34,40 @@ export default function Home() {
     async function fetchCategories() {
       try {
         const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
-        if (!response.ok) {
-          throw new Error("Failed to fetch categories");
-        }
+        if (!response.ok) throw new Error("Failed to fetch categories");
         const data = await response.json();
-        setCategories(data.items); // Store the fetched categories
+        setCategories(data.items);
       } catch (error) {
         console.error("Error fetching categories:", error.message);
       }
     }
-
     fetchCategories();
   }, []);
 
-  // Fetch all products initially
+  // Fetch initial products (unfiltered)
   useEffect(() => {
-    async function fetchAllProducts() {
+    async function fetchInitialProducts() {
       try {
         setLoading(true);
         const response = await fetch(`${config.baseURL}/v1/api/product/filter`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
-        }
+        if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
-
-        // Log the API response for debugging
-        console.log("API Response (All Products):", data);
-
-        // Update products state
-        setProducts(data.items || []);
+        setOriginalProducts(data.items || []);
+        setAllProducts(data.items || []);
       } catch (error) {
         setError(error.message);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchAllProducts();
+    fetchInitialProducts();
   }, []);
 
-  // Fetch filtered products dynamically
+  // Fetch filtered products or reset to original
   useEffect(() => {
     async function fetchFilteredProducts() {
       try {
         setLoading(true);
-        // Construct the API URL with query parameters
         const queryParams = new URLSearchParams({
           category: selectedCategories.join(","),
           status: selectedStatus,
@@ -84,16 +78,9 @@ export default function Home() {
         }).toString();
 
         const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryParams}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch filtered products");
-        }
+        if (!response.ok) throw new Error("Failed to fetch filtered products");
         const data = await response.json();
-
-        // Log the API response for debugging
-        console.log("API Response (Filtered Products):", data);
-
-        // Update products state
-        setProducts(data.items || []);
+        setAllProducts(data.items || []);
       } catch (error) {
         setError(error.message);
       } finally {
@@ -101,7 +88,7 @@ export default function Home() {
       }
     }
 
-    // Only fetch filtered products if any filter is applied
+    // Only fetch if filters are applied; otherwise, reset to original
     if (
       selectedCategories.length > 0 ||
       selectedStatus ||
@@ -111,6 +98,8 @@ export default function Home() {
       searchQuery
     ) {
       fetchFilteredProducts();
+    } else {
+      setAllProducts(originalProducts); // Reset to original products when filters are cleared
     }
   }, [
     selectedCategories,
@@ -119,14 +108,40 @@ export default function Home() {
     selectedSortField,
     selectedSortOrder,
     searchQuery,
+    originalProducts,
   ]);
+
+  // Handle pagination
+  useEffect(() => {
+    if (allProducts.length > 0) {
+      const total = allProducts.length;
+      setTotalPages(Math.ceil(total / productsPerPage));
+      const startIndex = (currentPage - 1) * productsPerPage;
+      const endIndex = startIndex + productsPerPage;
+      setDisplayedProducts(allProducts.slice(startIndex, endIndex));
+    } else {
+      setDisplayedProducts([]);
+      setTotalPages(1);
+    }
+  }, [allProducts, currentPage]);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleReset = () => {
+    setAllProducts(originalProducts); // Reset to original products
+    setCurrentPage(1); // Reset to first page
+  };
 
   return (
     <>
       <Header />
       <LuxuryBackground />
-      <main className="min-h-screen pt-[40px] ">
-        {/* Page Heading */}
+      <main className="min-h-screen pt-[40px]">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Explore Our Products
@@ -137,7 +152,7 @@ export default function Home() {
           <div className="mt-4 flex flex-col md:flex-row gap-8">
             <aside className="w-full md:w-72 shrink-0">
               <Filters
-                categories={categories} // Pass categories to Filters
+                categories={categories}
                 selectedCategories={selectedCategories}
                 setSelectedCategories={setSelectedCategories}
                 selectedStatus={selectedStatus}
@@ -150,6 +165,7 @@ export default function Home() {
                 setSelectedSortOrder={setSelectedSortOrder}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
+                onReset={handleReset} // Pass reset handler
               />
             </aside>
             <div className="flex-1 space-y-8">
@@ -157,10 +173,9 @@ export default function Home() {
                 Featured Products
               </h2>
 
-              {loading && products.length === 0 ? (
-                // Skeleton Loading
+              {loading && allProducts.length === 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {[...Array(10)].map((_, index) => (
+                  {[...Array(productsPerPage)].map((_, index) => (
                     <div key={index} className="space-y-4">
                       <Skeleton className="h-[200px] w-full rounded-md" />
                       <Skeleton className="h-6 w-3/4 rounded-md" />
@@ -172,8 +187,8 @@ export default function Home() {
                 <p className="text-center text-red-500">Error: {error}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {products.map((product, index) => {
-                    const uniqueKey = `${product._id}-${product.title}-${index}`; // Append index for uniqueness
+                  {displayedProducts.map((product, index) => {
+                    const uniqueKey = `${product._id}-${product.title}-${index}`;
                     const productData = {
                       id: uniqueKey,
                       image: product.image[0],
@@ -181,10 +196,9 @@ export default function Home() {
                       price: product.price || "Price Unavailable",
                       slug: product._id,
                     };
-
                     return (
                       <ProductCard
-                        key={uniqueKey} // Use the composite key here
+                        key={uniqueKey}
                         image={productData.image}
                         name={productData.name}
                         price={productData.price}
@@ -195,7 +209,41 @@ export default function Home() {
                 </div>
               )}
 
-              {loading && products.length > 0 && (
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center mt-8 space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 rounded-full bg-gradient-to-r from-primary to-primary/60 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-4 py-2 rounded-full ${
+                        currentPage === page
+                          ? "bg-blue-800 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      } transition-all`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 rounded-full bg-gradient-to-r from-primary to-primary/60 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+
+              {loading && allProducts.length > 0 && (
                 <p className="text-center text-gray-500">Loading more products...</p>
               )}
             </div>
