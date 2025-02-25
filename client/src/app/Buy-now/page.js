@@ -15,15 +15,16 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 9;
+  const productsPerPage = 18;
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0); // New state for total items from API
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
   const [selectedSortField, setSelectedSortField] = useState("created_at");
-  const [selectedSortOrder, setSelectedSortOrder] = useState("asc");
+  const [selectedSortOrder, setSelectedSortOrder] = useState("desc"); // Changed to desc for newest first
   const [searchQuery, setSearchQuery] = useState("");
 
   // Categories state
@@ -44,28 +45,9 @@ export default function Home() {
     fetchCategories();
   }, []);
 
-  // Fetch initial products (unfiltered)
+  // Fetch products with pagination
   useEffect(() => {
-    async function fetchInitialProducts() {
-      try {
-        setLoading(true);
-        const response = await fetch(`${config.baseURL}/v1/api/product/filter`);
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const data = await response.json();
-        setOriginalProducts(data.items || []);
-        setAllProducts(data.items || []);
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchInitialProducts();
-  }, []);
-
-  // Fetch filtered products or reset to original
-  useEffect(() => {
-    async function fetchFilteredProducts() {
+    async function fetchProducts() {
       try {
         setLoading(true);
         const queryParams = new URLSearchParams({
@@ -75,31 +57,40 @@ export default function Home() {
           sortField: selectedSortField,
           sortOrder: selectedSortOrder,
           searchQuery: searchQuery,
+          page: currentPage,          // Add page parameter
+          limit: productsPerPage,     // Add limit parameter
         }).toString();
 
         const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryParams}`);
-        if (!response.ok) throw new Error("Failed to fetch filtered products");
+        if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
-        setAllProducts(data.items || []);
+
+        // Handle nested items structure
+        const products = data.items?.items || [];
+        setAllProducts(products);
+        setTotalItems(data.items?.total || 0); // Set total items from API
+        setTotalPages(data.items?.totalPages || 1); // Set total pages from API
+
+        // If this is the initial fetch (no filters), set original products
+        if (
+          selectedCategories.length === 0 &&
+          !selectedStatus &&
+          !selectedPriceRange &&
+          selectedSortField === "created_at" &&
+          selectedSortOrder === "desc" &&
+          !searchQuery
+        ) {
+          setOriginalProducts(products);
+        }
+
+        setDisplayedProducts(products); // Display the fetched products directly
       } catch (error) {
         setError(error.message);
       } finally {
         setLoading(false);
       }
     }
-
-    if (
-      selectedCategories.length > 0 ||
-      selectedStatus ||
-      selectedPriceRange ||
-      selectedSortField !== "created_at" ||
-      selectedSortOrder !== "asc" ||
-      searchQuery
-    ) {
-      fetchFilteredProducts();
-    } else {
-      setAllProducts(originalProducts);
-    }
+    fetchProducts();
   }, [
     selectedCategories,
     selectedStatus,
@@ -107,22 +98,8 @@ export default function Home() {
     selectedSortField,
     selectedSortOrder,
     searchQuery,
-    originalProducts,
+    currentPage, // Re-fetch when page changes
   ]);
-
-  // Handle pagination
-  useEffect(() => {
-    if (allProducts.length > 0) {
-      const total = allProducts.length;
-      setTotalPages(Math.ceil(total / productsPerPage));
-      const startIndex = (currentPage - 1) * productsPerPage;
-      const endIndex = startIndex + productsPerPage;
-      setDisplayedProducts(allProducts.slice(startIndex, endIndex));
-    } else {
-      setDisplayedProducts([]);
-      setTotalPages(1);
-    }
-  }, [allProducts, currentPage]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -132,40 +109,35 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setAllProducts(originalProducts);
+    setSelectedCategories([]);
+    setSelectedStatus("");
+    setSelectedPriceRange("");
+    setSelectedSortField("created_at");
+    setSelectedSortOrder("desc"); // Reset to descending for newest first
+    setSearchQuery("");
     setCurrentPage(1);
+    // No need to setAllProducts here; useEffect will fetch original data
   };
 
   // Generate pagination items with truncation
   const getPaginationItems = () => {
     const items = [];
-    const maxVisiblePages = 5; // Show up to 5 page numbers at a time
+    const maxVisiblePages = 5;
 
     if (totalPages <= maxVisiblePages) {
-      // If total pages are less than maxVisiblePages, show all
       for (let i = 1; i <= totalPages; i++) {
         items.push(i);
       }
     } else {
-      // Show first page, last page, current page, and adjacent pages
       const leftBound = Math.max(2, currentPage - 1);
       const rightBound = Math.min(totalPages - 1, currentPage + 1);
 
-      // Always show page 1
       items.push(1);
-
-      // Add ellipsis if there's a gap after page 1
       if (leftBound > 2) items.push("...");
-
-      // Add middle pages (current and adjacent)
       for (let i = leftBound; i <= rightBound; i++) {
         items.push(i);
       }
-
-      // Add ellipsis if there's a gap before last page
       if (rightBound < totalPages - 1) items.push("...");
-
-      // Always show last page
       items.push(totalPages);
     }
 
@@ -208,7 +180,7 @@ export default function Home() {
                 Featured Products
               </h2>
 
-              {loading && allProducts.length === 0 ? (
+              {loading && displayedProducts.length === 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {[...Array(productsPerPage)].map((_, index) => (
                     <div key={index} className="space-y-4">
@@ -281,7 +253,7 @@ export default function Home() {
                 </div>
               )}
 
-              {loading && allProducts.length > 0 && (
+              {loading && displayedProducts.length > 0 && (
                 <p className="text-center text-gray-500">Loading more products...</p>
               )}
             </div>

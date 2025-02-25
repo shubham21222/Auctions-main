@@ -12,16 +12,16 @@ export default function LatestProducts() {
     useEffect(() => {
         async function fetchLatestProducts() {
             try {
-                // Fetch all products sorted by created_at descending
+                // Fetch the latest 6 products directly from the API
                 const response = await fetch(
-                    "http://localhost:4000/v1/api/product/filter?sortField=created_at&sortOrder=desc"
+                    "https://bid.nyelizabeth.com/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=6"
                 );
                 if (!response.ok) throw new Error("Failed to fetch latest products");
                 const data = await response.json();
 
-                // Take only the first 6 products
-                const latestSix = (data.items || []).slice(0, 6);
-                setProducts(latestSix);
+                // Extract products from the nested items.items structure
+                const latestProducts = data.items?.items || [];
+                setProducts(latestProducts);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -37,10 +37,7 @@ export default function LatestProducts() {
                 <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                     Latest Products
                 </h2>
-                <div className="w-24 h-1 text-start  bg-yellow-500 mt-4  rounded-full"></div>
-                {/* <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-                    Discover the world’s most iconic luxury brands.
-                </p> */}
+                <div className="w-24 h-1 text-start bg-yellow-500 mt-4 rounded-full"></div>
             </div>
             <div className="container mx-auto px-6">
                 <motion.h2
@@ -66,29 +63,33 @@ export default function LatestProducts() {
                     <p className="text-center text-red-500">Error: {error}</p>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {products.map((product, index) => {
-                            const productData = {
-                                image: product.image[0],
-                                name: product.title,
-                                price: product.price || "Price Unavailable",
-                                slug: product._id,
-                            };
-                            return (
-                                <motion.div
-                                    key={`${product._id}-${index}`}
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                                >
-                                    <ProductCard
-                                        image={productData.image}
-                                        name={productData.name}
-                                        price={productData.price}
-                                        slug={productData.slug}
-                                    />
-                                </motion.div>
-                            );
-                        })}
+                        {products.length > 0 ? (
+                            products.map((product, index) => {
+                                const productData = {
+                                    image: product.image[0],
+                                    name: product.title,
+                                    price: product.price || "Price Unavailable",
+                                    slug: product._id,
+                                };
+                                return (
+                                    <motion.div
+                                        key={`${product._id}-${index}`}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                                    >
+                                        <ProductCard
+                                            image={productData.image}
+                                            name={productData.name}
+                                            price={productData.price}
+                                            slug={productData.slug}
+                                        />
+                                    </motion.div>
+                                );
+                            })
+                        ) : (
+                            <p className="text-center text-gray-500">No products available</p>
+                        )}
                     </div>
                 )}
 
