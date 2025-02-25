@@ -17,6 +17,7 @@ import {
     invalid,
     onError
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
+import mongoose from "mongoose"
 
 
 // create the Order Api //
@@ -94,7 +95,7 @@ export const createOrder = async(req,res)=>{
 
 export const getAllOrders = async (req, res) => {
     try {
-        let { page = 1, limit = 100, search = ""  } = req.query;
+        let { page = 1, limit = 100, search = "" } = req.query;
         page = parseInt(page);
         limit = parseInt(limit);
 
@@ -105,12 +106,12 @@ export const getAllOrders = async (req, res) => {
                 { "userDetails.name": { $regex: search, $options: "i" } },
                 { "userDetails.email": { $regex: search, $options: "i" } },
                 { "productsDetails.name": { $regex: search, $options: "i" } },
-                { OrderId : {$regex: search, $options: "i"}}
+                { OrderId: { $regex: search, $options: "i" } }
             ];
         }
 
+        // Fetch orders with pagination
         const orders = await Order.aggregate([
-            // Lookup User Data
             {
                 $lookup: {
                     from: "users",
@@ -120,8 +121,6 @@ export const getAllOrders = async (req, res) => {
                 }
             },
             { $unwind: "$userDetails" },
-
-            // Lookup Product Data (keep products array intact)
             {
                 $lookup: {
                     from: "products",
@@ -130,41 +129,30 @@ export const getAllOrders = async (req, res) => {
                     as: "productsDetails"
                 }
             },
-
-            // Match search query (after lookup)
             { $match: matchStage },
-
-            // Sort orders by newest first
-            { $sort: { createdAt: -1 } },
-
-            // Sort and paginate
             { $sort: { createdAt: -1 } },
             { $skip: (page - 1) * limit },
             { $limit: limit },
-
-            // Project required fields
             {
                 $project: {
                     _id: 1,
                     totalAmount: 1,
                     paymentStatus: 1,
-                    OrderId:1,
-                    status:1,
+                    OrderId: 1,
+                    status: 1,
                     createdAt: 1,
                     "userDetails.name": 1,
                     "userDetails.email": 1,
                     "productsDetails.name": 1,
                     "productsDetails.price": 1,
                     "productsDetails.title": 1,
-                    "productsDetails.image":1
-
-
+                    "productsDetails.image": 1
                 }
             }
         ]);
 
         // Count total documents after filtering
-        const countResult = await Order.aggregate([
+        const countAggregation = await Order.aggregate([
             {
                 $lookup: {
                     from: "users",
@@ -183,19 +171,40 @@ export const getAllOrders = async (req, res) => {
                 }
             },
             { $match: matchStage },
-            { $count: "totalDocs" }
+            {
+                $group: {
+                    _id: null,
+                    totalOrders: { $sum: 1 },
+                    pendingOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "PENDING"] }, 1, 0] }
+                    },
+                    succeededOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "SUCCEEDED"] }, 1, 0] }
+                    },
+                    failedOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "FAILED"] }, 1, 0] }
+                    }
+                }
+            }
         ]);
 
-        const totalDocs = countResult.length > 0 ? countResult[0].totalDocs : 0;
-        const totalPages = Math.ceil(totalDocs / limit);
+        const totalOrdersData = countAggregation.length > 0 ? countAggregation[0] : {
+            totalOrders: 0,
+            pendingOrders: 0,
+            succeededOrders: 0,
+            failedOrders: 0
+        };
+
+        const totalPages = Math.ceil(totalOrdersData.totalOrders / limit);
 
         return res.status(200).json({
             message: "Orders fetched successfully",
+            Orderdetails: totalOrdersData, // Total order count with status breakdown
             orders,
             pagination: {
                 page,
                 totalPages,
-                totalOrders: totalDocs
+                totalOrders: totalOrdersData.totalOrders
             }
         });
 
@@ -204,6 +213,159 @@ export const getAllOrders = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+// Update Order Status API //
+
+
+export const getOrdersByUserId = async (req, res) => {
+    try {
+        let { page = 1, limit = 100, search = "" } = req.query;
+        const { userId } = req.params;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: "Invalid User ID" });
+        }
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+
+        const matchStage = { user: userObjectId };
+
+        if (search) {
+            matchStage.$or = [
+                { "productsDetails.name": { $regex: search, $options: "i" } },
+                { OrderId: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Fetch user-specific orders with pagination
+        const orders = await Order.aggregate([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: "$userDetails" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "productsDetails"
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            { $skip: (page - 1) * limit },
+            { $limit: limit },
+            {
+                $project: {
+                    _id: 1,
+                    totalAmount: 1,
+                    paymentStatus: 1,
+                    OrderId: 1,
+                    status: 1,
+                    createdAt: 1,
+                    "userDetails.name": 1,
+                    "userDetails.email": 1,
+                    "productsDetails.name": 1,
+                    "productsDetails.price": 1,
+                    "productsDetails.title": 1,
+                    "productsDetails.image": 1
+                }
+            }
+        ]);
+
+        // Count total user orders and breakdown by status
+        const countAggregation = await Order.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: null,
+                    totalOrders: { $sum: 1 },
+                    pendingOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "PENDING"] }, 1, 0] }
+                    },
+                    succeededOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "SUCCEEDED"] }, 1, 0] }
+                    },
+                    failedOrders: {
+                        $sum: { $cond: [{ $eq: ["$paymentStatus", "FAILED"] }, 1, 0] }
+                    }
+                }
+            }
+        ]);
+
+        const totalOrdersData = countAggregation.length > 0 ? countAggregation[0] : {
+            totalOrders: 0,
+            pendingOrders: 0,
+            succeededOrders: 0,
+            failedOrders: 0
+        };
+
+        const totalPages = Math.ceil(totalOrdersData.totalOrders / limit);
+
+        return res.status(200).json({
+            message: "Orders fetched successfully",
+            totalOrders: totalOrdersData,
+            orders,
+            pagination: {
+                page,
+                totalPages,
+                totalOrders: totalOrdersData.totalOrders
+            }
+        });
+
+    } catch (error) {
+        console.error("🚨 Error fetching user orders:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+// Delete the orders //
+
+export const deleteOrders = async (req, res) => {
+    try {
+        const { orderIds } = req.body; // Expecting an array of order _id's
+
+        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+            return res.status(400).json({ message: "Please provide an array of order IDs" });
+        }
+
+        // Validate that all provided IDs are valid MongoDB ObjectIds
+        const validOrderIds = orderIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+
+        if (validOrderIds.length === 0) {
+            return res.status(400).json({ message: "No valid order IDs provided" });
+        }
+
+        // Delete orders
+        const deleteResult = await Order.deleteMany({ _id: { $in: validOrderIds } });
+
+        if (deleteResult.deletedCount === 0) {
+            return res.status(404).json({ message: "No orders found to delete" });
+        }
+
+        return res.status(200).json({
+            message: "Orders deleted successfully",
+            deletedCount: deleteResult.deletedCount
+        });
+
+    } catch (error) {
+        console.error("🚨 Error deleting orders:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
 
 
 export const updateOrderStatus = async (req, res) => {
