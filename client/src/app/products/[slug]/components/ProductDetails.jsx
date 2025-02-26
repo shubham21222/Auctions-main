@@ -66,7 +66,7 @@ export default function ProductDetails({ isLoading, product, productId }) {
         {isLoading ? (
           <Skeleton className="w-48 h-8" />
         ) : (
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-luxury-gold">
             ${product.price.min.toLocaleString()} - ${product.price.max.toLocaleString()}
           </p>
         )}

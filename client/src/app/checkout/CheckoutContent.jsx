@@ -1,4 +1,3 @@
-// app/checkout/CheckoutContent.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,7 +14,6 @@ export default function CheckoutContent() {
   const userId = useSelector(selectUserId);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
-
 
   const [productDetails, setProductDetails] = useState({
     productId: "",
@@ -47,7 +45,6 @@ export default function CheckoutContent() {
       offerPrice: searchParams.get("price") || "0.00",
     };
     setProductDetails(newProductDetails);
-    console.log("Updated productDetails:", newProductDetails);
 
     if (user) {
       setBillingDetails((prev) => ({
@@ -57,13 +54,6 @@ export default function CheckoutContent() {
         email: user.email || "",
       }));
     }
-
-    console.log("Search Params:", {
-      productId: searchParams.get("productId"),
-      name: searchParams.get("name"),
-      image: searchParams.get("image"),
-      price: searchParams.get("price"),
-    });
   }, [searchParams, user]);
 
   const handleInputChange = (e) => {
@@ -86,41 +76,7 @@ export default function CheckoutContent() {
     }
 
     try {
-      // Step 1: Create Stripe Checkout Session with product image
-      const stripeResponse = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `${productDetails.productName} - Auction Offer`,
-                  images: productDetails.productImage ? [decodeURIComponent(productDetails.productImage)] : [],
-                },
-                unit_amount: Math.round((parseFloat(productDetails.offerPrice) + 100) * 100), // Total in cents
-              },
-              quantity: 1,
-            },
-          ],
-          mode: "payment",
-          success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${window.location.origin}/checkout`,
-          metadata: {
-            CustomerId: userId,
-            integration_check: "auction_payment",
-            productId: productDetails.productId,
-          },
-        }),
-      });
-
-      const stripeData = await stripeResponse.json();
-      if (!stripeResponse.ok) throw new Error(stripeData.error || "Failed to create checkout session");
-
-      const stripeSessionId = stripeData.id;
-
-      // Step 2: Create order in your backend
+      // Step 1: Create order in your backend
       const payload = {
         products: [
           {
@@ -131,8 +87,6 @@ export default function CheckoutContent() {
         ],
         totalAmount: parseFloat(productDetails.offerPrice) + 100,
       };
-
-      console.log("MakeOrder Payload:", payload);
 
       const orderResponse = await fetch("https://bid.nyelizabeth.com/v1/api/order/MakeOrder", {
         method: "POST",
@@ -145,6 +99,43 @@ export default function CheckoutContent() {
 
       const orderData = await orderResponse.json();
       if (!orderResponse.ok) throw new Error(orderData.message || "Failed to create order");
+
+      const orderId = orderData.result._id; // Extract order ID
+
+      // Step 2: Create Stripe Checkout Session
+      const stripeResponse = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `${productDetails.productName} - Auction Offer`,
+                  images: productDetails.productImage ? [decodeURIComponent(productDetails.productImage)] : [],
+                },
+                unit_amount: Math.round((parseFloat(productDetails.offerPrice) + 100) * 100),
+              },
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`, // Pass orderId
+          cancel_url: `${window.location.origin}/checkout`,
+          metadata: {
+            CustomerId: userId,
+            integration_check: "auction_payment",
+            productId: productDetails.productId,
+            orderId: orderId, // Include orderId in metadata
+          },
+        }),
+      });
+
+      const stripeData = await stripeResponse.json();
+      if (!stripeResponse.ok) throw new Error(stripeData.error || "Failed to create checkout session");
+
+      const stripeSessionId = stripeData.id;
 
       // Step 3: Redirect to Stripe Checkout
       const stripe = await import("@stripe/stripe-js").then((mod) =>
