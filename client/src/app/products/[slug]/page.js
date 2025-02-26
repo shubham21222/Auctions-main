@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import ProductDetails from "./components/ProductDetails";
-import MakeOfferModal from "./components/MakeOfferModal";
 import config from "@/app/config_BASE_URL";
 import Image from "next/image";
 
@@ -13,7 +12,7 @@ export default function ProductPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0); // Track selected image
 
   useEffect(() => {
     console.log("ProductPage slug:", slug);
@@ -37,7 +36,7 @@ export default function ProductPage() {
               max: parseFloat(apiProduct.price) || 0,
             },
             location: "Beverly Hills, CA",
-            images: apiProduct.image?.map((img) => img.trim()) || [],
+            images: apiProduct.image?.map((img) => img.trim()) || [], // Handle multiple images
           };
           setProduct(transformedProduct);
         } else {
@@ -56,6 +55,10 @@ export default function ProductPage() {
       setIsLoading(false);
     }
   }, [slug]);
+
+  const handleImageClick = (index) => {
+    setSelectedImageIndex(index);
+  };
 
   if (!slug) {
     return (
@@ -81,30 +84,62 @@ export default function ProductPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_700px] gap-12">
             <div className="space-y-6">
               {isLoading ? (
-                <div className="aspect-square rounded-xl overflow-hidden shadow-xl">
-                  <div className="w-full h-full bg-gray-300 animate-pulse"></div>
+                <div className="space-y-4">
+                  <div className="aspect-square rounded-xl overflow-hidden shadow-xl">
+                    <div className="w-full h-full bg-gray-300 animate-pulse"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    {[...Array(3)].map((_, index) => (
+                      <div key={index} className="w-20 h-20 bg-gray-300 animate-pulse rounded-md"></div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="relative aspect-square rounded-xl overflow-hidden shadow-xl">
-                  <Image
-                    src={product.images[0] || "/placeholder.svg"}
-                    alt={product.name || "Product Image"}
-                    layout="fill"
-                    objectFit="cover"
-                  />
+                <div className="space-y-4">
+                  {/* Main Image */}
+                  <div className="relative aspect-square rounded-xl overflow-hidden shadow-xl">
+                    <Image
+                      src={product.images[selectedImageIndex] || "/placeholder.svg"}
+                      alt={product.name || "Product Image"}
+                      layout="fill"
+                      objectFit="cover"
+                      className="transition-all duration-300"
+                    />
+                  </div>
+                  {/* Thumbnail Images */}
+                  {product.images.length > 1 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {product.images.map((img, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleImageClick(index)}
+                          className={`relative w-20 h-20 rounded-md overflow-hidden border-2 transition-all duration-200 ${
+                            selectedImageIndex === index ? "border-blue-600" : "border-gray-200"
+                          }`}
+                        >
+                          <Image
+                            src={img || "/placeholder.svg"}
+                            alt={`${product.name} thumbnail ${index + 1}`}
+                            layout="fill"
+                            objectFit="cover"
+                            className="hover:opacity-75 transition-opacity"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
             <ProductDetails
               isLoading={isLoading}
               product={product}
-              productId={slug} // Pass slug as productId to ProductDetails
+              productId={slug}
             />
           </div>
         </main>
       </div>
       <Footer />
-      {/* Removed MakeOfferModal from here since it's now in ProductDetails */}
     </>
   );
 }
