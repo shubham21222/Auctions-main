@@ -418,7 +418,7 @@ export const updateProfile = async (req, res, next) => {
 export const updatePassword = async (req, res, next) => {
     try {
         // Extract user ID from request
-        const { _id } = req.user;
+        const { _id } = req.user._id;
         validateMongoDbId(_id); // Ensure it's a valid MongoDB ID
 
         // Extract password fields from request body
@@ -459,6 +459,36 @@ export const updatePassword = async (req, res, next) => {
         unknownError(res, error);
     }
 };
+
+
+// Update Billing Address //
+
+export const updateBillingAddress = async (req, res, next) => {
+    try {
+        const { _id } = req.user._id;
+
+
+
+        console.log("Id" , _id)
+        validateMongoDbId(_id);
+
+        const { BillingDetails } = req.body;
+
+        if (!BillingDetails) {
+            return badRequest(res, "Please provide a valid billing address to update");
+        }
+
+        const user = await User.findByIdAndUpdate(
+            _id,
+            { BillingDetails },
+            { new: true, runValidators: true }
+        );
+
+        return success(res, "Billing address updated successfully", user);
+    } catch (error) {
+        unknownError(res, error);
+    }
+}
 
 
 

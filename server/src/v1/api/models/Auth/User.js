@@ -15,6 +15,8 @@ import { success,
     sendResponse,
     invalid,
     onError} from "../../formatters/globalResponse.js"
+import { type } from "os";
+import order from "../Order/order.js";
 
 
 
@@ -93,6 +95,64 @@ const UserSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Product',
             required: false
+        }],
+
+
+        // Billing Details connectivity //
+
+        BillingDetails: [{
+
+
+            firstName: {
+                type: String,
+                required: false
+            },
+
+            lastName: {
+                type: String,
+                required: false
+            },
+
+            company_name: {
+                type: String,
+                required: false
+            },
+
+            streetAddress: {
+                type: String,
+                required: false
+            },
+
+            city:{
+                type: String,
+                required: false
+            },
+
+            state:{
+                type: String,
+                required: false
+            },
+
+            zipcode:{
+                type: String,
+                required: false
+            },
+
+            phone:{
+                type: String,
+                required: false
+            },
+
+            email:{
+                type: String,
+                required: false
+            },
+
+            orderNotes:{
+                type: String,
+                required: false
+            }
+
         }],
 
         // Auction connectivity //
