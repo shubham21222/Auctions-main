@@ -1,10 +1,11 @@
-'use client';
+"use client";
+
 import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { Filters } from "./components/filters";
 import { ProductCard } from "./components/product-card";
-import { Skeleton } from "@/components/ui/skeleton"; 
+import { Skeleton } from "@/components/ui/skeleton";
 import { LuxuryBackground } from "../Auctions/components/luxury-background";
 import config from "../config_BASE_URL";
 
@@ -12,19 +13,19 @@ export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
   const [originalProducts, setOriginalProducts] = useState([]);
   const [displayedProducts, setDisplayedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Controls initial loading state
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 18;
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0); // New state for total items from API
+  const [totalItems, setTotalItems] = useState(0);
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
   const [selectedSortField, setSelectedSortField] = useState("created_at");
-  const [selectedSortOrder, setSelectedSortOrder] = useState("desc"); // Changed to desc for newest first
+  const [selectedSortOrder, setSelectedSortOrder] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Categories state
@@ -49,7 +50,7 @@ export default function Home() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        setLoading(true);
+        setLoading(true); // Set loading true for every fetch
         const queryParams = new URLSearchParams({
           category: selectedCategories.join(","),
           status: selectedStatus,
@@ -57,21 +58,19 @@ export default function Home() {
           sortField: selectedSortField,
           sortOrder: selectedSortOrder,
           searchQuery: searchQuery,
-          page: currentPage,          // Add page parameter
-          limit: productsPerPage,     // Add limit parameter
+          page: currentPage,
+          limit: productsPerPage,
         }).toString();
 
         const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryParams}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
 
-        // Handle nested items structure
         const products = data.items?.items || [];
         setAllProducts(products);
-        setTotalItems(data.items?.total || 0); // Set total items from API
-        setTotalPages(data.items?.totalPages || 1); // Set total pages from API
+        setTotalItems(data.items?.total || 0);
+        setTotalPages(data.items?.totalPages || 1);
 
-        // If this is the initial fetch (no filters), set original products
         if (
           selectedCategories.length === 0 &&
           !selectedStatus &&
@@ -83,11 +82,11 @@ export default function Home() {
           setOriginalProducts(products);
         }
 
-        setDisplayedProducts(products); // Display the fetched products directly
+        setDisplayedProducts(products);
       } catch (error) {
         setError(error.message);
       } finally {
-        setLoading(false);
+        setLoading(false); // Reset loading after fetch completes
       }
     }
     fetchProducts();
@@ -98,13 +97,13 @@ export default function Home() {
     selectedSortField,
     selectedSortOrder,
     searchQuery,
-    currentPage, // Re-fetch when page changes
+    currentPage,
   ]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -113,10 +112,9 @@ export default function Home() {
     setSelectedStatus("");
     setSelectedPriceRange("");
     setSelectedSortField("created_at");
-    setSelectedSortOrder("desc"); // Reset to descending for newest first
+    setSelectedSortOrder("desc");
     setSearchQuery("");
     setCurrentPage(1);
-    // No need to setAllProducts here; useEffect will fetch original data
   };
 
   // Generate pagination items with truncation
@@ -180,18 +178,20 @@ export default function Home() {
                 Featured Products
               </h2>
 
-              {loading && displayedProducts.length === 0 ? (
+              {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {[...Array(productsPerPage)].map((_, index) => (
                     <div key={index} className="space-y-4">
-                      <Skeleton className="h-[200px] w-full rounded-md" />
-                      <Skeleton className="h-6 w-3/4 rounded-md" />
-                      <Skeleton className="h-4 w-1/2 rounded-md" />
+                      <Skeleton className="h-[450px] w-full rounded-xl bg-gray-400" />
+                      <Skeleton className="h-10 w-3/4 rounded-xl bg-gray-400" />
+                      <Skeleton className="h-8 w-1/2 rounded-xl bg-gray-400" />
                     </div>
                   ))}
                 </div>
               ) : error ? (
                 <p className="text-center text-red-500">Error: {error}</p>
+              ) : displayedProducts.length === 0 ? (
+                <p className="text-center text-gray-500">No products available.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {displayedProducts.map((product, index) => {
@@ -251,10 +251,6 @@ export default function Home() {
                     Next
                   </button>
                 </div>
-              )}
-
-              {loading && displayedProducts.length > 0 && (
-                <p className="text-center text-gray-500">Loading more products...</p>
               )}
             </div>
           </div>
