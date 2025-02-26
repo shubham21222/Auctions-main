@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
