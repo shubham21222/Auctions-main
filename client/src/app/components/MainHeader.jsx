@@ -4,6 +4,10 @@ import { HiMenu, HiX, HiSearch } from "react-icons/hi";
 import Link from "next/link";
 import Image from "next/image";
 import useAuth from "@/hooks/useAuth";
+import axios from 'axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { removeToken, removeUser } from "@/redux/authSlice";
+import config from "../config_BASE_URL";
 
 const MainHeader = ({
   isScrolled,
@@ -19,7 +23,34 @@ const MainHeader = ({
   setShowSignupModal,
 }) => {
   const { isAuthenticated } = useAuth();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // State for dropdown visibility
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dispatch = useDispatch();
+  const auth = useSelector((state) => state.auth);
+  const token = auth?.token || null;
+
+  // Handle logout functionality
+  const handleLogout = async () => {
+    try {
+      console.log('Logging out...');
+      await axios.post(
+        `${config.baseURL}/v1/api/auth/logout`,
+        {},
+        {
+          headers: {
+            Authorization: `${token}`,
+          },
+        }
+      );
+      console.log('Logout successful');
+      dispatch(removeToken());
+      dispatch(removeUser());
+      window.location.href = '/';
+      setMenuOpen(false); // Close the mobile menu after logout
+    } catch (error) {
+      console.error('Error during logout:', error);
+      alert('An error occurred while logging out. Please try again.');
+    }
+  };
 
   return (
     <header
@@ -41,7 +72,6 @@ const MainHeader = ({
     >
       <div className="container mx-auto md:px-6 px-4">
         <div className="flex items-center justify-between">
-          {/* Mobile View: Search Button (Left) */}
           {isMobile && (
             <button
               className="p-2 text-black font-semibold z-50"
@@ -79,10 +109,8 @@ const MainHeader = ({
             </button>
           )}
 
-          {/* Desktop View: Navigation Links and Search */}
           {!isMobile && (
             <>
-              {/* Navigation Links (Center) */}
               <nav className="hidden md:flex space-x-6 text-sm sm:text-base items-center font-medium">
                 <Link href="/Auctions" className="hover:text-purple-600">
                   Auctions
@@ -97,8 +125,6 @@ const MainHeader = ({
                   Sell
                 </Link>
               </nav>
-
-              {/* Search Bar */}
               <form onSubmit={handleSearch} className="relative w-64 flex-grow md:flex-grow-0">
                 <input
                   type="text"
@@ -113,7 +139,6 @@ const MainHeader = ({
           )}
         </div>
 
-        {/* Mobile Search Bar */}
         {isMobile && showSearchBar && (
           <form onSubmit={handleSearch} className="relative w-full mt-4">
             <input
@@ -127,7 +152,6 @@ const MainHeader = ({
           </form>
         )}
 
-        {/* Mobile Menu */}
         {menuOpen && (
           <nav className="absolute top-full left-0 w-full bg-white text-black rounded-lg shadow-lg z-50 md:hidden mt-2">
             <div className="flex flex-col items-center text-sm font-medium space-y-2 py-4">
@@ -144,10 +168,9 @@ const MainHeader = ({
               <Link href="/past-auctions" className="hover:text-purple-600">
                 PAST AUCTIONS
               </Link>
-              <Link href="FAQs" className="hover:text-purple-600">
+              <Link href="/FAQs" className="hover:text-purple-600">
                 FAQ
               </Link>
-
               <Link href="/Auctions" className="hover:text-purple-600">
                 Auctions
               </Link>
@@ -161,18 +184,14 @@ const MainHeader = ({
                 Sell
               </Link>
 
-              {/* Conditionally Render "My Account" or "Login/Sign Up" Buttons in Mobile Menu */}
               {isAuthenticated ? (
-                <div className="relative">
-                  {/* Dropdown Trigger */}
+                <div className="relative w-full">
                   <button
                     className="bg-[#002654] hover:bg-[#002654]/90 text-white rounded px-4 py-1 text-sm mt-2 w-full"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)} // Toggle dropdown visibility
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   >
                     MY ACCOUNT ▼
                   </button>
-
-                  {/* Dropdown Content */}
                   {isDropdownOpen && (
                     <div className="absolute top-full left-0 w-48 bg-white text-black rounded-lg shadow-lg mt-2 z-1000">
                       <div className="flex flex-col space-y-1 p-2">
@@ -188,7 +207,10 @@ const MainHeader = ({
                         <Link href="/seller-portal" className="hover:bg-gray-100 px-4 py-2 rounded">
                           Seller Portal
                         </Link>
-                        <button className="hover:bg-gray-100 px-4 py-2 rounded text-left">
+                        <button
+                          className="hover:bg-gray-100 px-4 py-2 rounded text-left"
+                          onClick={handleLogout} // Attach logout handler
+                        >
                           Log Out
                         </button>
                       </div>

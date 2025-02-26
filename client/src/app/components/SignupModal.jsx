@@ -1,19 +1,22 @@
 'use client';
 import React, { useState } from 'react';
-import axios from 'axios'; // Import Axios
+import axios from 'axios';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
+import toast, { Toaster } from 'react-hot-toast';
 import config from '../config_BASE_URL';
+import Link from 'next/link';
+import LoginModal from './LoginModal';
 
 const SignupModal = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState(''); // State for email input
-  const [loading, setLoading] = useState(false); // Loading state for API call
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   if (!isOpen) return null;
 
@@ -33,47 +36,36 @@ const SignupModal = ({ isOpen, onClose }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-
-      // Send a POST request to the registration API
       const response = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
         email,
         password,
       });
-
       console.log('Registration successful:', response.data);
-
-      // Show success toast notification
-      toast.success('Sign up successful!', {
-        style: {
-          background: '#32CD32', // Green background
-          color: '#fff', // White text
-        },
-        icon: '✅', // Checkmark icon
+      toast.success('Sign up successful! You can login Now', {
+        style: { background: '#32CD32', color: '#fff' },
+        icon: '✅',
       });
-
-      setLoading(false); // Stop loading
-      onClose(); // Close the modal after successful registration
+      setLoading(false);
+      onClose();
     } catch (err) {
       console.error('Error during registration:', err.response?.data || err.message);
-
-      // Show error toast notification
       toast.error(err.response?.data?.message || 'An error occurred. Please try again.', {
-        style: {
-          background: '#FF4500', // Orange background
-          color: '#fff', // White text
-        },
-        icon: '❌', // Cross icon
+        style: { background: '#FF4500', color: '#fff' },
+        icon: '❌',
       });
-
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
+  };
+
+  // Function to open LoginModal without closing SignupModal
+  const handleLoginClick = () => {
+    setShowLoginModal(true); // Open LoginModal
+    // Do not call onClose() here to keep SignupModal open
   };
 
   return (
     <>
-      {/* Toast Container */}
       <Toaster position="top-right" reverseOrder={false} />
-
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -86,9 +78,8 @@ const SignupModal = ({ isOpen, onClose }) => {
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -50, opacity: 0 }}
-              className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg shadow-2xl w-full max-w-md p-8 relative"
+              className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg shadow-2xl w-full max-w-md p-8 relative z-50"
             >
-              {/* Close Button */}
               <button
                 onClick={onClose}
                 className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 transition-colors"
@@ -96,7 +87,6 @@ const SignupModal = ({ isOpen, onClose }) => {
                 ✕
               </button>
 
-              {/* Logo */}
               <div className="flex justify-center mb-8">
                 <Image
                   src="https://beta.nyelizabeth.com/wp-content/uploads/2024/05/Rectangle.svg"
@@ -106,16 +96,17 @@ const SignupModal = ({ isOpen, onClose }) => {
                 />
               </div>
 
-              {/* Title */}
               <h2 className="text-2xl font-bold text-center text-gray-900">Create an account</h2>
               <p className="text-sm text-center text-gray-600 mt-3">
                 Already have an account?{' '}
-                <a href="#" className="text-blue-600 hover:underline">
+                <button
+                  onClick={handleLoginClick}
+                  className="text-blue-600 hover:underline focus:outline-none"
+                >
                   Login
-                </a>
+                </button>
               </p>
 
-              {/* Step 1: Email Input */}
               {step === 1 && (
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
@@ -150,9 +141,9 @@ const SignupModal = ({ isOpen, onClose }) => {
                       />
                       <label htmlFor="terms" className="label-text text-sm text-gray-700">
                         I accept the{' '}
-                        <a href="#" className="text-blue-600 hover:underline">
+                        <Link href="/terms" className="text-blue-600 hover:underline">
                           terms and conditions
-                        </a>
+                        </Link>
                       </label>
                     </div>
                     <button
@@ -166,7 +157,6 @@ const SignupModal = ({ isOpen, onClose }) => {
                 </motion.div>
               )}
 
-              {/* Step 2: Password Input */}
               {step === 2 && (
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
@@ -218,10 +208,7 @@ const SignupModal = ({ isOpen, onClose }) => {
                       At least one number or special character
                     </p>
                     <div className="flex justify-between mt-8">
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => setStep(1)}
-                      >
+                      <button className="btn btn-secondary" onClick={() => setStep(1)}>
                         Previous
                       </button>
                       <button
@@ -239,6 +226,12 @@ const SignupModal = ({ isOpen, onClose }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Render LoginModal with a higher z-index */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </>
   );
 };
