@@ -6,6 +6,7 @@ import Link from "next/link";
 
 export default function MakeOfferModal({ isOpen, onClose, minPrice, product, productId }) {
   const [offerAmount, setOfferAmount] = useState("");
+  const [message, setMessage] = useState(""); // State for optional message
   const [error, setError] = useState("");
 
   console.log("MakeOfferModal productId:", productId); // Debug productId
@@ -17,7 +18,7 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
       return;
     }
     setError("");
-    console.log("Offer Submitted:", offerValue);
+    console.log("Offer Submitted:", { offerValue, message: message || "No message provided" });
     onClose();
   };
 
@@ -39,12 +40,19 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
               value={offerAmount}
               onChange={(e) => setOfferAmount(e.target.value)}
               min={minPrice}
+              required // Keep this required since offer amount is mandatory
             />
             {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
           </div>
           <div className="mt-4">
-            <label className="text-sm font-medium text-gray-700">Include a Message</label>
-            <textarea className="w-full mt-1 p-2 border rounded-md" rows={3}></textarea>
+            <label className="text-sm font-medium text-gray-700">Include a Message (Optional)</label>
+            <textarea
+              className="w-full mt-1 p-2 border rounded-md"
+              rows={3}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Add an optional message..."
+            />
           </div>
           <div className="mt-6 flex justify-end gap-2">
             <Button onClick={onClose} className="bg-gray-200 text-gray-700">
@@ -58,6 +66,7 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
                   name: product?.name || "",
                   image: product?.images?.[0] || "",
                   price: offerAmount || "",
+                  message: message || "", // Pass message if provided, empty string if not
                 },
               }}
             >
