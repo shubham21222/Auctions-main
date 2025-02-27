@@ -16,7 +16,7 @@ import config from "../config_BASE_URL";
 
 const PurchasesPage = () => {
   const auth = useSelector((state) => state.auth);
-  const userId = auth?.userId || "67a44329fb4b0cbc77817dc8"; // Fallback ID
+  const userId = auth?._id; // Use _id from authSlice
   const token = auth?.token;
 
   const [orders, setOrders] = useState([]);
@@ -38,7 +38,12 @@ const PurchasesPage = () => {
         );
 
         if (response.data.message === "Orders fetched successfully") {
-          setOrders(response.data.orders || []);
+          const fetchedOrders = response.data.orders || [];
+          if (fetchedOrders.length === 0) {
+            setError("You don't have any purchases.");
+          } else {
+            setOrders(fetchedOrders);
+          }
         } else {
           throw new Error(response.data.message || "Failed to fetch orders");
         }
@@ -52,7 +57,7 @@ const PurchasesPage = () => {
     if (userId && token) {
       fetchOrders();
     } else {
-      setError("Please log in to view your purchases.");
+      setError("User ID not available. Please log in to view your purchases.");
       setLoading(false);
     }
   }, [userId, token]);
@@ -83,7 +88,7 @@ const PurchasesPage = () => {
             </p>
           </motion.div>
 
-          {/* Orders Section */}
+          
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[...Array(6)].map((_, index) => (
@@ -91,15 +96,15 @@ const PurchasesPage = () => {
               ))}
             </div>
           ) : error ? (
-            <div className="text-center text-red-500 text-lg">{error}</div>
-          ) : orders.length === 0 ? (
-            <div className="text-center text-gray-500 text-lg">
-              No purchases yet. Start exploring our collections!
-              <Link href="/products">
-                <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
-                  Shop Now
-                </Button>
-              </Link>
+            <div className="text-center text-red-500 text-lg">
+              {error}
+              {error === "User ID not available. Please log in to view your purchases." || error === "You don't have any purchases." ? (
+                <Link href={error.includes("log in") ? "/" : "/Buy-now"}>
+                  <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
+                    {error.includes("log in") ? "Log In" : "Shop Now"}
+                  </Button>
+                </Link>
+              ) : null}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

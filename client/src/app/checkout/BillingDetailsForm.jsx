@@ -60,7 +60,7 @@ export default function BillingDetailsForm({ user, token, onBillingUpdate }) {
     };
 
     try {
-      const response = await fetch("http://localhost:4000/v1/api/auth/UpdateBillingAddress", {
+      const response = await fetch("https://bid.nyelizabeth.com/v1/api/auth/UpdateBillingAddress", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,26 +1,29 @@
-'use client';
-import React, { useState } from 'react';
-import axios from 'axios';
-import Image from 'next/image';
-import { Eye, EyeOff } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import toast, { Toaster } from 'react-hot-toast';
-import config from '../config_BASE_URL';
-import Link from 'next/link';
-import LoginModal from './LoginModal';
+"use client";
+import React, { useState } from "react";
+import axios from "axios";
+import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import toast, { Toaster } from "react-hot-toast";
+import config from "../config_BASE_URL";
+import Link from "next/link";
+import LoginModal from "./LoginModal";
+import { useDispatch } from "react-redux";
+import { setToken, setUser, setUserId, setEmail } from "@/redux/authSlice";
 
 const SignupModal = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const dispatch = useDispatch();
 
   if (!isOpen) return null;
 
-  // Password strength calculation
   const getPasswordStrength = (password) => {
     if (password.length === 0) return 0;
     let strength = 0;
@@ -32,37 +35,110 @@ const SignupModal = ({ isOpen, onClose }) => {
 
   const passwordStrength = getPasswordStrength(password);
 
-  // Handle form submission
   const handleSubmit = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
+      // Step 1: Register the user
+      const signupResponse = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
+        email,
+        password,
+        name,
+      });
+
+      if (!signupResponse.data.success) {
+        throw new Error(signupResponse.data.message || "Registration failed.");
+      }
+
+      // Step 2: Login to get the token
+      const loginResponse = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
         email,
         password,
       });
-      console.log('Registration successful:', response.data);
-      toast.success('Sign up successful! You can login Now', {
-        style: { background: '#32CD32', color: '#fff' },
-        icon: '✅',
+
+      if (!loginResponse.data.status || !loginResponse.data.items.success) {
+        throw new Error(loginResponse.data.message || "Login failed after registration.");
+      }
+
+      // Extract token and user data from login response
+      const token = loginResponse.data.items.token;
+      const userData = loginResponse.data.items.user;
+
+      if (!token || !userData) {
+        throw new Error("No token or user data received from login response.");
+      }
+
+      // Validate userData fields
+      if (!userData._id) {
+        throw new Error("User data missing _id field.");
+      }
+      if (!userData.email) {
+        throw new Error("User data missing email field.");
+      }
+
+      // Step 3: Store token and user data in Redux for auto-login
+      try {
+        dispatch(setToken(token));
+      } catch (dispatchErr) {
+        // Silently handle dispatch errors to avoid breaking flow
+      }
+
+      try {
+        dispatch(setUser(userData));
+      } catch (dispatchErr) {
+        // Silently handle dispatch errors
+      }
+
+      try {
+        dispatch(setUserId(userData._id));
+      } catch (dispatchErr) {
+        // Silently handle dispatch errors
+      }
+
+      try {
+        dispatch(setEmail(userData.email));
+      } catch (dispatchErr) {
+        // Silently handle dispatch errors
+      }
+
+      // Success: Show toast and close modal immediately after login
+      toast.success("Sign up successful! You are now logged in.", {
+        style: { background: "#32CD32", color: "#fff" },
+        icon: "✅",
       });
       setLoading(false);
       onClose();
+
+      // Step 4: Verify the token (optional, runs after modal closes)
+      try {
+        const verifyResponse = await axios.post(
+          `${config.baseURL}/v1/api/auth/verify/${token}`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (verifyResponse.data?.items && typeof verifyResponse.data.items === "object") {
+          try {
+            dispatch(setUser(verifyResponse.data.items));
+          } catch (dispatchErr) {
+            // Silently handle dispatch errors
+          }
+        }
+      } catch (verifyErr) {
+        // Silently handle verify errors since it's optional
+      }
     } catch (err) {
-      console.error('Error during registration:', err.response?.data || err.message);
-      toast.error(err.response?.data?.message || 'An error occurred. Please try again.', {
-        style: { background: '#FF4500', color: '#fff' },
-        icon: '❌',
+      toast.error(err.message, {
+        style: { background: "#FF4500", color: "#fff" },
+        icon: "❌",
       });
       setLoading(false);
     }
   };
 
-  // Function to open LoginModal without closing SignupModal
   const handleLoginClick = () => {
-    setShowLoginModal(true); // Open LoginModal
-    // Do not call onClose() here to keep SignupModal open
+    setShowLoginModal(true);
   };
 
+  // Rest of the component remains unchanged...
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
@@ -98,7 +174,7 @@ const SignupModal = ({ isOpen, onClose }) => {
 
               <h2 className="text-2xl font-bold text-center text-gray-900">Create an account</h2>
               <p className="text-sm text-center text-gray-600 mt-3">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <button
                   onClick={handleLoginClick}
                   className="text-blue-600 hover:underline focus:outline-none"
@@ -121,6 +197,19 @@ const SignupModal = ({ isOpen, onClose }) => {
                   <div className="space-y-6">
                     <div>
                       <label className="label">
+                        <span className="label-text text-sm font-medium text-gray-700">Name</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter your name"
+                        className="input input-bordered w-full"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label">
                         <span className="label-text text-sm font-medium text-gray-700">Email</span>
                       </label>
                       <input
@@ -129,6 +218,7 @@ const SignupModal = ({ isOpen, onClose }) => {
                         className="input input-bordered w-full"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        required
                       />
                     </div>
                     <div className="flex items-center">
@@ -137,10 +227,10 @@ const SignupModal = ({ isOpen, onClose }) => {
                         id="terms"
                         className="checkbox checkbox-primary mr-3"
                         checked={acceptedTerms}
-                        onChange={() => setAcceptedTerms(!acceptedTerms)}
+                        onChange={(e) => setAcceptedTerms(!acceptedTerms)}
                       />
                       <label htmlFor="terms" className="label-text text-sm text-gray-700">
-                        I accept the{' '}
+                        I accept the{" "}
                         <Link href="/terms" className="text-blue-600 hover:underline">
                           terms and conditions
                         </Link>
@@ -149,7 +239,7 @@ const SignupModal = ({ isOpen, onClose }) => {
                     <button
                       className="btn btn-primary w-full mt-6"
                       onClick={() => setStep(2)}
-                      disabled={!acceptedTerms}
+                      disabled={!acceptedTerms || !name || !email}
                     >
                       Next
                     </button>
@@ -173,11 +263,12 @@ const SignupModal = ({ isOpen, onClose }) => {
                       </label>
                       <div className="relative">
                         <input
-                          type={showPassword ? 'text' : 'password'}
+                          type={showPassword ? "text" : "password"}
                           placeholder="Password"
                           className="input input-bordered w-full"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
+                          required
                         />
                         <button
                           type="button"
@@ -191,12 +282,12 @@ const SignupModal = ({ isOpen, onClose }) => {
                         <div
                           className={`h-2 rounded-full ${
                             passwordStrength === 3
-                              ? 'bg-green-500'
+                              ? "bg-green-500"
                               : passwordStrength === 2
-                              ? 'bg-yellow-500'
+                              ? "bg-yellow-500"
                               : passwordStrength === 1
-                              ? 'bg-red-500'
-                              : 'bg-gray-200'
+                              ? "bg-red-500"
+                              : "bg-gray-200"
                           }`}
                           style={{ width: `${(passwordStrength / 3) * 100}%` }}
                         ></div>
@@ -216,7 +307,7 @@ const SignupModal = ({ isOpen, onClose }) => {
                         onClick={handleSubmit}
                         disabled={passwordStrength < 3 || loading}
                       >
-                        {loading ? 'Signing up...' : 'Sign up'}
+                        {loading ? "Signing up..." : "Sign up"}
                       </button>
                     </div>
                   </div>
@@ -227,11 +318,7 @@ const SignupModal = ({ isOpen, onClose }) => {
         )}
       </AnimatePresence>
 
-      {/* Render LoginModal with a higher z-index */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </>
   );
 };
