@@ -12,7 +12,6 @@ import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authication
 
 const router = express.Router();
 
-
 router.post("/create", IsAuthenticated ,createSeller);
 router.get("/all", IsAuthenticated , authorizeRoles('ADMIN') , getAllSellers);
 router.get("/getbyid/:id", IsAuthenticated , getSellerById);
