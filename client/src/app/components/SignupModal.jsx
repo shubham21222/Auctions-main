@@ -231,7 +231,7 @@ const SignupModal = ({ isOpen, onClose }) => {
                       />
                       <label htmlFor="terms" className="label-text text-sm text-gray-700">
                         I accept the{" "}
-                        <Link href="/terms" className="text-blue-600 hover:underline">
+                        <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">
                           terms and conditions
                         </Link>
                       </label>
