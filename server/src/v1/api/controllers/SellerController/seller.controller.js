@@ -1,4 +1,4 @@
-import sellerModel from '../../models/Seller/seller.model.js';
+import sellerModel from '../../models/seller/seller.model.js';
 import userModel from '../../models/Auth/User.js';
 import categoryModel from '../../models/Category/category.model.js'
 
