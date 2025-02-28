@@ -6,6 +6,7 @@ import Products  from "./routes/Product/product.routes.js"
 import favorite from "./routes/Favorite/favorite.routes.js";
 import Auction from "./routes/Auction/auction.routes.js";
 import Order from "./routes/order/order.routes.js"
+import seller from "./routes/Seller/seller.routes.js"
 
 const router = Router();
 
@@ -39,6 +40,10 @@ router.use("/auction", Auction);
 // Add API routes here for Order //
 
 router.use("/order" , Order)
+
+// Add API routes here for Seller //
+
+router.use("/seller", seller);
 
 
 
