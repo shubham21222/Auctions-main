@@ -1,7 +1,7 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
-import authReducer from "./authSlice"; // Import your reducer
+import authReducer from "./authSlice"; // Adjust path as needed
 
 // Persist configuration
 const persistConfig = {
@@ -9,9 +9,9 @@ const persistConfig = {
   storage,
 };
 
-// Combine reducers (if you have multiple reducers)
+// Combine reducers
 const rootReducer = combineReducers({
-  auth: authReducer, // Add your reducers here
+  auth: authReducer,
 });
 
 // Persisted reducer
@@ -20,6 +20,13 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 // Configure store
 export const store = configureStore({
   reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore redux-persist non-serializable actions
+        ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
+      },
+    }),
 });
 
 export const persistor = persistStore(store);
