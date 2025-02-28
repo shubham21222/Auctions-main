@@ -1,6 +1,7 @@
 import sellerModel from '../../models/Seller/seller.model.js';
 import userModel from '../../models/Auth/User.js';
 import categoryModel from '../../models/Category/category.model.js'
+
 import {
     success,
     created,
@@ -118,7 +119,7 @@ export const approveSeller = async (req, res) => {
        const {ApprovalByAdmin , id} = req.body;
 
        isValidObjectId(res, id);
-       
+
        if(!isValidObjectId){
               return invalid(res, "Invalid seller ID");
        }
