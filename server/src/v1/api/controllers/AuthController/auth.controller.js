@@ -497,9 +497,10 @@ export const getAllUsers = async (req, res, next) => {
     try {
         const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc', search } = req.query;
         const skip = (page - 1) * limit;
-        const sortOrder = order === 'asc' ? 1 : -1;
+        const sortOrder = order == 'asc' ? 1 : -1;
 
         let matchQuery = {};
+        
 
         if (search) {
             matchQuery.$or = [

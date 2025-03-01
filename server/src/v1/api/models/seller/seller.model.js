@@ -20,12 +20,53 @@ const SellerSchema = new Schema({
             required: false
         },
 
+        carMaker:{
+            type: String,
+            required: false
+        },
+
+        carModel:{
+            type: String,
+            required: false
+        },
+
+        yearManufactured:{
+            type: String,
+            required: false 
+        },
+         
+        transmission:{
+            type: String,
+            required: false
+        },
+
+        desirable:{
+            type: String,
+            required: false
+        },
+
+
+        ReferenceNumber:{
+            type: String,
+            required: false
+        },
+
         object:{
             type: String,
             required: false
         },
 
         material:{
+            type: String,
+            required: false
+        },
+
+        caseMaterial:{
+            type: String,
+            required: false
+        },
+
+        serialNumber:{
             type: String,
             required: false
         },
@@ -42,6 +83,11 @@ const SellerSchema = new Schema({
     },
 
     Measurement:{
+
+        Unit:{
+            type: String,
+            required: false
+        },
 
         framed:{
             type:String,
@@ -62,15 +108,60 @@ const SellerSchema = new Schema({
             required: false
         },
 
+
+        Unframedheight:{
+            type: String,
+            required: false
+        },
+
+        Unframedwidth:{
+            type: String,
+            required: false
+        },
+
+        Unframeddepth:{
+            type: String,
+            required: false
+        },
+        
+
         weight:{
             type: String,
             required: false
         }
     },
 
+    Dimensions:{
+          height_length:{
+            type: String,
+            required: false
+          },
+
+          width:{
+            type: String,
+            required: false
+          }
+    },
+
     Condition:{
 
+        picesInorginalcases:{
+            type: String,
+            required: false
+
+        },
+
+        picesOriginalcertificates:{
+            type: String,
+            required: false
+        },
+         
         Signatures:{
+            type: String,
+            required: false
+        },
+
+        workingwatch:{
             type: String,
             required: false
         },
@@ -80,6 +171,12 @@ const SellerSchema = new Schema({
             required: false
         },
 
+        discribeDamage:{
+            type: String,
+            required: false
+        },
+
+    
         restoration:{
             type: String,
             required: false
