@@ -1,143 +1,113 @@
 "use client";
-import { useState } from "react";
-import { ChevronRight, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 
 const steps = ["Category", "Information", "Photos", "Logistics", "Review"];
-const categories = [
-    { name: "Fine Art", img: "/fine-art.png" },
-    { name: "Watches", img: "/watches.png" },
-    { name: "Jewelry", img: "/jewelry.png" },
-    { name: "Fashion", img: "/fashion.png" },
-    { name: "Automotives", img: "/automotives.png" },
-    { name: "Modern Art", img: "/modern-art.png" },
-    { name: "Trading Cards", img: "/trading-card.png" },
-];
 
-export default function StepperForm({ selectedCategory, setSelectedCategory, setCurrentStep }) {
+export default function StepperForm({ selectedCategory, setSelectedCategory, setCurrentStep, setFormData }) {
+    const [categories, setCategories] = useState([]);
     const [currentStep, setLocalCurrentStep] = useState(1);
     const progressValue = (currentStep / steps.length) * 100;
 
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await fetch("http://localhost:4000/v1/api/category/all");
+                const data = await response.json();
+                if (data.status) {
+                    setCategories(data.items);
+                }
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+                toast.error("Failed to load categories!");
+            }
+        };
+        fetchCategories();
+    }, []);
+
     const handleContinue = () => {
-        if ((selectedCategory === "Fine Art" || selectedCategory === "Watches" || selectedCategory === "Jewelry" || selectedCategory === "Fashion" || selectedCategory === "Modern Art" || selectedCategory === "Trading Cards" || selectedCategory === "Automotives") && currentStep === 1) {
+        if (selectedCategory && currentStep === 1) {
+            setFormData((prev) => ({ ...prev, category: selectedCategory }));
             setCurrentStep(2);
+            toast.success("Category selected! Moving to next step.");
+        } else {
+            toast.error("Please select a category!");
         }
     };
 
     return (
-        <div className="max-w-3xl  mx-auto p-3 sm:p-6 mt-4 sm:mt-[60px]">
-            {/* Progress Bar */}
-            <div className="mb-4 sm:mb-8">
-                <Progress value={progressValue} className="h-2" />
+        <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg mt-10">
+            <div className="mb-8">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                        style={{ width: `${progressValue}%` }}
+                    ></div>
+                </div>
             </div>
 
-            {/* Stepper */}
-            <div className="hidden sm:flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-8">
                 {steps.map((step, index) => (
                     <div key={index} className="flex items-center space-x-2">
                         <div
-                            className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all ${
-                                index < currentStep
-                                    ? "bg-blue-500 text-white border-blue-500"
-                                    : "border-gray-400 text-gray-500"
-                            }`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
+                                index < currentStep ? "bg-blue-600 text-white" : "border-gray-400 text-gray-500"
+                            } transition-all`}
                         >
-                            {index < currentStep ? (
-                                <CheckCircle size={16} className="text-white" />
-                            ) : (
-                                <span className="text-sm">{index + 1}</span>
-                            )}
+                            {index < currentStep ? "✓" : index + 1}
                         </div>
                         <span
-                            className={`text-sm font-medium ${
-                                index < currentStep ? "text-blue-500" : "text-gray-500"
+                            className={`text-sm font-semibold ${
+                                index < currentStep ? "text-blue-600" : "text-gray-500"
                             }`}
                         >
                             {step}
                         </span>
-                        {index < steps.length - 1 && <div className="w-12 h-[2px] bg-gray-300"></div>}
+                        {index < steps.length - 1 && <div className="w-12 h-0.5 bg-gray-300"></div>}
                     </div>
                 ))}
             </div>
 
-            {/* Mobile Stepper */}
-            <div className="flex sm:hidden justify-between items-center mb-6">
-                {steps.map((step, index) => (
-                    <div key={index} className="flex flex-col items-center">
-                        <div
-                            className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all ${
-                                index < currentStep
-                                    ? "bg-blue-500 text-white border-blue-500"
-                                    : "border-gray-400 text-gray-500"
-                            }`}
-                        >
-                            {index < currentStep ? (
-                                <CheckCircle size={12} className="text-white" />
-                            ) : (
-                                <span className="text-xs">{index + 1}</span>
-                            )}
-                        </div>
-                        <span
-                            className={`text-xs font-medium mt-1 ${
-                                index < currentStep ? "text-blue-500" : "text-gray-500"
-                            }`}
-                        >
-                            {step}
-                        </span>
-                    </div>
-                ))}
-            </div>
+            <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Choose Your Category</h2>
 
-            {/* Title */}
-            <h2 className="text-center text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-                Choose your category
-            </h2>
-
-            {/* Category List */}
-            <div className="space-y-3 sm:space-y-4">
-                {categories.map((category, index) => (
-                    <Card
-                        key={index}
-                        className={`p-3 sm:p-4 cursor-pointer transition-all ${
-                            selectedCategory === category.name
-                                ? "border-blue-500 bg-blue-100"
-                                : "hover:bg-gray-100"
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {categories.map((category) => (
+                    <div
+                        key={category._id}
+                        className={`p-4 rounded-lg cursor-pointer transition-all duration-300 ${
+                            selectedCategory === category._id
+                                ? "bg-blue-100 border-2 border-blue-500 shadow-md"
+                                : "bg-gray-50 hover:bg-gray-100 border border-gray-200"
                         }`}
-                        onClick={() => setSelectedCategory(category.name)}
+                        onClick={() => setSelectedCategory(category._id)}
                     >
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3 sm:space-x-4">
-                                <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                                    <AvatarImage src={category.img} alt={category.name} />
-                                </Avatar>
-                                <span className="text-base sm:text-lg font-medium">{category.name}</span>
+                            <div className="flex items-center space-x-4">
+                                {/* <img
+                                    src={`/images/${category.name.toLowerCase()}.png`}
+                                    alt={category.name}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                /> */}
+                                <span className="text-lg font-medium text-gray-700">{category.name}</span>
                             </div>
-                            {selectedCategory === category.name ? (
-                                <CheckCircle className="text-blue-500 h-5 w-5 sm:h-6 sm:w-6" />
-                            ) : (
-                                <ChevronRight className="text-gray-500 h-5 w-5 sm:h-6 sm:w-6" />
+                            {selectedCategory === category._id && (
+                                <span className="text-blue-500">✓</span>
                             )}
                         </div>
-                    </Card>
+                    </div>
                 ))}
             </div>
 
-            {/* Continue Button */}
-            <div className="text-center mt-6 sm:mt-8">
-                <Button 
-                    className="w-full  sm:w-auto bg-black text-white" 
-                    onClick={handleContinue} 
+            <div className="text-center mt-10">
+                <button
+                    className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all disabled:bg-gray-400"
+                    onClick={handleContinue}
                     disabled={!selectedCategory}
-                    variant="outline"
                 >
                     Continue
-                </Button>
-                <p className="text-xs mt-2 text-gray-500">
-                    Click "Continue" to save your progress for this step
-                </p>
+                </button>
+                <p className="text-sm mt-2 text-gray-500">Click "Continue" to save your progress</p>
             </div>
         </div>
     );

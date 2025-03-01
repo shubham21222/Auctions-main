@@ -112,7 +112,6 @@ export function Filters({
               </div>
             </div>
 
-            {/* Status Section */}
             <div className="space-y-4">
               <h3 className="font-bold text-lg text-blue-700">Status</h3>
               <RadioGroup
@@ -123,11 +122,11 @@ export function Filters({
                 {["Sold", "Not Sold"].map((status) => (
                   <div key={status} className="flex items-center space-x-3">
                     <RadioGroupItem
-                      value={status.toLowerCase()}
-                      id={status.toLowerCase()}
+                      value={status}
+                      id={status.replace(" ", "-").toLowerCase()}
                       className="text-blue-600"
                     />
-                    <Label htmlFor={status.toLowerCase()} className="cursor-pointer">
+                    <Label htmlFor={status.replace(" ", "-").toLowerCase()} className="cursor-pointer">
                       {status}
                     </Label>
                   </div>
@@ -147,10 +146,10 @@ export function Filters({
                   <div key={price} className="flex items-center space-x-3">
                     <RadioGroupItem
                       value={price.toLowerCase()}
-                      id={price.toLowerCase()}
+                      id={price.toLowerCase().replace(" ", "-")}
                       className="text-blue-600"
                     />
-                    <Label htmlFor={price.toLowerCase()} className="cursor-pointer">
+                    <Label htmlFor={price.toLowerCase().replace(" ", "-")} className="cursor-pointer">
                       {price}
                     </Label>
                   </div>
@@ -229,11 +228,11 @@ export function Filters({
             {["Sold", "Not Sold"].map((status) => (
               <div key={status} className="flex items-center space-x-3">
                 <RadioGroupItem
-                  value={status.toLowerCase()}
-                  id={status.toLowerCase()}
+                  value={status}
+                  id={status.replace(" ", "-").toLowerCase()}
                   className="text-blue-600"
                 />
-                <Label htmlFor={status.toLowerCase()} className="cursor-pointer">
+                <Label htmlFor={status.replace(" ", "-").toLowerCase()} className="cursor-pointer">
                   {status}
                 </Label>
               </div>
@@ -253,10 +252,10 @@ export function Filters({
               <div key={price} className="flex items-center space-x-3">
                 <RadioGroupItem
                   value={price.toLowerCase()}
-                  id={price.toLowerCase()}
+                  id={price.toLowerCase().replace(" ", "-")}
                   className="text-blue-600"
                 />
-                <Label htmlFor={price.toLowerCase()} className="cursor-pointer">
+                <Label htmlFor={price.toLowerCase().replace(" ", "-")} className="cursor-pointer">
                   {price}
                 </Label>
               </div>

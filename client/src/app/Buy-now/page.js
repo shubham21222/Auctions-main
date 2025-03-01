@@ -51,18 +51,36 @@ export default function Home() {
     async function fetchProducts() {
       try {
         setLoading(true); // Set loading true for every fetch
-        const queryParams = new URLSearchParams({
-          category: selectedCategories.join(","),
-          status: selectedStatus,
-          sortByPrice: selectedPriceRange,
-          sortField: selectedSortField,
-          sortOrder: selectedSortOrder,
-          searchQuery: searchQuery,
-          page: currentPage,
-          limit: productsPerPage,
-        }).toString();
-
-        const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryParams}`);
+        
+        // Create URLSearchParams instance
+        const params = new URLSearchParams();
+        
+        // Add parameters only if they have values
+        if (selectedCategories.length > 0) {
+          params.append("category", selectedCategories.join(","));
+        }
+        
+        if (selectedStatus) {
+          params.append("status", selectedStatus); // Keep the original format with space
+        }
+        
+        if (selectedPriceRange) {
+          params.append("sortByPrice", selectedPriceRange);
+        }
+        
+        params.append("sortField", selectedSortField);
+        params.append("sortOrder", selectedSortOrder);
+        
+        if (searchQuery) {
+          params.append("searchQuery", searchQuery);
+        }
+        
+        params.append("page", currentPage);
+        params.append("limit", productsPerPage);
+        
+        const queryString = params.toString();
+        
+        const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryString}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
 
