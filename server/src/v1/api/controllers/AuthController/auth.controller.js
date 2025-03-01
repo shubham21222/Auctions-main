@@ -490,6 +490,133 @@ export const updateBillingAddress = async (req, res, next) => {
     }
 }
 
+// get All Users //
+
+// Controller function to get all users with sorting, pagination, and search
+export const getAllUsers = async (req, res, next) => {
+    try {
+        const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc', search } = req.query;
+        const skip = (page - 1) * limit;
+        const sortOrder = order == 'asc' ? 1 : -1;
+
+        let matchQuery = {};
+        
+
+        if (search) {
+            matchQuery.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const users = await User.aggregate([
+            { $match: matchQuery },
+
+            // Lookup auctions created by the user
+            {
+                $lookup: {
+                    from: 'auctions',
+                    localField: '_id',
+                    foreignField: 'createdBy',
+                    as: 'userAuctions'
+                }
+            },
+
+            // Lookup products associated with those auctions
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'userAuctions.product',
+                    foreignField: '_id',
+                    as: 'auctionProducts'
+                }
+            },
+
+            // Lookup orders made by the user
+            {
+                $lookup: {
+                    from: 'orders',
+                    localField: '_id',
+                    foreignField: 'user',
+                    as: 'userOrders'
+                }
+            },
+
+            {
+                $project: {
+                    name: 1,
+                    email: 1,
+                    role: 1,
+                    mobile: 1,
+                    walletBalance: 1,
+                    Payment_Status: 1,
+                    createdAt: 1,
+
+                    userAuctions: {
+                        $map: {
+                            input: { $ifNull: ["$userAuctions", []] },
+                            as: "auction",
+                            in: {
+                                product: {
+                                    title: {
+                                        $ifNull: [
+                                            { $arrayElemAt: ["$auctionProducts.title", 0] },
+                                            ""
+                                        ]
+                                    },
+                                    price: {
+                                        $ifNull: [
+                                            { $arrayElemAt: ["$auctionProducts.price", 0] },
+                                            0
+                                        ]
+                                    }
+                                },
+                                auctionType: { $ifNull: ["$$auction.auctionType", ""] },
+                                lotNumber: { $ifNull: ["$$auction.lotNumber", ""] },
+                                createdBy: { $ifNull: ["$$auction.createdBy", ""] },
+                                status: { $ifNull: ["$$auction.status", ""] }
+                            }
+                        }
+                    },
+
+                    userOrders: {
+                        $map: {
+                            input: { $ifNull: ["$userOrders", []] },
+                            as: "order",
+                            in: {
+                                paymentStatus: { $ifNull: ["$$order.paymentStatus", ""] },
+                                OrderId: { $ifNull: ["$$order.OrderId", ""] },
+                                totalAmount: { $ifNull: ["$$order.totalAmount", 0] },
+                                products: { $ifNull: ["$$order.products", []] }
+                            }
+                        }
+                    }
+                }
+            },
+
+            { $sort: { [sortBy]: sortOrder } },
+            { $skip: skip },
+            { $limit: parseInt(limit) }
+        ]);
+
+        const totalUsers = await User.countDocuments(matchQuery);
+
+        res.status(200).json({
+            success: true,
+            data: users,
+            pagination: {
+                totalUsers,
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalUsers / limit),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};
+
+
 
 
 
