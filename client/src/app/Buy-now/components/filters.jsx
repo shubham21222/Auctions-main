@@ -112,7 +112,6 @@ export function Filters({
               </div>
             </div>
 
-            {/* Status Section */}
             <div className="space-y-4">
               <h3 className="font-bold text-lg text-blue-700">Status</h3>
               <RadioGroup
