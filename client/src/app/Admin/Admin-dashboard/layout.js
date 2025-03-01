@@ -1,12 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bell, Home, Package, ShoppingCart, DollarSign, Settings, LogOut, ListOrdered } from "lucide-react";
+import {
+  Bell,
+  Home,
+  Package,
+  ShoppingCart,
+  DollarSign,
+  Settings,
+  LogOut,
+  Tag,
+  Truck,
+  Users,
+  UserCheck,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,13 +31,11 @@ import {
 import config from "@/app/config_BASE_URL";
 
 export default function DashboardLayout({ children }) {
-  const dispatch = useDispatch();
   const router = useRouter();
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
   const [loading, setLoading] = useState(false);
 
-  // Logout handler
   const handleLogout = async () => {
     if (!token) {
       console.error("No token available for logout");
@@ -38,7 +48,7 @@ export default function DashboardLayout({ children }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `${token}`, // Pass token in Authorization header
+          Authorization: `${token}`,
         },
       });
 
@@ -46,11 +56,7 @@ export default function DashboardLayout({ children }) {
         throw new Error("Logout failed");
       }
 
-      // Clear Redux state (assuming you have a logout action)
-      // dispatch(logout());
-
-      // Redirect to login or home page
-      router.push("/Admin/login"); // Adjust the redirect URL as needed
+      router.push("/Admin/login");
     } catch (error) {
       console.error("Logout error:", error.message);
     } finally {
@@ -61,66 +67,86 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Sidebar */}
-      <aside className="w-72 bg-gradient-to-b from-indigo-800 to-indigo-900 text-white shadow-xl transition-all duration-300">
-        <div className="p-6 flex items-center space-x-3 border-b border-indigo-700/50">
-          <div className="h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center">
-            <span className="text-xl font-bold">NY</span>
+      <aside className="w-72 bg-gradient-to-b from-purple-900 via-indigo-800 to-blue-900 text-white shadow-2xl transform transition-all duration-300 ease-in-out">
+        <div className="p-6 flex items-center space-x-4 bg-gradient-to-r from-purple-700 to-indigo-700 border-b border-indigo-600/50">
+          <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
+            <span className="text-2xl font-extrabold text-white">NY</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">NY Elizabeth</h2>
+          <h2 className="text-2xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-200">
+            NY Elizabeth
+          </h2>
         </div>
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-3">
           <Link href="/Admin/Admin-dashboard">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <Home className="mr-3 h-5 w-5" />
+              <Home className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Dashboard
             </Button>
           </Link>
           <Link href="/Admin/Admin-dashboard/auctions">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <Package className="mr-3 h-5 w-5" />
+              <Package className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Auctions
             </Button>
           </Link>
           <Link href="/Admin/Admin-dashboard/buy-now">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <ShoppingCart className="mr-3 h-5 w-5" />
+              <ShoppingCart className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Buy Now
             </Button>
           </Link>
           <Link href="/Admin/Admin-dashboard/private-sales">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <DollarSign className="mr-3 h-5 w-5" />
+              <DollarSign className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Private Sales
             </Button>
           </Link>
           <Link href="/Admin/Admin-dashboard/category">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <ListOrdered className="mr-3 h-5 w-5" />
+              <Tag className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Category
             </Button>
           </Link>
           <Link href="/Admin/Admin-dashboard/orders">
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-indigo-700 hover:text-white transition-all duration-200 rounded-lg py-3"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
             >
-              <ListOrdered className="mr-3 h-5 w-5" />
+              <Truck className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
               Orders
+            </Button>
+          </Link>
+          <Link href="/Admin/Admin-dashboard/users">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
+            >
+              <Users className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
+              Users
+            </Button>
+          </Link>
+          <Link href="/Admin/Admin-dashboard/Sellers">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
+            >
+              <UserCheck className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
+              Sellers
             </Button>
           </Link>
         </nav>
@@ -147,14 +173,21 @@ export default function DashboardLayout({ children }) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-indigo-50 transition-all duration-200">
+                <Button
+                  variant="ghost"
+                  className="relative h-10 w-10 rounded-full hover:bg-indigo-50 transition-all duration-200"
+                >
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="/avatars/01.png" alt="@username" />
                     <AvatarFallback className="bg-indigo-500 text-white">AD</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 bg-white shadow-lg rounded-lg p-2 border border-gray-100" align="end" forceMount>
+              <DropdownMenuContent
+                className="w-64 bg-white shadow-lg rounded-lg p-2 border border-gray-100"
+                align="end"
+                forceMount
+              >
                 <DropdownMenuLabel className="font-normal p-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-semibold text-gray-800">Admin User</p>
@@ -188,4 +221,4 @@ export default function DashboardLayout({ children }) {
       </div>
     </div>
   );
-}
+};

@@ -1,168 +1,158 @@
-'use client';
+"use client";
 
-import { useForm } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle } from 'lucide-react';
+import { useState } from "react";
+import toast from "react-hot-toast";
 
-const ContactLogisticsForm = ({ setCurrentStep }) => {
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm();
+export default function ContactLogisticsForm({ setCurrentStep, formData, setFormData }) {
+    const [localData, setLocalData] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        region: "",
+        city: "",
+        country: "",
+        phone: "",
+        sameLocation: false,
+        contactPerson: false,
+    });
 
-    const onSubmit = (data) => {
-        console.log('Form Data:', data);
-        setCurrentStep(5); // Move to next step
+    const handleChange = (field, value) => {
+        setLocalData((prev) => ({ ...prev, [field]: value }));
     };
-    const steps = ["Category", "Information", "Photos", "Logistics", "Review"];
-    const currentStep = 4; // Hardcoded to 2 since this is the Information step
+
+    const handleSubmit = () => {
+        if (!localData.firstName || !localData.email) {
+            toast.error("First name and email are required!");
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            logistic_info: {
+                firstName: localData.firstName,
+                lastName: localData.lastName,
+                email: localData.email,
+                state: localData.region,
+                city: localData.city,
+                country: localData.country,
+                phone: localData.phone,
+                samelocation: localData.sameLocation ? "Yes" : "No",
+                handlingshipping: localData.contactPerson ? "Handled by seller" : "No",
+            },
+        }));
+        setCurrentStep(5);
+        toast.success("Logistics information saved!");
+    };
 
     return (
-        <>
-             <div className="hidden sm:flex justify-between items-center mb-8 mt-[80px]">
-                            {steps.map((step, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                    <div
-                                        className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all ${
-                                            index < currentStep
-                                                ? "bg-blue-500 text-white border-blue-500"
-                                                : "border-gray-400 text-gray-500"
-                                        }`}
-                                    >
-                                        {index < currentStep ? (
-                                            <CheckCircle size={16} className="text-white" />
-                                        ) : (
-                                            <span className="text-sm">{index + 1}</span>
-                                        )}
-                                    </div>
-                                    <span
-                                        className={`text-sm font-medium ${
-                                            index < currentStep ? "text-blue-500" : "text-gray-500"
-                                        }`}
-                                    >
-                                        {step}
-                                    </span>
-                                    {index < steps.length - 1 && <div className="w-12 h-[2px] bg-gray-300"></div>}
-                                </div>
-                            ))}
-                        </div>
-            
-                        {/* Mobile Stepper */}
-                        <div className="flex sm:hidden justify-between items-center mb-6">
-                            {steps.map((step, index) => (
-                                <div key={index} className="flex flex-col items-center">
-                                    <div
-                                        className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all ${
-                                            index < currentStep
-                                                ? "bg-blue-500 text-white border-blue-500"
-                                                : "border-gray-400 text-gray-500"
-                                        }`}
-                                    >
-                                        {index < currentStep ? (
-                                            <CheckCircle size={12} className="text-white" />
-                                        ) : (
-                                            <span className="text-xs">{index + 1}</span>
-                                        )}
-                                    </div>
-                                    <span
-                                        className={`text-xs font-medium mt-1 ${
-                                            index < currentStep ? "text-blue-500" : "text-gray-500"
-                                        }`}
-                                    >
-                                        {step}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-            <div className="max-w-4xl mx-auto p-6">
-                <h1 className="text-2xl font-semibold text-center mb-6">
-                    Share contact and logistics information
-                </h1>
+        <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg mt-10">
+            <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+                Share Contact and Logistics Information
+            </h1>
 
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <Card>
-                        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block font-medium">First Name</label>
-                                <Input {...register('firstName', { required: 'First name is required' })} />
-                                {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName.message}</p>}
-                            </div>
-                            <div>
-                                <label className="block font-medium">Last Name</label>
-                                <Input {...register('lastName', { required: 'Last name is required' })} />
-                                {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName.message}</p>}
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="block font-medium">Email Address</label>
-                                <Input type="email" {...register('email', { required: 'Email is required' })} />
-                                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-                            </div>
-                            <div>
-                                <label className="block font-medium">State</label>
-                                <select
-                                    {...register('region', { required: 'Region is required' })}
-                                    className="border rounded w-full p-2"
-                                >
-                                    <option value="">Select State</option>
-                                    <option value="North">North</option>
-                                    <option value="South">South</option>
-                                    <option value="East">East</option>
-                                    <option value="West">West</option>
-                                </select>
-                                {errors.region && <p className="text-red-500 text-sm">{errors.region.message}</p>}
-                            </div>
-                            <div>
-                                <label className="block font-medium">City</label>
-                                <Input {...register('city', { required: 'City is required' })} />
-                                {errors.city && <p className="text-red-500 text-sm">{errors.city.message}</p>}
-                            </div>
-                            <div>
-                                <label className="block font-medium">Country</label>
-                                <select
-                                    {...register('country', { required: 'Country is required' })}
-                                    className="border rounded w-full p-2"
-                                >
-                                    <option value="">Select Country</option>
-                                    <option value="USA">USA</option>
-                                    <option value="Canada">Canada</option>
-                                    <option value="UK">UK</option>
-                                </select>
-                                {errors.country && <p className="text-red-500 text-sm">{errors.country.message}</p>}
-                            </div>
-                            <div>
-                                <label className="block font-medium">Phone</label>
-                                <Input {...register('phone', { required: 'Phone is required' })} />
-                                {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <div className="mt-4">
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" {...register('sameLocation')} />
-                            Is the item in the same location as the owner?
-                        </label>
-                        <label className="flex items-center gap-2 mt-2">
-                            <input type="checkbox" {...register('contactPerson')} />
-                            Contact this person regarding shipping and handling of the item
-                        </label>
-                    </div>
-
-                    <div className="mt-6 flex justify-between">
-                        <Button variant="outline" onClick={() => setCurrentStep(3)}>Back</Button>
-                        <Button type="submit" variant="outline">Continue</Button>
-                    </div>
-
-                    <p className="text-center mt-3 text-sm text-gray-500">
-                        Click "continue" to save your progress for this step
-                    </p>
-                </form>
+            <div className="bg-gray-50 p-6 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block font-semibold text-gray-700">First Name</label>
+                    <input
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.firstName}
+                        onChange={(e) => handleChange("firstName", e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block font-semibold text-gray-700">Last Name</label>
+                    <input
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.lastName}
+                        onChange={(e) => handleChange("lastName", e.target.value)}
+                    />
+                </div>
+                <div className="md:col-span-2">
+                    <label className="block font-semibold text-gray-700">Email Address</label>
+                    <input
+                        type="email"
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.email}
+                        onChange={(e) => handleChange("email", e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block font-semibold text-gray-700">State</label>
+                    <select
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.region}
+                        onChange={(e) => handleChange("region", e.target.value)}
+                    >
+                        <option value="">Select State</option>
+                        <option value="North">North</option>
+                        <option value="South">South</option>
+                        <option value="East">East</option>
+                        <option value="West">West</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block font-semibold text-gray-700">City</label>
+                    <input
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.city}
+                        onChange={(e) => handleChange("city", e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block font-semibold text-gray-700">Country</label>
+                    <select
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.country}
+                        onChange={(e) => handleChange("country", e.target.value)}
+                    >
+                        <option value="">Select Country</option>
+                        <option value="USA">USA</option>
+                        <option value="Canada">Canada</option>
+                        <option value="UK">UK</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block font-semibold text-gray-700">Phone</label>
+                    <input
+                        className="w-full p-3 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={localData.phone}
+                        onChange={(e) => handleChange("phone", e.target.value)}
+                    />
+                </div>
             </div>
-        </>
-    );
-};
 
-export default ContactLogisticsForm;
+            <div className="mt-6 space-y-4">
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={localData.sameLocation}
+                        onChange={(e) => handleChange("sameLocation", e.target.checked)}
+                    />
+                    <span className="text-gray-700">Is the item in the same location as the owner?</span>
+                </label>
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={localData.contactPerson}
+                        onChange={(e) => handleChange("contactPerson", e.target.checked)}
+                    />
+                    <span className="text-gray-700">Contact this person regarding shipping and handling</span>
+                </label>
+            </div>
+
+            <div className="flex justify-between mt-10">
+                <button
+                    className="px-6 py-3 bg-gray-500 text-white rounded-full font-semibold hover:bg-gray-600 transition-all"
+                    onClick={() => setCurrentStep(3)}
+                >
+                    Back
+                </button>
+                <button
+                    className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all"
+                    onClick={handleSubmit}
+                >
+                    Continue
+                </button>
+            </div>
+        </div>
+    );
+}

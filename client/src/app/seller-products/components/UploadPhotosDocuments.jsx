@@ -1,115 +1,132 @@
-'use client';
+"use client";
 
-import { useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle } from 'lucide-react';
+import { useCallback, useState } from "react";
+import { useSelector } from "react-redux";
+import { useDropzone } from "react-dropzone";
+import toast from "react-hot-toast";
 
-const UploadBox = ({ label }) => {
-    const onDrop = useCallback((acceptedFiles) => {
-        console.log(`${label} uploaded:`, acceptedFiles);
-    }, [label]);
+const UploadBox = ({ label, setFormData, token }) => {
+    const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
+
+    const onDrop = useCallback(
+        async (acceptedFiles) => {
+            const file = acceptedFiles[0];
+            if (!file) {
+                toast.error("No file selected!");
+                return;
+            }
+
+            console.log("File details:", {
+                name: file.name,
+                type: file.type, // Log the MIME type
+                size: file.size,
+            });
+
+            const formData = new FormData();
+            formData.append("image", file); // Use "image" key as confirmed
+
+            try {
+                const response = await fetch("https://bid.nyelizabeth.com/v1/api/uploadImg/upload-multiple", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                const result = await response.json();
+                console.log("Upload response:", result); // Debug the response
+
+                if (response.ok && result.status && result.subCode === 200) {
+                    const imageUrl = result.items.imageUrls[0]; // Take the first URL
+                    setUploadedImageUrl(imageUrl);
+                    setFormData((prev) => ({
+                        ...prev,
+                        Documents: {
+                            ...prev.Documents,
+                            [`${label.toLowerCase()}Image`]: imageUrl,
+                        },
+                    }));
+                    toast.success(`${label} uploaded successfully!`);
+                } else {
+                    toast.error("Upload failed: " + (result.message || "Unknown error"));
+                }
+            } catch (error) {
+                console.error("Error uploading image:", error);
+                toast.error("Something went wrong while uploading!");
+            }
+        },
+        [label, setFormData, token]
+    );
 
     const { getRootProps, getInputProps } = useDropzone({
         onDrop,
-        accept: 'image/jpeg, image/png, image/gif',
+        accept: {
+            "image/jpeg": [".jpg", ".jpeg"],
+            "image/png": [".png"],
+            "image/gif": [".gif"],
+        }, // Stricter MIME type and extension mapping
+        multiple: false,
     });
 
-
-
     return (
-        <Card className="border-dashed border-2 border-gray-300 flex items-center justify-center p-6 w-full min-h-[150px] text-center cursor-pointer">
-            <CardContent {...getRootProps()} className="flex flex-col items-center justify-center gap-2">
+        <div className="bg-gray-50 p-6 rounded-lg">
+            <div
+                {...getRootProps()}
+                className="border-2 border-dashed border-gray-300 p-6 rounded-lg text-center cursor-pointer hover:bg-gray-100 transition-all"
+            >
                 <input {...getInputProps()} />
-                <span className="text-gray-500">Click or drag and drop on image to upload</span>
-                <span className="font-medium text-sm">{label}</span>
-            </CardContent>
-        </Card>
+                <p className="text-gray-500">Click or drag and drop an image (JPEG, PNG, GIF) to upload</p>
+                <p className="font-semibold text-blue-600">{label}</p>
+            </div>
+            {uploadedImageUrl && (
+                <div className="mt-4">
+                    <p className="text-gray-600 font-semibold">Uploaded {label}:</p>
+                    <img src={uploadedImageUrl} alt={label} className="w-32 h-32 object-cover rounded-lg mt-2" />
+                </div>
+            )}
+        </div>
     );
 };
 
-const UploadPhotosDocuments = ({ setCurrentStep }) => {
-
+export default function UploadPhotosDocuments({ setCurrentStep, formData, setFormData }) {
     const steps = ["Category", "Information", "Photos", "Logistics", "Review"];
-    const currentStep = 3; // Hardcoded to 2 since this is the Information step
+    const currentStep = 3;
+
+    const token = useSelector((state) => state.auth?.token);
+
+    if (!token) {
+        toast.error("Authentication required! Please log in.");
+        return null;
+    }
 
     return (
-        <>
-             <div className="hidden sm:flex justify-between items-center mb-8 mt-[80px]">
-                            {steps.map((step, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                    <div
-                                        className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all ${
-                                            index < currentStep
-                                                ? "bg-blue-500 text-white border-blue-500"
-                                                : "border-gray-400 text-gray-500"
-                                        }`}
-                                    >
-                                        {index < currentStep ? (
-                                            <CheckCircle size={16} className="text-white" />
-                                        ) : (
-                                            <span className="text-sm">{index + 1}</span>
-                                        )}
-                                    </div>
-                                    <span
-                                        className={`text-sm font-medium ${
-                                            index < currentStep ? "text-blue-500" : "text-gray-500"
-                                        }`}
-                                    >
-                                        {step}
-                                    </span>
-                                    {index < steps.length - 1 && <div className="w-12 h-[2px] bg-gray-300"></div>}
-                                </div>
-                            ))}
-                        </div>
-            
-                        {/* Mobile Stepper */}
-                        <div className="flex sm:hidden justify-between items-center mb-6">
-                            {steps.map((step, index) => (
-                                <div key={index} className="flex flex-col items-center">
-                                    <div
-                                        className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all ${
-                                            index < currentStep
-                                                ? "bg-blue-500 text-white border-blue-500"
-                                                : "border-gray-400 text-gray-500"
-                                        }`}
-                                    >
-                                        {index < currentStep ? (
-                                            <CheckCircle size={12} className="text-white" />
-                                        ) : (
-                                            <span className="text-xs">{index + 1}</span>
-                                        )}
-                                    </div>
-                                    <span
-                                        className={`text-xs font-medium mt-1 ${
-                                            index < currentStep ? "text-blue-500" : "text-gray-500"
-                                        }`}
-                                    >
-                                        {step}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-            <div className="max-w-4xl mx-auto p-6">
-                <h1 className="text-2xl font-semibold text-center mb-6">Upload Photos and Documents</h1>
-                <div className="grid md:grid-cols-3 gap-4">
-                    <div className="md:col-span-3">
-                        <UploadBox label="Front" />
-                    </div>
-                    <UploadBox label="Back" />
-                    <UploadBox label="Detail" />
-                    <UploadBox label="Maker's Mark" />
-                    <UploadBox label="Damage" />
-                    <UploadBox label="Documents" />
+        <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg mt-10">
+            <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Upload Photos and Documents</h1>
+            <div className="grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-3">
+                    <UploadBox label="Front" setFormData={setFormData} token={token} />
                 </div>
-                <div className="mt-6 flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(2)}>Back</Button>
-                    <Button onClick={() => setCurrentStep(4)} variant="outline">Continue</Button>
-                </div>
+                <UploadBox label="Back" setFormData={setFormData} token={token} />
+                <UploadBox label="Detail" setFormData={setFormData} token={token} />
+                <UploadBox label="Maker's Mark" setFormData={setFormData} token={token} />
+                <UploadBox label="Damage" setFormData={setFormData} token={token} />
+                <UploadBox label="Documents" setFormData={setFormData} token={token} />
             </div>
-        </>
+            <div className="flex justify-between mt-10">
+                <button
+                    className="px-6 py-3 bg-gray-500 text-white rounded-full font-semibold hover:bg-gray-600 transition-all"
+                    onClick={() => setCurrentStep(2)}
+                >
+                    Back
+                </button>
+                <button
+                    className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all"
+                    onClick={() => setCurrentStep(4)}
+                >
+                    Continue
+                </button>
+            </div>
+        </div>
     );
-};
-
-export default UploadPhotosDocuments;
+}
