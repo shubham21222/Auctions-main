@@ -187,3 +187,32 @@ export const deleteSeller = async (req, res) => {
         return unknownError(res, error.message);
     }
 }
+
+
+// get all sellers specific with created by //
+
+
+export const getSellersByCreatedBy = async (req, res) => {
+    try {
+
+        const createdBy = req.user._id;
+        const allSellers = await sellerModel.find({ createdBy })
+        .populate({
+            path: 'category',
+            select: 'name'
+
+        })
+
+        .populate({
+            path: 'createdBy',
+            select: 'name email'
+        })
+
+        if (!allSellers.length) {
+           return success(res, "No sellers found", null);
+        }
+        return success(res, "All Sellers", allSellers);
+    } catch (error) {
+        return unknownError(res, error.message);
+    }
+}
