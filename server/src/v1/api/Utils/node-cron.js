@@ -34,11 +34,11 @@ cron.schedule("*/1 * * * *", async () => {
         console.log("⏳ Checking for expired auctions...");
 
         const now = new Date();
-        const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000); // Convert to IST
+        console.log("Now:", now);
 
         const expiredAuctions = await Auction.find({
             status: "ACTIVE",
-            endDate: { $lte: nowIST } // Compare with IST time
+            endDate: { $lte: now } // Compare with IST time
         });
 
         if (expiredAuctions.length > 0) {

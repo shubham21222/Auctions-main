@@ -16,7 +16,9 @@ import {
 } from "../../../../../src/v1/api/formatters/globalResponse.js";
 import favorite from "../../models/Favorite/favorite.js";
 import ProductModel from "../../models/Products/product.model.js"
+import auctionModel from "../../models/Auction/auctionModel.js";
 import mongoose from "mongoose";
+
 
 
 
@@ -145,6 +147,15 @@ export const getFilteredProducts = async (req, res) => {
         } else {
             sortStage.created_at = -1; // Default to newest first
         }
+        
+        // do not include whihch producrs that is in the auction //
+
+        const auctionProducts = await auctionModel.find({}).select("product");
+        const auctionProductIds = auctionProducts.map(auction => auction.product);
+        if (auctionProductIds.length > 0) {
+            matchStage._id = { $nin: auctionProductIds };
+        }
+        
 
         // Aggregation pipeline with pagination
         const products = await ProductModel.aggregate([

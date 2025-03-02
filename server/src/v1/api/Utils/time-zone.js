@@ -12,3 +12,16 @@ export const formatAuctionDate = (date) => {
         .tz("America/Los_Angeles") // Specify the desired timezone (GMT-08:00 is Los Angeles time)
         .format('MMM D, YYYY h:mm A [GMT]Z'); // Format as per the required output
 };
+
+
+
+// Convert UTC to US Eastern Time (ET)
+export const convertToUSTime = (date) => {
+    return moment.utc(date).tz("America/New_York").format();
+};
+
+// Convert UTC to Indian Standard Time (IST)
+export const convertToIndiaTime = (date) => {
+    return moment.utc(date).tz("Asia/Kolkata").format();
+};
+
