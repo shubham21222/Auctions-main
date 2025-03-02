@@ -120,14 +120,6 @@ export const createAuction = async (req, res) => {
             return badRequest(res, "Timed auctions require an endDate.");
         }
 
-        // Convert UTC to IST before saving
-        const convertToIST = (date) => {
-            const utcDate = new Date(date);
-            return new Date(utcDate.getTime() + 5.5 * 60 * 60 * 1000); // Add 5.5 hours
-        };
-
-        const startDateIST = convertToIST(startDate);
-        const endDateIST = auctionType === "TIMED" ? convertToIST(endDate) : null;
 
         // Create new auction
         const auction = new auctionModel({
@@ -136,8 +128,8 @@ export const createAuction = async (req, res) => {
             startingBid,
             currentBid: startingBid,
             auctionType,
-            endDate: endDateIST,
-            startDate: startDateIST,
+            endDate,
+            startDate,
             lotNumber,
             createdBy: req.user._id,
             status: status || "ACTIVE"
@@ -767,6 +759,60 @@ export const updatePaymentStatus = async (req, res) => {
     }
 }
 
+
+
+// Place a bid //
+
+export const placeBid = async (req, res) => {
+    try {
+        const { auctionId, bidAmount } = req.body;
+
+        if (!auctionId || !bidAmount) {
+            return badRequest(res, "Please provide both auction ID and bid amount.");
+        }
+
+        if (isNaN(bidAmount) || bidAmount <= 0) {
+            return badRequest(res, "Bid amount should be a valid positive number.");
+        }
+
+        const findAuction = await auctionModel.findById(auctionId);
+        if (!findAuction) {
+            return notFound(res, "Auction not found.");
+        }
+
+        if (findAuction.status !== "ACTIVE") {
+            return badRequest(res, "This auction is no longer active.");
+        }
+
+        if (new Date(findAuction.endDate).getTime() < Date.now()) {
+            return badRequest(res, "This auction has already ended.");
+        }
+
+        console.log("Current Bid:", findAuction.currentBid);
+        console.log("Bid Amount:", bidAmount);
+
+        // Ensure bid is greater than the current bid
+        if (bidAmount <= findAuction.currentBid) {
+            return badRequest(res, "Your bid must be higher than the current bid.");
+        }
+
+        // Update auction with new bid
+        findAuction.currentBid = bidAmount;
+        findAuction.currentBidder = req.user._id;
+        findAuction.bids.push({
+            bidder: req.user._id,
+            bidAmount,
+            bidTime: new Date(),
+        });
+
+        await findAuction.save();
+
+        return success(res, "Bid placed successfully.", findAuction);
+    } catch (error) {
+        console.error("Error placing bid:", error);
+        return unknownError(res, error.message);
+    }
+};
 
 
 
