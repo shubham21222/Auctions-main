@@ -12,7 +12,8 @@ import {
     deleteAuction,
     placeBid,
     getAuctionDetails,
-    getUserAuctions
+    getUserAuctions,
+    getDashboardStats
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
@@ -60,6 +61,7 @@ router.get("/getAuctionDetails/:auctionId" , IsAuthenticated , authorizeRoles("A
 
 router.get("/getUserAuctions" , IsAuthenticated , getUserAuctions)
 
+router.get("/getDashboardStats" , IsAuthenticated , authorizeRoles("ADMIN") , getDashboardStats)
 
 // router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
 

@@ -19,7 +19,9 @@ import { validateMongoDbId } from "../../Utils/validateMongodbId.js"
 import productModel from "../../models/Products/product.model.js"
 import categoryModel from "../../models/Category/category.model.js"
 import UserModel from "../../models/Auth/User.js"
+import OrderModel from "../../models/Order/order.js"
 import stripe from "../../config/stripeConfig.js"
+import moment from "moment"; // Install moment.js if not installed
 import mongoose from "mongoose"
 import { response } from "express"
 import { ObjectId } from "mongodb"
@@ -1117,6 +1119,143 @@ export const getUserAuctions = async (req, res) => {
         return unknownError(res, error.message);
     }
 };
+
+// Dashboard //
+
+
+export const getDashboardStats = async (req, res) => {
+    try {
+        const now = new Date();
+        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
+        const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        const startOfWeek = moment().startOf("isoWeek").toDate(); // Monday 00:00:00
+const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
+
+        // Total Revenue
+        const totalRevenueData = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED" } },
+            { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
+        ]);
+        const totalRevenue = totalRevenueData.length > 0 ? totalRevenueData[0].totalAmount : 0;
+
+        // console.log("firstDayLastMonth:", firstDayLastMonth);
+        // console.log("lastDayLastMonth:", lastDayLastMonth);
+
+        // Last Month Revenue
+        const lastMonthRevenueData = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED", createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } } },
+            { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
+        ]);
+
+
+        const lastMonthRevenue = lastMonthRevenueData.length > 0 ? lastMonthRevenueData[0].totalAmount : 0;
+        const revenueChange = lastMonthRevenue ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+
+        // Active Users
+        const activeUsers = await UserModel.countDocuments();
+        const lastMonthUsers = await UserModel.countDocuments({ createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } });
+        const userChange = lastMonthUsers ? ((activeUsers - lastMonthUsers) / lastMonthUsers) * 100 : 0;
+
+        // Active Auctions
+        const activeAuctions = await auctionModel.countDocuments({ status: "ACTIVE" });
+
+        // Total Sales
+        const totalSalesData = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED" } },
+            {
+                $group: {
+                    _id: null,
+                    totalSalesCount: { $sum: 1 },
+                    totalSalesAmount: { $sum: "$totalAmount" }
+                }
+            }
+        ]);
+        const totalSalesCount = totalSalesData.length > 0 ? totalSalesData[0].totalSalesCount : 0;
+        const totalSalesAmount = totalSalesData.length > 0 ? totalSalesData[0].totalSalesAmount : 0;
+
+        // Last Month Sales
+        const lastMonthSalesData = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED", createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } } },
+            {
+                $group: {
+                    _id: null,
+                    totalSalesCount: { $sum: 1 },
+                    totalSalesAmount: { $sum: "$totalAmount" }
+                }
+            }
+        ]);
+        const lastMonthSalesCount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesCount : 0;
+        const lastMonthSalesAmount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesAmount : 0;
+        const salesChange = lastMonthSalesCount ? ((totalSalesCount - lastMonthSalesCount) / lastMonthSalesCount) * 100 : 0;
+
+        // Monthly Sales (Jan - Dec)
+        const monthlySales = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED" } },
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    totalSales: { $sum: "$totalAmount" }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
+        const monthlySalesData = Array.from({ length: 12 }, (_, i) => ({
+            month: i + 1,
+            totalSales: monthlySales.find((s) => s._id === i + 1)?.totalSales || 0
+        }));
+
+        // Weekly Visitors (Mon-Sat)
+        const weeklyVisitors = await UserModel.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfWeek, $lte: endOfWeek } // Filter current week users
+                }
+            },
+            {
+                $group: {
+                    _id: { $dayOfWeek: "$createdAt" }, // Group by day of the week (1 = Sunday, 7 = Saturday)
+                    visitors: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id": 1 } } // Sort results from Sunday (1) to Saturday (7)
+        ]);
+        
+        // Mapping weekdays correctly (Sunday-Saturday)
+        const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const weeklyVisitorsData = weekDays.map((day, i) => ({
+            day,
+            visitors: weeklyVisitors.find((v) => v._id === i + 1)?.visitors || 0
+        }));
+
+        
+    
+        
+
+        // Send Response
+        res.status(200).json({
+            success: true,
+            data: {
+                totalRevenue,
+                revenueChange: revenueChange.toFixed(2) + "%",
+                activeUsers,
+                userChange: userChange.toFixed(2) + "%",
+                activeAuctions,
+                totalSales: {
+                    count: totalSalesCount,
+                    amount: totalSalesAmount
+                },
+                salesChange: salesChange.toFixed(2) + "%",
+                monthlySales: monthlySalesData,
+                weeklyVisitors: weeklyVisitorsData
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
 
 
 
