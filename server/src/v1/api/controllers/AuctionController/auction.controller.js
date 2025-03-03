@@ -838,9 +838,7 @@ export const updatePaymentStatus = async (req, res) => {
         return success(res, "Payment status updated successfully", user);
 
     } catch (error) {
-
         return unknownError(res, error.message);
-
     }
 }
 
