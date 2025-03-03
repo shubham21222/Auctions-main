@@ -100,7 +100,7 @@ export default function Dashboard() {
               config={{
                 total: {
                   label: "Total Sales",
-                  color: "#10b981", // Emerald green
+                  color: "#10b981", 
                 },
               }}
               className="h-[350px]"

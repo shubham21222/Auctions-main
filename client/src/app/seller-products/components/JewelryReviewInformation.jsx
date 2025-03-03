@@ -1,10 +1,9 @@
 "use client";
 
 import { useSelector } from "react-redux";
-import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
-const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setFormData }) => {
+const JewelryReviewInformation = ({ setCurrentStep, selectedCategory, formData, setFormData }) => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
   const userId = auth?._id;
@@ -22,7 +21,7 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
     };
 
     try {
-      const response = await fetch("http://localhost:4000/v1/api/seller/create", {
+      const response = await fetch("https://bid.nyelizabeth.com/v1/api/seller/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,28 +45,20 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg">
-      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Review Information</h1>
+      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Review Jewelry Information</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Column */}
         <div className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-lg">
             <h2 className="text-xl font-semibold text-gray-700">General</h2>
             <hr className="my-2" />
-            {Object.entries(formData.General || {}).map(([key, value]) => (
-              <p key={key}>
-                <strong>{key}:</strong> {value || "N/A"}
-              </p>
-            ))}
-          </div>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h2 className="text-xl font-semibold text-gray-700">Measurement</h2>
-            <hr className="my-2" />
-            {Object.entries(formData.Measurement || {}).map(([key, value]) => (
-              <p key={key}>
-                <strong>{key}:</strong> {value || "N/A"}
-              </p>
-            ))}
+            <p><strong>Material:</strong> {formData.General?.material || "N/A"}</p>
+            <p><strong>Carat:</strong> {formData.General?.carat || "N/A"}</p>
+            <p><strong>Gemstone:</strong> {formData.General?.gemstone || "N/A"}</p>
+            <p><strong>Condition:</strong> {formData.General?.condition || "N/A"}</p>
           </div>
         </div>
+        {/* Right Column */}
         <div className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-lg">
             <h2 className="text-xl font-semibold text-gray-700">Documents</h2>
@@ -114,4 +105,4 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
   );
 };
 
-export default ReviewInformation;
+export default JewelryReviewInformation;

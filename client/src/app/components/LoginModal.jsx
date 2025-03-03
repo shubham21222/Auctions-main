@@ -56,6 +56,9 @@ const LoginModal = ({ isOpen, onClose }) => {
         dispatch(setUserId(userData._id));
         // Save email in Redux
         dispatch(setEmail(userData.email));
+
+        dispatch(setUser(userData));
+        
         console.log("User data saved in Redux:", userData);
       } else {
         console.error("User data not found in verify response:", verifyResponse.data);
