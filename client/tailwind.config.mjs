@@ -19,38 +19,38 @@ export default {
           charcoal: "#36454F",
           pearl: "#F0EAD6",
         },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "hsl(var(--border, 214 31% 91%))", // Fallback to gray
+        input: "hsl(var(--input, 214 31% 91%))",
+        ring: "hsl(var(--ring, 216 100% 50%))",
+        background: "hsl(var(--background, 0 0% 100%))", // Default white
+        foreground: "hsl(var(--foreground, 222 47% 11%))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "hsl(var(--primary, 216 100% 50%))",
+          foreground: "hsl(var(--primary-foreground, 0 0% 100%))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "hsl(var(--secondary, 210 40% 96%))",
+          foreground: "hsl(var(--secondary-foreground, 222 47% 11%))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(var(--destructive, 0 84% 60%))",
+          foreground: "hsl(var(--destructive-foreground, 0 0% 100%))",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(var(--muted, 210 40% 96%))",
+          foreground: "hsl(var(--muted-foreground, 215 16% 47%))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "hsl(var(--accent, 210 40% 96%))",
+          foreground: "hsl(var(--accent-foreground, 222 47% 11%))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "hsl(var(--popover, 0 0% 100%))", // White for dropdowns
+          foreground: "hsl(var(--popover-foreground, 222 47% 11%))",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "hsl(var(--card, 0 0% 100%))", // White for cards
+          foreground: "hsl(var(--card-foreground, 222 47% 11%))",
         },
       },
       borderRadius: {
@@ -80,4 +80,4 @@ export default {
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};

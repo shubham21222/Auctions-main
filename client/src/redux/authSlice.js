@@ -1,16 +1,36 @@
 import { createSlice } from "@reduxjs/toolkit";
+import CryptoJS from "crypto-js";
 
 const initialState = {
     token: null,
-    user: null, // Will store the full user object including Payment_Status
-    _id: null, // User ID (already present)
+    user: null, // Will store the full user object including Payment_Status and encrypted walletBalance
+    _id: null,
     success: null,
     superAdminDetails: null,
-    isLoggedIn: false, // Tracks login status
+    isLoggedIn: false,
     items: {
         email: null,
         passwordResetToken: null,
     },
+};
+
+// Encryption key (should be stored securely, e.g., in environment variables)
+const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || "Shubham@9806265682";
+
+// Encrypt function
+const encryptValue = (value) => {
+    return CryptoJS.AES.encrypt(String(value), ENCRYPTION_KEY).toString();
+};
+
+// Decrypt function
+const decryptValue = (encryptedValue) => {
+    try {
+        const bytes = CryptoJS.AES.decrypt(encryptedValue, ENCRYPTION_KEY);
+        return bytes.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+        console.error("Decryption error:", error);
+        return "0"; // Fallback to 0 if decryption fails
+    }
 };
 
 export const authSlice = createSlice({
@@ -26,8 +46,12 @@ export const authSlice = createSlice({
             state.isLoggedIn = false;
         },
         setUser: (state, action) => {
-            state.user = action.payload; // Store the full user object
-            state._id = action.payload._id; // Extract and set user ID
+            const userData = action.payload;
+            state.user = {
+                ...userData,
+                walletBalance: userData.walletBalance !== undefined ? encryptValue(userData.walletBalance) : encryptValue(0), // Encrypt walletBalance
+            };
+            state._id = userData._id;
             state.isLoggedIn = true;
         },
         removeUser: (state) => {
@@ -64,7 +88,12 @@ export const authSlice = createSlice({
         },
         updatePaymentStatus: (state, action) => {
             if (state.user) {
-                state.user.Payment_Status = action.payload; // Update Payment_Status in user object
+                state.user.Payment_Status = action.payload;
+            }
+        },
+        updateWalletBalance: (state, action) => {
+            if (state.user) {
+                state.user.walletBalance = encryptValue(action.payload); // Encrypt the new balance
             }
         },
     },
@@ -85,7 +114,8 @@ export const {
     setEmail,
     clearEmail,
     setLoggedIn,
-    updatePaymentStatus, // New action to update Payment_Status
+    updatePaymentStatus,
+    updateWalletBalance, // New action for updating walletBalance
 } = authSlice.actions;
 
 // Selectors
@@ -93,6 +123,12 @@ export const selectIsLoggedIn = (state) => state.auth.isLoggedIn;
 export const selectUser = (state) => state.auth.user;
 export const selectUserId = (state) => state.auth._id;
 export const selectPaymentStatus = (state) => state.auth.user?.Payment_Status;
+export const selectWalletBalance = (state) => {
+    if (state.auth.user?.walletBalance) {
+        return Number(decryptValue(state.auth.user.walletBalance)); // Decrypt and return as number
+    }
+    return 0; // Default to 0 if not present
+};
 
 export default authSlice.reducer;
 

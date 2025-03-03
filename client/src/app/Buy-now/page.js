@@ -164,7 +164,7 @@ export default function Home() {
     <>
       <Header />
       <LuxuryBackground />
-      <main className="min-h-screen pt-[40px]">
+      <main className="min-h-screen pt-[100px]">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Explore Our Products

@@ -1,4 +1,5 @@
-'use client'
+"use client";
+
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "../../../components/ui/badge";
@@ -10,21 +11,22 @@ import { useState } from "react";
 export function AuctionCard({ auction }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
-
   const router = useRouter();
 
   const slugify = (text) => {
     return text
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-") // Replace non-alphanumeric characters with hyphens
-      .replace(/^-+|-+$/g, ""); // Trim leading/trailing hyphens
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   };
-  
+
   const handleBidNowClick = () => {
     const slug = `${auction.id}-${slugify(auction.title)}`;
     router.push(`/catalog/${slug}`);
   };
-  
+
+  // Check if auction has ended
+  const isEnded = auction.status === "ENDED" || new Date(auction.endDate + " " + auction.endTime) < new Date();
 
   return (
     <Card className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]">
@@ -49,10 +51,11 @@ export function AuctionCard({ auction }) {
               <button
                 key={index}
                 onClick={() => setCurrentImage(index)}
-                className={`relative h-16 w-16 overflow-hidden rounded-md transition-all hover:scale-105 ${currentImage === index
+                className={`relative h-16 w-16 overflow-hidden rounded-md transition-all hover:scale-105 ${
+                  currentImage === index
                     ? "ring-2 ring-luxury-gold ring-offset-2"
                     : "border-2 border-white/50 hover:border-white"
-                  }`}
+                }`}
               >
                 <Image
                   src={image || "/placeholder.svg"}
@@ -92,15 +95,16 @@ export function AuctionCard({ auction }) {
         <Button
           className="group/btn relative w-full overflow-hidden bg-black transition-all hover:bg-luxury-gold"
           size="lg"
-          onClick={handleBidNowClick} // Navigate on click
+          onClick={handleBidNowClick}
+          disabled={isEnded} // Disable if ended
         >
           <span className="relative z-10 flex items-center text-white gap-2">
-            Bid Now
-            <span className="text-sm opacity-70">→</span>
+            {isEnded ? "Auction Ended" : "Bid Now"}
+            {!isEnded && <span className="text-sm opacity-70">→</span>}
           </span>
           <div className="absolute inset-0 -z-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] bg-[0%_0%] transition-all duration-500 group-hover/btn:bg-[100%_100%]" />
         </Button>
       </CardFooter>
     </Card>
   );
-}
+} 
