@@ -243,6 +243,51 @@ export const getAuctions = async (req, res) => {
                 }
             },
             { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'bids.bidder',
+                    foreignField: '_id',
+                    as: 'bidderDetails'
+                }
+            },
+
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'bids.bidder',
+                    foreignField: '_id',
+                    as: 'bidderDetails'
+                }
+            },
+            {
+                $addFields: {
+                    bids: {
+                        $map: {
+                            input: "$bids",
+                            as: "bid",
+                            in: {
+                                bidder: "$$bid.bidder",
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                paid: "$$bid.paid",
+                                bidderDetails: {
+                                    $arrayElemAt: [
+                                        {
+                                            $filter: {
+                                                input: "$bidderDetails",
+                                                as: "bidder",
+                                                cond: { $eq: ["$$bidder._id", "$$bid.bidder"] }
+                                            }
+                                        },
+                                        0
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
 
             // Paticipants /
 
@@ -254,6 +299,21 @@ export const getAuctions = async (req, res) => {
                     as: 'participants'
                 }
             },
+            {
+              $lookup:{
+                from:'users',
+                localField:'winner',
+                foreignField:'_id',
+                as:'winner'
+
+              }
+            },
+            {
+              $unwind:{
+                path:'$winner',
+                preserveNullAndEmptyArrays:true
+              }
+            },
 
             { $sort: sortStage },
             { $skip: skip },
@@ -262,7 +322,7 @@ export const getAuctions = async (req, res) => {
                 $project: {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
-                        description: { $ifNull: ["$product.description", ""] },
+                        // description: { $ifNull: ["$product.description", ""] },
                         price: { $ifNull: ["$product.price", ""] },
                         _id: { $ifNull: ["$product._id", ""] }
                     },
@@ -274,10 +334,29 @@ export const getAuctions = async (req, res) => {
                     startDate: 1,
                     endDate: 1,
                     createdBy: 1,
-                    winner: 1,
+                    winner:{
+                        _id:1,
+                        name:1,
+                        email:1
+                    },
                     minBidIncrement: 1,
                     lotNumber: 1,
-                    bids: 1,
+                    bids: {
+                        $map: {
+                            input: "$bids",
+                            as: "bid",
+                            in: {
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                paid: "$$bid.paid",
+                                bidder: {
+                                    _id: "$$bid.bidderDetails._id",
+                                    name: "$$bid.bidderDetails.name",
+                                    email: "$$bid.bidderDetails.email"
+                                }
+                            }
+                        }
+                    },
                     winnerBidTime: 1,
                     auctionType: 1,
                     participants: {
@@ -307,7 +386,13 @@ export const getAuctions = async (req, res) => {
             endDateFormatted: formatAuctionDate(auction.endDate),
         }));
 
-        return success(res, 'Auctions retrieved successfully.', formattedAuctions);
+
+        return success(res, 'Auctions retrieved successfully.', {
+           formattedAuctions,
+            totalAuction: auctions.length,
+            page: pageNumber,
+            limit: pageSize,
+        });
     } catch (error) {
         console.error('Error fetching auctions:', error);
         return unknownError(res, error.message);
@@ -810,6 +895,227 @@ export const placeBid = async (req, res) => {
         return success(res, "Bid placed successfully.", findAuction);
     } catch (error) {
         console.error("Error placing bid:", error);
+        return unknownError(res, error.message);
+    }
+};
+
+
+
+export const getAuctionDetails = async (req, res) => {
+    try {
+        const { auctionId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(auctionId)) {
+            return badRequest(res, "Invalid auction ID format.");
+        }
+
+        const auctionDetails = await auctionModel.aggregate([
+            { $match: { _id: new mongoose.Types.ObjectId(auctionId) } },
+
+            // Fetch Participants
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "participants",
+                    foreignField: "_id",
+                    as: "participantsDetails"
+                }
+            },
+
+            {
+                  $unwind: {
+                    path: "$participantsDetails",
+                    preserveNullAndEmptyArrays: true
+                  }
+            },
+
+            // Fetch Product Details
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "product",
+                    foreignField: "_id",
+                    as: "productDetails"
+                }
+            },
+            { $unwind: { path: "$productDetails", preserveNullAndEmptyArrays: true } },
+
+            // Fetch Category Details
+            {
+                $lookup: {
+                    from: "categories",
+                    localField: "category",
+                    foreignField: "_id",
+                    as: "categoryDetails"
+                }
+            },
+            { $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true } },
+
+            // Fetch Winner Details
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "winner",
+                    foreignField: "_id",
+                    as: "winnerDetails"
+                }
+            },
+            { $unwind: { path: "$winnerDetails", preserveNullAndEmptyArrays: true } },
+
+            // Fetch Bids & Bidders
+            { $unwind: { path: "$bids", preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "bids.bidder",
+                    foreignField: "_id",
+                    as: "bids.bidderDetails"
+                }
+            },
+            {
+                $unwind: { path: "$bids.bidderDetails", preserveNullAndEmptyArrays: true }
+            },
+
+            {
+                $group: {
+                    _id: "$_id",
+                    product: {
+                        $first: {
+                            title: "$productDetails.title",
+                            price: "$productDetails.price"
+                        }
+                    },
+                    category: {
+                        $first: {
+                            _id: "$categoryDetails._id",
+                            name: "$categoryDetails.name"
+                        }
+                    },
+                    status: { $first: "$status" },
+                    auctionType: { $first: "$auctionType" },
+                    startDate: { $first: "$startDate" },
+                    endDate: { $first: "$endDate" },
+                    participants:{
+                        $push:{
+                            _id:"$participantsDetails._id",
+                            name:"$participantsDetails.name",
+                            email:"$participantsDetails.email"
+                        }
+                    },
+                    winner: { 
+                        $first: {
+                            _id: "$winnerDetails._id",
+                            name: "$winnerDetails.name",
+                            email: "$winnerDetails.email"
+                        }
+                    },
+                    bids: {
+                        $push: {
+                            bidAmount: "$bids.bidAmount",
+                            bidTime: "$bids.bidTime",
+                            bidder: {
+                                _id: "$bids.bidderDetails._id",
+                                name: "$bids.bidderDetails.name",
+                                email: "$bids.bidderDetails.email"
+                            }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (!auctionDetails.length) {
+            return notFound(res, "Auction not found.");
+        }
+
+        return success(res, "Auction details retrieved successfully.", auctionDetails[0]);
+
+    } catch (error) {
+        console.error("Error fetching auction details:", error);
+        return unknownError(res, error.message);
+    }
+};
+
+
+
+export const getUserAuctions = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { searchQuery } = req.query; // Extract search query from request
+
+        if (!userId) {
+            return badRequest(res, "Please provide user ID.");
+        }
+
+        // Check if user exists
+        const findUser = await UserModel.findById(userId);
+        if (!findUser) {
+            return badRequest(res, "User not found");
+        }
+
+        // Match condition for user participation
+        let matchStage = { participants: new mongoose.Types.ObjectId(userId) };
+
+        // Apply search filter
+        if (searchQuery) {
+            matchStage.$or = [
+                { "product.title": { $regex: searchQuery, $options: "i" } }, // Case-insensitive search in product title
+                { lotNumber: { $regex: searchQuery, $options: "i" } }, // Search by lot number
+                { auctionType: { $regex: searchQuery, $options: "i" } } // Search by auction type
+            ];
+        }
+
+        // Fetch auctions where user is a participant with search filter
+        const auctions = await auctionModel.aggregate([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "product",
+                    foreignField: "_id",
+                    as: "product",
+                },
+            },
+            { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "currentBidder",
+                    foreignField: "_id",
+                    as: "currentBidder",
+                },
+            },
+            { $unwind: { path: "$currentBidder", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    product: {
+                        title: 1,
+                        price: 1,
+                        _id: 1,
+                    },
+                    startingBid: 1,
+                    currentBid: 1,
+                    status: 1,
+                    startDate: 1,
+                    endDate: 1,
+                    lotNumber: 1,
+                    auctionType: 1,
+                    currentBidder: {
+                        _id: 1,
+                        name: 1,
+                        email: 1,
+                    },
+                },
+            },
+        ]);
+
+        if (!auctions.length) {
+            return success(res, "No auctions found where user participated.", []);
+        }
+
+        return success(res, "User's participated auctions retrieved successfully.", auctions);
+    } catch (error) {
+        console.error("Error fetching user's auctions:", error);
         return unknownError(res, error.message);
     }
 };

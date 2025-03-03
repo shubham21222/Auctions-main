@@ -10,7 +10,9 @@ import {
     getAuctionById,
     updateAuction,
     deleteAuction,
-    placeBid
+    placeBid,
+    getAuctionDetails,
+    getUserAuctions
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
@@ -35,11 +37,11 @@ router.post("/addBalance" , IsAuthenticated , AddBalance)
 
 
 // Stripe Webhook //
-
+    
 
 // update payment status //
 
-router.post("/updatePaymentStatus" , IsAuthenticated , authorizeRoles("ADMIN") , updatePaymentStatus)
+router.post("/updatePaymentStatus"  , updatePaymentStatus)
 
 // update auction //
 
@@ -52,6 +54,10 @@ router.post("/delete" , IsAuthenticated , authorizeRoles("ADMIN") , deleteAuctio
 // place bid //
 
 router.post("/placeBid" , IsAuthenticated , placeBid)
+
+router.get("/getAuctionDetails/:auctionId" , IsAuthenticated , authorizeRoles("ADMIN") ,  getAuctionDetails)
+
+router.get("/getUserAuctions" , IsAuthenticated , getUserAuctions)
 
 
 // router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)

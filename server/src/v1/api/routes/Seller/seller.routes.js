@@ -5,7 +5,8 @@ import {
     getSellerById,
     approveSeller,
     updateSeller,
-    deleteSeller
+    deleteSeller,
+    getSellersByCreatedBy
 } from "../../controllers/SellerController/seller.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
 
@@ -18,5 +19,6 @@ router.get("/getbyid/:id", IsAuthenticated , getSellerById);
 router.post("/approve", IsAuthenticated , authorizeRoles('ADMIN') ,approveSeller);
 router.post("/update/:id", updateSeller);
 router.post("/delete/:id", IsAuthenticated , authorizeRoles('ADMIN') , deleteSeller);
+router.get("/getByCreatedBy", IsAuthenticated , getSellersByCreatedBy);
 
 export default router;
