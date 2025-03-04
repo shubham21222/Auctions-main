@@ -1087,6 +1087,17 @@ export const getUserAuctions = async (req, res) => {
             },
             { $unwind: { path: "$currentBidder", preserveNullAndEmptyArrays: true } },
             {
+                $lookup: {
+                    from: "users",
+                    localField: "winner",
+                    foreignField: "_id",
+                    as: "winnerDetails",
+                },
+            },
+            { $unwind: { path: "$winnerDetails", preserveNullAndEmptyArrays: true } },
+
+    
+            {
                 $project: {
                     product: {
                         title: 1,
@@ -1104,6 +1115,13 @@ export const getUserAuctions = async (req, res) => {
                         _id: 1,
                         name: 1,
                         email: 1,
+                    },
+                    winnerYou: {
+                        $cond: {
+                            if: { $eq: ["$winner", new mongoose.Types.ObjectId(userId)] },
+                            then: "$winnerDetails.name",
+                            else: ""
+                        }
                     },
                 },
             },
@@ -1186,6 +1204,7 @@ const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
         ]);
         const lastMonthSalesCount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesCount : 0;
         const lastMonthSalesAmount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesAmount : 0;
+
         const salesChange = lastMonthSalesCount ? ((totalSalesCount - lastMonthSalesCount) / lastMonthSalesCount) * 100 : 0;
 
         // Monthly Sales (Jan - Dec)
