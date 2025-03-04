@@ -7,11 +7,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
-import LoginModal from "./LoginModal";
 import { useDispatch } from "react-redux";
 import { setToken, setUser, setUserId, setEmail } from "@/redux/authSlice";
 
-const SignupModal = ({ isOpen, onClose }) => {
+const SignupModal = ({ isOpen, onClose, onOpenLogin }) => { // Added onOpenLogin prop
   const [step, setStep] = useState(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +18,6 @@ const SignupModal = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const dispatch = useDispatch();
 
   if (!isOpen) return null;
@@ -135,10 +133,10 @@ const SignupModal = ({ isOpen, onClose }) => {
   };
 
   const handleLoginClick = () => {
-    setShowLoginModal(true);
+    onClose(); // Close SignupModal
+    onOpenLogin(); // Open LoginModal via parent callback
   };
 
-  // Rest of the component remains unchanged...
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
@@ -317,8 +315,6 @@ const SignupModal = ({ isOpen, onClose }) => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </>
   );
 };

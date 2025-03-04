@@ -36,7 +36,7 @@ export default function Home() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("http://localhost:4000/v1/api/category/all");
+        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
         const data = await response.json();
         if (data.status) {
           setCategories(data.items);
