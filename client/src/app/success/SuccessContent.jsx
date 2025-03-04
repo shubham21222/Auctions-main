@@ -30,12 +30,6 @@ export default function SuccessContent() {
 
   useEffect(() => {
     async function verifyPaymentAndUpdateStatus() {
-      if (success !== "true" || !token || !user || (!sessionId && !paymentIntentId)) {
-        console.log("Missing data:", { success, sessionId, paymentIntentId, auctionId, token, user });
-        setLoading(false);
-        return;
-      }
-
       try {
         if (sessionId) {
           // Existing Checkout Session flow
