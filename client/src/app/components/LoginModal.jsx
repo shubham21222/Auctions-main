@@ -11,14 +11,14 @@ import login from "../../../public/login.webp";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 
-const LoginModal = ({ isOpen, onClose }) => {
+const LoginModal = ({ isOpen, onClose, onOpenSignup }) => { // Added onOpenSignup prop
   const [showPassword, setShowPassword] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
 
-  // Handle form submission
+  // Handle form submission (unchanged)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -98,6 +98,11 @@ const LoginModal = ({ isOpen, onClose }) => {
 
       setLoading(false);
     }
+  };
+
+  // Handle "Join" click
+  const handleJoinClick = () => {
+    onOpenSignup(); // Trigger the callback to open SignupModal and close LoginModal
   };
 
   return (
@@ -210,10 +215,13 @@ const LoginModal = ({ isOpen, onClose }) => {
                     </Link>
                   </div>
                   <div className="text-center text-sm text-gray-600">
-                    Don&apos;t have an account?{" "}
-                    <a href="#" className="text-blue-600 hover:underline">
+                    Don't have an account?{" "}
+                    <button
+                      onClick={handleJoinClick}
+                      className="text-blue-600 hover:underline focus:outline-none"
+                    >
                       Join
-                    </a>
+                    </button>
                   </div>
                 </motion.form>
               </div>

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 import React, { useState, useEffect } from "react";
 import TopBar from "./TopBar";
 import MainHeader from "./MainHeader";
-import LoginModal from './LoginModal';
+import LoginModal from "./LoginModal";
 import SignupModal from "./SignupModal";
 
 const Header = () => {
@@ -43,8 +43,10 @@ const Header = () => {
 
   return (
     <>
-      <TopBar  setShowLoginModal={setShowLoginModal} // Pass this prop
-        setShowSignupModal={setShowSignupModal} />
+      <TopBar
+        setShowLoginModal={setShowLoginModal}
+        setShowSignupModal={setShowSignupModal}
+      />
       <MainHeader
         isScrolled={isScrolled}
         isMobile={isMobile}
@@ -55,11 +57,25 @@ const Header = () => {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         handleSearch={handleSearch}
-        setShowLoginModal={setShowLoginModal} // Pass this prop
-        setShowSignupModal={setShowSignupModal} // Pass this prop
+        setShowLoginModal={setShowLoginModal}
+        setShowSignupModal={setShowSignupModal}
       />
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
-      <SignupModal isOpen={showSignupModal} onClose={() => setShowSignupModal(false)} />
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onOpenSignup={() => {
+          setShowLoginModal(false); // Close LoginModal
+          setShowSignupModal(true); // Open SignupModal
+        }}
+      />
+      <SignupModal
+        isOpen={showSignupModal}
+        onClose={() => setShowSignupModal(false)}
+        onOpenLogin={() => {
+          setShowSignupModal(false); // Close SignupModal
+          setShowLoginModal(true); // Open LoginModal
+        }}
+      />
     </>
   );
 };

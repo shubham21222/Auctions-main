@@ -21,6 +21,9 @@ export default function AuctionCalendar() {
   const [loading, setLoading] = useState(false);
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const token = useSelector((state) => state.auth.token);
+  const walletBalance = useSelector((state) =>
+    state.auth.user?.walletBalance ? Number(state.auth.user.walletBalance) : 0
+  );
 
   const handleCloseInfoBox = () => {
     setShowInfoBox(false);
@@ -29,28 +32,25 @@ export default function AuctionCalendar() {
   const fetchAuctions = async () => {
     setLoading(true);
     try {
-      // Fetch all auctions
+      const headers = token ? { Authorization: `${token}` } : {};
       const auctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/all`, {
         method: "GET",
-        headers: {
-          Authorization: `${token}`,
-        },
+        headers,
       });
       if (!auctionsResponse.ok) throw new Error("Failed to fetch auctions");
       const auctionsData = await auctionsResponse.json();
 
       if (auctionsData.status) {
-        const auctionItems = Array.isArray(auctionsData.items) ? auctionsData.items : [];
-        
-        // Fetch product details for each auction
+        const auctionItems = Array.isArray(auctionsData.items?.formattedAuctions)
+          ? auctionsData.items.formattedAuctions
+          : [];
+
         const enrichedAuctions = await Promise.all(
           auctionItems.map(async (auction) => {
             try {
               const productResponse = await fetch(`${config.baseURL}/v1/api/product/${auction.product._id}`, {
                 method: "GET",
-                headers: {
-                  Authorization: `${token}`,
-                },
+                headers,
               });
               if (!productResponse.ok) throw new Error(`Failed to fetch product ${auction.product._id}`);
               const productData = await productResponse.json();
@@ -58,7 +58,7 @@ export default function AuctionCalendar() {
               return {
                 id: auction._id,
                 title: auction.product.title,
-                images: productData.items?.image || ["/placeholder.svg"], // Fetch images from product API
+                images: productData.items?.image || ["/placeholder.svg"],
                 endDate: new Date(auction.endDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -72,14 +72,17 @@ export default function AuctionCalendar() {
                 currentBid: auction.currentBid,
                 status: auction.status,
                 featured: true,
+                product: {
+                  _id: auction.product._id,
+                },
+                winner: auction.winner ? auction.winner.name : null,
               };
             } catch (error) {
               console.error(`Error fetching product for auction ${auction._id}:`, error);
-              // Fallback to auction data if product fetch fails
               return {
                 id: auction._id,
                 title: auction.product.title,
-                images: ["/placeholder.svg"], // Fallback image
+                images: ["/placeholder.svg"],
                 endDate: new Date(auction.endDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -93,6 +96,10 @@ export default function AuctionCalendar() {
                 currentBid: auction.currentBid,
                 status: auction.status,
                 featured: true,
+                product: {
+                  _id: auction.product._id,
+                },
+                winner: auction.winner ? auction.winner.name : null,
               };
             }
           })
@@ -113,10 +120,8 @@ export default function AuctionCalendar() {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchAuctions();
-    }
-  }, [token]);
+    fetchAuctions(); // Fetch auctions on mount, regardless of token
+  }, []); // No dependencies
 
   const handlePaymentClick = async () => {
     if (!isLoggedIn) {
@@ -155,9 +160,22 @@ export default function AuctionCalendar() {
       }
     } catch (error) {
       console.error("Payment initiation error:", error.message);
-      // toast.error("An error occurred. Please try again.");
     }
   };
+
+  const SkeletonCard = () => (
+    <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
+      <div className="relative aspect-[4/3] bg-gray-200 animate-shimmer" />
+      <div className="p-6 space-y-4">
+        <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
+        <div className="h-4 bg-gray-200 rounded w-1/3 animate-shimmer" />
+      </div>
+      <div className="p-6 pt-0">
+        <div className="h-10 bg-gray-200 rounded w-full animate-shimmer" />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -177,7 +195,7 @@ export default function AuctionCalendar() {
           </p>
         </div>
 
-        {showInfoBox && (
+        {showInfoBox && isLoggedIn && (
           <div className="mt-6 mx-auto max-w-[1500px] bg-blue-500 rounded-[20px] text-white p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 relative">
             <p className="text-sm font-medium">
               To participate in an auction, pay a fee of <span className="font-bold">$100</span>.
@@ -186,7 +204,7 @@ export default function AuctionCalendar() {
               onClick={handlePaymentClick}
               className="btn bg-luxury-gold text-black mr-6 px-4 py-2 rounded-md font-semibold hover:bg-luxury-gold/80 transition-colors"
             >
-              Make a Payment
+              Add Balance
             </button>
             <button
               onClick={handleCloseInfoBox}
@@ -221,12 +239,16 @@ export default function AuctionCalendar() {
           </aside>
           <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
             {loading ? (
-              <p>Loading auctions...</p>
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
             ) : auctions.length === 0 ? (
               <p>No auctions available.</p>
             ) : (
               auctions.map((auction) => (
-                <AuctionCard key={auction.id} auction={auction} />
+                <AuctionCard key={auction.id} auction={auction} walletBalance={walletBalance} />
               ))
             )}
           </div>

@@ -22,7 +22,7 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
     };
 
     try {
-      const response = await fetch("http://localhost:4000/v1/api/seller/create", {
+      const response = await fetch("https://bid.nyelizabeth.com/v1/api/seller/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

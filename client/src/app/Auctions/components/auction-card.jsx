@@ -7,25 +7,42 @@ import Image from "next/image";
 import { Clock, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
 
-export function AuctionCard({ auction }) {
+export function AuctionCard({ auction, walletBalance }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const router = useRouter();
-
-  const slugify = (text) => {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  };
+  const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
   const handleBidNowClick = () => {
-    const slug = `${auction.id}-${slugify(auction.title)}`;
-    router.push(`/catalog/${slug}`);
+    const isEnded = auction.status === "ENDED" || new Date(auction.endDate + " " + auction.endTime) < new Date();
+
+    if (isEnded) {
+      toast.info(`This auction has ended. Winner: ${auction.winner || "N/A"}`);
+      router.push(`/catalog/${auction.id}`);
+      return;
+    }
+
+    if (!isLoggedIn) {
+      toast.error("Please login or signup to place a bid.", {
+        action: {
+          text: "Login/Signup",
+          onClick: () => router.push("/login"), // Adjust route as needed
+        },
+      });
+      return;
+    }
+
+    if (walletBalance < auction.currentBid) {
+      toast.error(`Your wallet balance is less than $${auction.currentBid}. Please add balance to bid on this product.`);
+      return;
+    }
+
+    router.push(`/catalog/${auction.id}`);
   };
 
-  // Check if auction has ended
   const isEnded = auction.status === "ENDED" || new Date(auction.endDate + " " + auction.endTime) < new Date();
 
   return (
@@ -90,21 +107,25 @@ export function AuctionCard({ auction }) {
             <span className="text-lg font-semibold text-luxury-charcoal">${auction.currentBid.toLocaleString()}</span>
           </div>
         )}
+        {isEnded && (
+          <div className="mt-4 text-center text-red-500 font-semibold">
+            Auction Ended
+          </div>
+        )}
       </CardContent>
       <CardFooter className="p-6 pt-0">
         <Button
           className="group/btn relative w-full overflow-hidden bg-black transition-all hover:bg-luxury-gold"
           size="lg"
           onClick={handleBidNowClick}
-          disabled={isEnded} // Disable if ended
         >
           <span className="relative z-10 flex items-center text-white gap-2">
-            {isEnded ? "Auction Ended" : "Bid Now"}
-            {!isEnded && <span className="text-sm opacity-70">→</span>}
+            Bid Now
+            <span className="text-sm opacity-70">→</span>
           </span>
           <div className="absolute inset-0 -z-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] bg-[0%_0%] transition-all duration-500 group-hover/btn:bg-[100%_100%]" />
         </Button>
       </CardFooter>
     </Card>
   );
-} 
+}
