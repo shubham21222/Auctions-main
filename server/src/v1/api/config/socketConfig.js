@@ -7,7 +7,7 @@ const auctionWatchers = {};
 export const initializeSocket = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: ["bid.nyelizabeth.com"], // Allow frontend connection
+            origin: ["https://bid.nyelizabeth.com/"], // Allow frontend connection
             methods: ["GET", "POST" , "PUT", "DELETE"],
         },
     });
