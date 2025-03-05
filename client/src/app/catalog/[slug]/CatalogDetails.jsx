@@ -12,12 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
-import { useState, useEffect } from "react";
+import { useState } from "react"; // Removed useEffect since GET is not used
 import { loadStripe } from "@stripe/stripe-js";
 import { useRouter } from "next/navigation";
 import config from "@/app/config_BASE_URL";
 import { useSelector } from "react-redux";
-import { selectPaymentStatus, selectUserId } from "@/redux/authSlice";
+import { selectUserId } from "@/redux/authSlice";
 import { Elements } from "@stripe/react-stripe-js";
 import BidHistory from "./BidHistory";
 
@@ -27,7 +27,6 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
 
-  const paymentStatus = useSelector(selectPaymentStatus);
   const userId = useSelector(selectUserId);
   const router = useRouter();
 
@@ -41,12 +40,6 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     </div>
   );
 
-  useEffect(() => {
-    if (paymentStatus === "PAID" && !isJoined) {
-      setIsJoined(true);
-    }
-  }, [paymentStatus, isJoined]);
-
   const handleJoinAuction = async () => {
     if (!userId) {
       toast.error("Please log in to join the auction");
@@ -56,65 +49,33 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       toast.error("No active auction available");
       return;
     }
+
     try {
-      await initiateStripeJoinPayment();
+      // Join Auction API call
+      const response = await fetch(
+        `${config.baseURL}/v1/api/auction/join?=${userId}`, // userId in URL path
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+          body: JSON.stringify({
+            auctionId: auction._id, // auctionId in payload
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to join auction");
+      }
+
+      setIsJoined(true);
+      toast.success("Successfully joined the auction!");
     } catch (error) {
       console.error("Join Auction Error:", error);
-      toast.error(error.message || "Failed to initiate join payment.");
-    }
-  };
-
-  const initiateStripeJoinPayment = async () => {
-    try {
-      const stripe = await stripePromise;
-      if (!stripe) {
-        toast.error("Payment service unavailable. Please try again.");
-        return;
-      }
-      if (!userId) {
-        throw new Error("User ID is missing from Redux state");
-      }
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: "Auction Joining Fee",
-                },
-                unit_amount: 10000, // $100 in cents
-              },
-              quantity: 1,
-            },
-          ],
-          mode: "payment",
-          success_url: `${window.location.origin}/success?success=true&session_id={CHECKOUT_SESSION_ID}&productId=${product.id}`,
-          cancel_url: `${window.location.origin}/catalog/${product.id}?canceled=true`,
-          metadata: {
-            userId: userId,
-            auctionId: auction._id, // Use _id from full auction object
-            token: token,
-          },
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create checkout session");
-      }
-      const session = await response.json();
-      const { error } = await stripe.redirectToCheckout({ sessionId: session.id });
-      if (error) {
-        console.error("Stripe redirect error:", error);
-        toast.error("Error redirecting to payment. Please try again.");
-      }
-    } catch (error) {
-      console.error("Payment initiation error:", error);
-      throw error;
+      toast.error(error.message || "Failed to join the auction.");
     }
   };
 
@@ -130,10 +91,6 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     }
     if (!isJoined) {
       toast.error("Please join the auction before bidding.");
-      return;
-    }
-    if (paymentStatus !== "PAID") {
-      toast.error("Only users with a PAID payment status can place a bid.");
       return;
     }
     setIsBidModalOpen(true);
@@ -292,11 +249,10 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                 </p>
               )}
               <div className="flex gap-4">
-                {paymentStatus === "PAID" ? (
+                {isJoined ? (
                   <Button
                     className="w-full bg-luxury-gold text-black font-semibold py-3 rounded-full hover:bg-luxury-gold/80 transition-colors"
                     onClick={handleBidNowClick}
-                    disabled={!isJoined}
                   >
                     Bid Now
                   </Button>

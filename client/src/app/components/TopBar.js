@@ -72,7 +72,7 @@ const TopBar = ({ setShowLoginModal, setShowSignupModal }) => {
                     <Link href="/my-account" className="hover:bg-gray-100 px-4 py-2 rounded">
                       Profile
                     </Link>
-                    <Link href="/auctions" className="hover:bg-gray-100 px-4 py-2 rounded">
+                    <Link href="/participated-auctions" className="hover:bg-gray-100 px-4 py-2 rounded">
                       Auctions
                     </Link>
                     <Link href="/purchases" className="hover:bg-gray-100 px-4 py-2 rounded">
