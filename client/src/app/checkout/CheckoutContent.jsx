@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
-import { selectUser, selectUserId } from "@/redux/authSlice";
+import { selectUser, selectUserId, selectIsBillingDetailsAvailable } from "@/redux/authSlice";
 import SearchParamsHandler from "./SearchParamsHandler";
-import BillingDetailsForm from "./BillingDetailsForm"; // Import new component
+import BillingDetailsForm from "./BillingDetailsForm";
 import Link from "next/link";
 
 export default function CheckoutContent() {
@@ -14,6 +14,7 @@ export default function CheckoutContent() {
   const searchParams = useSearchParams();
   const user = useSelector(selectUser);
   const userId = useSelector(selectUserId);
+  const isBillingDetailsAvailable = useSelector(selectIsBillingDetailsAvailable);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
 
@@ -25,7 +26,7 @@ export default function CheckoutContent() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [billingDetails, setBillingDetails] = useState(null); // Updated billing details from form
+  const [billingDetails, setBillingDetails] = useState(null); // Updated billing details from form if edited
 
   useEffect(() => {
     const newProductDetails = {
@@ -38,7 +39,7 @@ export default function CheckoutContent() {
   }, [searchParams]);
 
   const handleBillingUpdate = (updatedBillingDetails) => {
-    setBillingDetails(updatedBillingDetails); // Store updated billing details
+    setBillingDetails(updatedBillingDetails); // Store updated billing details locally
   };
 
   const handleCheckout = async (e) => {
@@ -52,7 +53,8 @@ export default function CheckoutContent() {
       return;
     }
 
-    if (!billingDetails) {
+    // Require billing details update only if not already available
+    if (!isBillingDetailsAvailable && !billingDetails) {
       setError("Please update your billing address before submitting the offer.");
       setLoading(false);
       return;
@@ -177,9 +179,9 @@ export default function CheckoutContent() {
 
             <button
               type="submit"
-              disabled={loading || !userId || !token || !productDetails.productId || !billingDetails}
+              disabled={loading || !userId || !token || !productDetails.productId}
               className={`w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg transition duration-300 mt-6 ${
-                loading || !userId || !token || !productDetails.productId || !billingDetails
+                loading || !userId || !token || !productDetails.productId
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:from-blue-700 hover:to-indigo-700"
               }`}
@@ -196,9 +198,6 @@ export default function CheckoutContent() {
             )}
             {!productDetails.productId && (
               <p className="text-red-500 text-center mt-2">Product ID is missing. Please select a product.</p>
-            )}
-            {!billingDetails && (
-              <p className="text-red-500 text-center mt-2">Please update your billing address.</p>
             )}
 
             <p className="text-xs text-gray-500 text-center mt-3">

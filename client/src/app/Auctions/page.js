@@ -19,6 +19,7 @@ export default function AuctionCalendar() {
   const [auctions, setAuctions] = useState([]);
   const [showInfoBox, setShowInfoBox] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date()); 
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const token = useSelector((state) => state.auth.token);
   const walletBalance = useSelector((state) =>
@@ -59,16 +60,8 @@ export default function AuctionCalendar() {
                 id: auction._id,
                 title: auction.product.title,
                 images: productData.items?.image || ["/placeholder.svg"],
-                endDate: new Date(auction.endDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }),
-                endTime: new Date(auction.endDate).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  timeZoneName: "short",
-                }),
+                endDateTime: auction.endDateFormatted,
+                endDateRaw: auction.endDate,
                 currentBid: auction.currentBid,
                 status: auction.status,
                 featured: true,
@@ -83,16 +76,8 @@ export default function AuctionCalendar() {
                 id: auction._id,
                 title: auction.product.title,
                 images: ["/placeholder.svg"],
-                endDate: new Date(auction.endDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }),
-                endTime: new Date(auction.endDate).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  timeZoneName: "short",
-                }),
+                endDateTime: auction.endDateFormatted,
+                endDateRaw: auction.endDate,
                 currentBid: auction.currentBid,
                 status: auction.status,
                 featured: true,
@@ -120,48 +105,23 @@ export default function AuctionCalendar() {
   };
 
   useEffect(() => {
-    fetchAuctions(); // Fetch auctions on mount, regardless of token
-  }, []); // No dependencies
+    fetchAuctions();
 
-  const handlePaymentClick = async () => {
-    if (!isLoggedIn) {
-      toast.error("Please login to make a payment.");
-      return;
-    }
+    // Update current time every second for real-time end check
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
 
-    try {
-      const stripe = await stripePromise;
-      if (!stripe) {
-        toast.error("Payment service unavailable. Please try again later.");
-        return;
-      }
+    // Refresh auction data every 60 seconds
+    const fetchInterval = setInterval(() => {
+      fetchAuctions();
+    }, 60000);
 
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: 10000,
-          description: "Auction Participation Fee",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create checkout session");
-      }
-
-      const session = await response.json();
-      const { error } = await stripe.redirectToCheckout({ sessionId: session.id });
-
-      if (error) {
-        toast.error("Error redirecting to payment. Please try again.");
-      }
-    } catch (error) {
-      console.error("Payment initiation error:", error.message);
-    }
-  };
+    return () => {
+      clearInterval(timeInterval);
+      clearInterval(fetchInterval);
+    };
+  }, []);
 
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
@@ -195,26 +155,6 @@ export default function AuctionCalendar() {
           </p>
         </div>
 
-        {showInfoBox && isLoggedIn && (
-          <div className="mt-6 mx-auto max-w-[1500px] bg-blue-500 rounded-[20px] text-white p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 relative">
-            <p className="text-sm font-medium">
-              To participate in an auction, pay a fee of <span className="font-bold">$100</span>.
-            </p>
-            <button
-              onClick={handlePaymentClick}
-              className="btn bg-luxury-gold text-black mr-6 px-4 py-2 rounded-md font-semibold hover:bg-luxury-gold/80 transition-colors"
-            >
-              Add Balance
-            </button>
-            <button
-              onClick={handleCloseInfoBox}
-              className="absolute top-2 right-2 text-white hover:text-gray-200 transition-colors"
-              aria-label="Close info box"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        )}
 
         <div className="mb-8 flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Showing {auctions.length} Exceptional Pieces</span>
@@ -248,7 +188,7 @@ export default function AuctionCalendar() {
               <p>No auctions available.</p>
             ) : (
               auctions.map((auction) => (
-                <AuctionCard key={auction.id} auction={auction} walletBalance={walletBalance} />
+                <AuctionCard key={auction.id} auction={auction} walletBalance={walletBalance} currentTime={currentTime} />
               ))
             )}
           </div>
@@ -257,4 +197,42 @@ export default function AuctionCalendar() {
       <Footer />
     </>
   );
+
+  function handlePaymentClick() {
+    if (!isLoggedIn) {
+      toast.error("Please login to make a payment.");
+      return;
+    }
+
+    stripePromise.then((stripe) => {
+      if (!stripe) {
+        toast.error("Payment service unavailable. Please try again later.");
+        return;
+      }
+
+      fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 10000,
+          description: "Auction Participation Fee",
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((errorData) => {
+              throw new Error(errorData.error || "Failed to create checkout session");
+            });
+          }
+          return response.json();
+        })
+        .then((session) => stripe.redirectToCheckout({ sessionId: session.id }))
+        .catch((error) => {
+          console.error("Payment initiation error:", error.message);
+          toast.error("Error redirecting to payment. Please try again.");
+        });
+    });
+  }
 }

@@ -8,9 +8,9 @@ import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 import { useDispatch } from "react-redux";
-import { setToken, setUser, setUserId, setEmail } from "@/redux/authSlice";
+import { setToken, setUser, setUserId, setEmail, updateBillingDetails } from "@/redux/authSlice";
 
-const SignupModal = ({ isOpen, onClose, onOpenLogin }) => { // Added onOpenLogin prop
+const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const [step, setStep] = useState(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -65,7 +65,6 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => { // Added onOpenLogin
         throw new Error("No token or user data received from login response.");
       }
 
-      // Validate userData fields
       if (!userData._id) {
         throw new Error("User data missing _id field.");
       }
@@ -76,37 +75,14 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => { // Added onOpenLogin
       // Step 3: Store token and user data in Redux for auto-login
       try {
         dispatch(setToken(token));
-      } catch (dispatchErr) {
-        // Silently handle dispatch errors to avoid breaking flow
-      }
-
-      try {
         dispatch(setUser(userData));
-      } catch (dispatchErr) {
-        // Silently handle dispatch errors
-      }
-
-      try {
         dispatch(setUserId(userData._id));
-      } catch (dispatchErr) {
-        // Silently handle dispatch errors
-      }
-
-      try {
         dispatch(setEmail(userData.email));
       } catch (dispatchErr) {
-        // Silently handle dispatch errors
+        console.error("Dispatch error:", dispatchErr);
       }
 
-      // Success: Show toast and close modal immediately after login
-      toast.success("Sign up successful! You are now logged in.", {
-        style: { background: "#32CD32", color: "#fff" },
-        icon: "✅",
-      });
-      setLoading(false);
-      onClose();
-
-      // Step 4: Verify the token (optional, runs after modal closes)
+      // Step 4: Verify the token and update billing details
       try {
         const verifyResponse = await axios.post(
           `${config.baseURL}/v1/api/auth/verify/${token}`,
@@ -114,15 +90,27 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => { // Added onOpenLogin
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (verifyResponse.data?.items && typeof verifyResponse.data.items === "object") {
-          try {
-            dispatch(setUser(verifyResponse.data.items));
-          } catch (dispatchErr) {
-            // Silently handle dispatch errors
-          }
+          const verifiedUserData = verifyResponse.data.items;
+          // Update user with verified data
+          dispatch(setUser(verifiedUserData));
+          // Dispatch billing details (even if empty)
+          const billingDetails = verifiedUserData.BillingDetails && verifiedUserData.BillingDetails.length > 0
+            ? verifiedUserData.BillingDetails[0] // Assuming single billing detail object
+            : {};
+          dispatch(updateBillingDetails(billingDetails));
         }
       } catch (verifyErr) {
-        // Silently handle verify errors since it's optional
+        console.error("Verification error:", verifyErr.message);
+        // Proceed even if verification fails, as it’s optional
       }
+
+      // Success: Show toast and close modal
+      toast.success("Sign up successful! You are now logged in.", {
+        style: { background: "#32CD32", color: "#fff" },
+        icon: "✅",
+      });
+      setLoading(false);
+      onClose();
     } catch (err) {
       toast.error(err.message, {
         style: { background: "#FF4500", color: "#fff" },

@@ -18,6 +18,8 @@ import {
   Truck,
   Users,
   UserCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -28,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { motion } from "framer-motion";
 import config from "@/app/config_BASE_URL";
 
 export default function DashboardLayout({ children }) {
@@ -35,6 +38,7 @@ export default function DashboardLayout({ children }) {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
   const [loading, setLoading] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleLogout = async () => {
     if (!token) {
@@ -64,93 +68,73 @@ export default function DashboardLayout({ children }) {
     }
   };
 
+  const sidebarVariants = {
+    expanded: { width: "280px" },
+    collapsed: { width: "80px" },
+  };
+
+  const navItems = [
+    { href: "/Admin/Admin-dashboard", icon: Home, label: "Dashboard" },
+    { href: "/Admin/Admin-dashboard/auctions", icon: Package, label: "Auctions" },
+    { href: "/Admin/Admin-dashboard/buy-now", icon: ShoppingCart, label: "Buy Now" },
+    { href: "/Admin/Admin-dashboard/private-sales", icon: DollarSign, label: "Private Sales" },
+    { href: "/Admin/Admin-dashboard/category", icon: Tag, label: "Category" },
+    { href: "/Admin/Admin-dashboard/orders", icon: Truck, label: "Orders" },
+    { href: "/Admin/Admin-dashboard/users", icon: Users, label: "Users" },
+    { href: "/Admin/Admin-dashboard/Sellers", icon: UserCheck, label: "Sellers" },
+  ];
+
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex h-screen py-10 px-6  bg-gradient-to-br from-gray-100 to-gray-200">
       {/* Sidebar */}
-      <aside className="w-72 bg-gradient-to-b from-purple-900 via-indigo-800 to-blue-900 text-white shadow-2xl transform transition-all duration-300 ease-in-out">
-        <div className="p-6 flex items-center space-x-4 bg-gradient-to-r from-purple-700 to-indigo-700 border-b border-indigo-600/50">
-          <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
-            <span className="text-2xl font-extrabold text-white">NY</span>
-          </div>
-          <h2 className="text-2xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-200">
-            NY Elizabeth
-          </h2>
+      <motion.aside
+        className="bg-gradient-to-b from-gray-900 rounded-[20px] via-gray-800 to-gray-900 text-white shadow-2xl relative overflow-hidden"
+        variants={sidebarVariants}
+        initial="expanded"
+        animate={isCollapsed ? "collapsed" : "expanded"}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {/* Glassmorphism Header */}
+        <div className="p-6 flex items-center  justify-between bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-lg border-b border-gray-700/50">
+          {!isCollapsed && (
+            <div className="flex items-center space-x-3">
+              <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-xl font-bold text-white">NY</span>
+              </div>
+              <h2 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-200">
+                NY Elizabeth
+              </h2>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-full transition-all duration-200"
+          >
+            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </Button>
         </div>
-        <nav className="p-4 space-y-3">
-          <Link href="/Admin/Admin-dashboard">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <Home className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Dashboard
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/auctions">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <Package className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Auctions
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/buy-now">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <ShoppingCart className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Buy Now
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/private-sales">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <DollarSign className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Private Sales
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/category">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <Tag className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Category
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/orders">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <Truck className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Orders
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/users">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <Users className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Users
-            </Button>
-          </Link>
-          <Link href="/Admin/Admin-dashboard/Sellers">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-cyan-100 hover:bg-gradient-to-r hover:from-purple-700 hover:to-indigo-600 hover:text-white transition-all duration-300 rounded-xl py-3 shadow-md hover:shadow-lg"
-            >
-              <UserCheck className="mr-3 h-5 w-5 text-cyan-300 group-hover:text-white transition-colors duration-200" />
-              Sellers
-            </Button>
-          </Link>
+
+        {/* Navigation */}
+        <nav className="p-4 space-y-2">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <motion.div
+                whileHover={{ scale: 1.05, x: 5 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center w-full p-3 rounded-xl text-gray-200 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <item.icon className="h-5 w-5 mr-3 text-indigo-300" />
+                {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+              </motion.div>
+            </Link>
+          ))}
         </nav>
-      </aside>
+
+        {/* Decorative Gradient Overlay */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-gray-900/50 via-transparent to-gray-900/50 opacity-70" />
+      </motion.aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -221,4 +205,4 @@ export default function DashboardLayout({ children }) {
       </div>
     </div>
   );
-};
+}

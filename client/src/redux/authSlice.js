@@ -3,11 +3,12 @@ import CryptoJS from "crypto-js";
 
 const initialState = {
     token: null,
-    user: null, // Will store the full user object including Payment_Status and encrypted walletBalance
+    user: null, // Will store user object including Payment_Status, encrypted walletBalance, and billing details
     _id: null,
     success: null,
     superAdminDetails: null,
     isLoggedIn: false,
+    isBillingDetailsAvailable: false, // New flag for billing details availability
     items: {
         email: null,
         passwordResetToken: null,
@@ -50,14 +51,17 @@ export const authSlice = createSlice({
             state.user = {
                 ...userData,
                 walletBalance: userData.walletBalance !== undefined ? encryptValue(userData.walletBalance) : encryptValue(0), // Encrypt walletBalance
+                BillingDetails: userData.BillingDetails || [], // Store billing details
             };
             state._id = userData._id;
             state.isLoggedIn = true;
+            state.isBillingDetailsAvailable = userData.BillingDetails && userData.BillingDetails.length > 0; // Set flag based on availability
         },
         removeUser: (state) => {
             state.user = null;
             state._id = null;
             state.isLoggedIn = false;
+            state.isBillingDetailsAvailable = false;
         },
         setUserId: (state, action) => {
             state._id = action.payload;
@@ -96,6 +100,12 @@ export const authSlice = createSlice({
                 state.user.walletBalance = encryptValue(action.payload); // Encrypt the new balance
             }
         },
+        updateBillingDetails: (state, action) => {
+            if (state.user) {
+                state.user.BillingDetails = [action.payload]; // Update billing details (single object assumed)
+                state.isBillingDetailsAvailable = true; // Set flag to true when details are updated
+            }
+        },
     },
 });
 
@@ -115,7 +125,8 @@ export const {
     clearEmail,
     setLoggedIn,
     updatePaymentStatus,
-    updateWalletBalance, // New action for updating walletBalance
+    updateWalletBalance,
+    updateBillingDetails, // New action for updating billing details
 } = authSlice.actions;
 
 // Selectors
@@ -129,9 +140,10 @@ export const selectWalletBalance = (state) => {
     }
     return 0; // Default to 0 if not present
 };
+export const selectBillingDetails = (state) => state.auth.user?.BillingDetails || [];
+export const selectIsBillingDetailsAvailable = (state) => state.auth.isBillingDetailsAvailable;
 
 export default authSlice.reducer;
-
 
 
 // // redux/slices/authSlice.js
