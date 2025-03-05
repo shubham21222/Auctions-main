@@ -1,31 +1,71 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { DollarSign, Users, Package, ShoppingCart } from "lucide-react";
 import { motion } from "framer-motion";
-
-const monthlySalesData = [
-  { name: "Jan", total: 1200 },
-  { name: "Feb", total: 1500 },
-  { name: "Mar", total: 1800 },
-  { name: "Apr", total: 2200 },
-  { name: "May", total: 2500 },
-  { name: "Jun", total: 2800 },
-];
-
-const dailyVisitorsData = [
-  { name: "Mon", visitors: 150 },
-  { name: "Tue", visitors: 230 },
-  { name: "Wed", visitors: 180 },
-  { name: "Thu", visitors: 275 },
-  { name: "Fri", visitors: 300 },
-  { name: "Sat", visitors: 350 },
-  { name: "Sun", visitors: 280 },
-];
+import { useSelector } from "react-redux";
 
 export default function Dashboard() {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const token = useSelector((state) => state.auth.token);
+
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/getDashboardStats", {
+          method: "GET",
+          headers: {
+            "Authorization": `${token}`, // Pass the token here
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch dashboard stats");
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          setDashboardData(result.data);
+        } else {
+          throw new Error(result.message || "API returned unsuccessful response");
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [token]);
+
+  // Transform API data for charts
+  const monthlySalesData = dashboardData?.monthlySales.map((item) => ({
+    name: new Date(2025, item.month - 1).toLocaleString("default", { month: "short" }), // Convert month number to name
+    total: item.totalSales,
+  })) || [];
+
+  const dailyVisitorsData = dashboardData?.weeklyVisitors.map((item) => ({
+    name: item.day.slice(0, 3), // Shorten day name (e.g., "Sun")
+    visitors: item.visitors,
+  })) || [];
+
+  if (loading) {
+    return <div className="text-center text-gray-500">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">Error: {error}</div>;
+  }
+
   return (
     <div className="space-y-8">
       <motion.h2
@@ -46,8 +86,8 @@ export default function Dashboard() {
               <DollarSign className="h-5 w-5 opacity-75" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
-              <p className="text-xs opacity-80">+20.1% from last month</p>
+              <div className="text-2xl font-bold">${dashboardData?.totalRevenue.toLocaleString() || "0"}</div>
+              <p className="text-xs opacity-80">{dashboardData?.revenueChange || "0%"} from last month</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -58,8 +98,8 @@ export default function Dashboard() {
               <Users className="h-5 w-5 opacity-75" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+2,350</div>
-              <p className="text-xs opacity-80">+180.1% from last month</p>
+              <div className="text-2xl font-bold">+{dashboardData?.activeUsers.toLocaleString() || "0"}</div>
+              <p className="text-xs opacity-80">{dashboardData?.userChange || "0%"} from last month</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -70,8 +110,8 @@ export default function Dashboard() {
               <Package className="h-5 w-5 opacity-75" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+12,234</div>
-              <p className="text-xs opacity-80">+19% from last month</p>
+              <div className="text-2xl font-bold">+{dashboardData?.activeAuctions.toLocaleString() || "0"}</div>
+              <p className="text-xs opacity-80">{/* No change data for active auctions in API */}+0% from last month</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -82,8 +122,8 @@ export default function Dashboard() {
               <ShoppingCart className="h-5 w-5 opacity-75" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+573</div>
-              <p className="text-xs opacity-80">+201 since last hour</p>
+              <div className="text-2xl font-bold">+{dashboardData?.totalSales.count.toLocaleString() || "0"}</div>
+              <p className="text-xs opacity-80">{dashboardData?.salesChange || "0%"} since last period</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -100,7 +140,7 @@ export default function Dashboard() {
               config={{
                 total: {
                   label: "Total Sales",
-                  color: "#10b981", 
+                  color: "#10b981", // Green
                 },
               }}
               className="h-[350px]"
@@ -116,7 +156,7 @@ export default function Dashboard() {
                     fill="var(--color-total)"
                     radius={[8, 8, 0, 0]}
                     barSize={40}
-                    className="transition-all duration-300 "
+                    className="transition-all duration-300"
                   />
                 </BarChart>
               </ResponsiveContainer>

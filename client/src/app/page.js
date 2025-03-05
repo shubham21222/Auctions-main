@@ -2,7 +2,6 @@ import Image from "next/image";
 import Header from "./components/Header";
 import HeroThumbs from "./components/HeroThumbs";
 import HeroContent from "./components/HeroContent";
-import HeroBg from "../../public/hero-bg.png";
 import AboutUs from "./components/Aboutus";
 import StatsSection from "./components/StatsSection";
 import Footer from "./components/Footer";
@@ -14,41 +13,45 @@ import PopularArtists from "./components/Artsits";
 import LatestProducts from "./components/LatestProducts";
 
 export default function Home() {
-
   const products = [
     {
       image: "https://beta.nyelizabeth.com/wp-content/uploads/2025/01/product4ccd551f28184638f7c306b6172c7158.webp",
       name: "Hermès Kelly Picnic Mini",
       price: 45807,
-      slug: "hermes-kelly-picnic-mini-swift-willow-blue-du-nord-silver-metal-fittings", // Unique slug for this product
+      slug: "hermes-kelly-picnic-mini-swift-willow-blue-du-nord-silver-metal-fittings",
     },
     {
       image: "https://beta.nyelizabeth.com/wp-content/uploads/2025/01/product612dfd189b8b384cb5fbcf7319435a69.webp",
       name: "Cartier Love Pavé",
       price: 32355,
-      slug: "cartier-love-pave-diamond-bracelet-750-yg", // Unique slug for this product
+      slug: "cartier-love-pave-diamond-bracelet-750-yg",
     },
     {
       image: "https://beta.nyelizabeth.com/wp-content/uploads/2025/01/productf0cc116dd0ca1729dcaf90f1aee103e8.webp",
       name: "Tiffany Jean Schlumberger",
       price: 32554,
-      slug: "tiffany-jean-schlumberger-apollo-diamond-brooch", // Unique slug for this product
+      slug: "tiffany-jean-schlumberger-apollo-diamond-brooch",
     },
   ];
-
 
   return (
     <>
       <Header />
       <div className="relative mx-auto max-w-[100vw] lg:mx-[50px] md:mx-[30px] sm:mx-[12px] mt-[80px] rounded-[20px] overflow-hidden h-[82vh]">
-        {/* Background image */}
+        {/* Preload the hero image */}
+        <link rel="preload" href="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/banner-Image2_3_11zon.webp" as="image" />
+
+        {/* Optimized Hero Background Image */}
         <Image
           src="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/banner-Image2_3_11zon.webp"
           alt="Hero Background"
           fill
           className="object-cover object-center"
-          quality={100}
-          priority
+          quality={75} // Reduce quality for faster loading (adjust as needed)
+          priority // Load immediately as it’s above the fold
+          sizes="100vw" // Ensure responsive sizing
+          placeholder="blur" // Optional: Add a blur placeholder for better UX
+          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PQAI8wNPJ7PZuAAAAABJRU5ErkJggg==" // Base64 blur placeholder
         />
 
         {/* Semi-transparent overlay */}

@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSelector } from "react-redux";
+import { selectBillingDetails, selectIsBillingDetailsAvailable } from "@/redux/authSlice"; // Import selectors
 import config from "@/app/config_BASE_URL";
 import "../app/globals.css";
 import Header from "@/app/components/Header";
@@ -19,6 +21,10 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
   const elements = useElements();
   const router = useRouter();
 
+  // Fetch billing details from Redux
+  const billingDetailsFromRedux = useSelector(selectBillingDetails)[0] || {}; // Get first billing detail object
+  const isBillingDetailsAvailable = useSelector(selectIsBillingDetailsAvailable);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
@@ -26,6 +32,18 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
   const [country, setCountry] = useState("");
   const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-fill form with Redux billing details if available
+  useEffect(() => {
+    if (isBillingDetailsAvailable && billingDetailsFromRedux) {
+      setFirstName(billingDetailsFromRedux.firstName || "");
+      setLastName(billingDetailsFromRedux.lastName || "");
+      setAddressLine1(billingDetailsFromRedux.streetAddress || "");
+      setCity(billingDetailsFromRedux.city || "");
+      setCountry(billingDetailsFromRedux.state || ""); // Assuming state maps to country in this context
+      setPhone(billingDetailsFromRedux.phone || "");
+    }
+  }, [isBillingDetailsAvailable, billingDetailsFromRedux]);
 
   const handlePayment = async (event) => {
     event.preventDefault();
@@ -51,10 +69,10 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
             company_name: "N/A",
             streetAddress: addressLine1,
             city,
-            state: country,
-            zipcode: "N/A",
+            state: country, // Mapping country to state as per your API
+            zipcode: "N/A", // Adjust if you add a zipcode field
             phone,
-            email: "user@example.com",
+            email: "user@example.com", // Ideally fetch from Redux user email
             orderNotes: "N/A",
           },
         ],
@@ -166,12 +184,14 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               required
+              disabled={isLoading}
             />
             <Input
               placeholder="Last Name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               required
+              disabled={isLoading}
             />
           </div>
           <Input
@@ -179,6 +199,7 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
             value={addressLine1}
             onChange={(e) => setAddressLine1(e.target.value)}
             required
+            disabled={isLoading}
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -186,6 +207,7 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
               value={city}
               onChange={(e) => setCity(e.target.value)}
               required
+              disabled={isLoading}
             />
             <Input
               placeholder="Country (e.g., IN)"
@@ -193,6 +215,7 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
               onChange={(e) => setCountry(e.target.value)}
               required
               maxLength={2}
+              disabled={isLoading}
             />
           </div>
           <Input
@@ -200,6 +223,7 @@ const CheckoutForm = ({ product, bidAmount, auctionId, clientSecret, token }) =>
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
+            disabled={isLoading}
           />
           <div className="border p-2 rounded">
             <CardElement
@@ -233,8 +257,8 @@ export default function Checkout() {
   const clientSecret = searchParams.get("clientSecret");
   const bidAmount = searchParams.get("bidAmount");
   const auctionId = searchParams.get("auctionId");
-  const productId = searchParams.get("productId"); // "67bda0468eaddf8e51524cb9"
-  const token = searchParams.get("token"); // Your JWT token
+  const productId = searchParams.get("productId");
+  const token = searchParams.get("token");
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -274,7 +298,7 @@ export default function Checkout() {
         if (data.status && data.items) {
           console.log("Setting product:", data.items);
           setProduct(data.items);
-          setError(null); // Clear any previous errors
+          setError(null);
         } else {
           throw new Error("Unexpected API response format");
         }
@@ -287,9 +311,8 @@ export default function Checkout() {
       }
     };
 
-    // Only fetch if productId and token are present
     if (productId && token) {
-      setError(null); // Clear any previous errors before fetching
+      setError(null);
       fetchProduct();
     } else {
       console.error("Skipping fetch due to missing productId or token:", { productId, token });

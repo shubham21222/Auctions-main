@@ -147,7 +147,7 @@ const MainHeader = ({
           {!isMobile && (
             <>
               <nav className="hidden md:flex space-x-6 text-sm sm:text-base items-center font-medium">
-                <Link href="/Auctions" className="hover:text-purple-600">
+                <Link href="/participated-auctions" className="hover:text-purple-600">
                   Auctions
                 </Link>
                 <Link href="/Buy-now" className="hover:text-purple-600">

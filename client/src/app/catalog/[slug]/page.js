@@ -33,7 +33,6 @@ export default function CatalogPage() {
 
       setLoading(true);
       try {
-        // Fetch auction details by ID
         console.log("Fetching auction from:", `${config.baseURL}/v1/api/auction/getbyId/${auctionId}`);
         const auctionResponse = await fetch(`${config.baseURL}/v1/api/auction/getbyId/${auctionId}`, {
           method: "GET",
@@ -52,11 +51,9 @@ export default function CatalogPage() {
 
         if (auctionData.status && auctionData.items) {
           const auctionResult = auctionData.items;
-          // Set the full auction object, including bids
           setAuction(auctionResult);
           console.log("Auction State Set:", auctionResult);
 
-          // Extract product ID and fetch product details
           const productId = auctionResult.product._id;
           if (!productId) {
             throw new Error("Product ID not found in auction data");
@@ -86,7 +83,7 @@ export default function CatalogPage() {
               description: productData.items.description,
               price: {
                 min: productData.items.price,
-                max: productData.items.price + 1000, // Example range
+                max: productData.items.price + 1000,
               },
             });
             console.log("Product State Set:", {

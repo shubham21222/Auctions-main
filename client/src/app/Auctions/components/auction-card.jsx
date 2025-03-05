@@ -10,15 +10,24 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 
-export function AuctionCard({ auction, walletBalance }) {
+export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
-  const handleBidNowClick = () => {
-    const isEnded = auction.status === "ENDED" || new Date(auction.endDate + " " + auction.endTime) < new Date();
+  const endDate = new Date(auction.endDateRaw);
+  const isEnded = auction.status === "ENDED" || endDate < currentTime;
 
+  console.log(`Auction ${auction.id}:`, {
+    endDateRaw: auction.endDateRaw,
+    endDate: endDate.toISOString(),
+    currentTime: currentTime.toISOString(),
+    isEnded,
+    status: auction.status,
+  });
+
+  const handleBidNowClick = () => {
     if (isEnded) {
       toast.info(`This auction has ended. Winner: ${auction.winner || "N/A"}`);
       router.push(`/catalog/${auction.id}`);
@@ -29,7 +38,7 @@ export function AuctionCard({ auction, walletBalance }) {
       toast.error("Please login or signup to place a bid.", {
         action: {
           text: "Login/Signup",
-          onClick: () => router.push("/login"), // Adjust route as needed
+          onClick: () => router.push("/login"),
         },
       });
       return;
@@ -42,8 +51,6 @@ export function AuctionCard({ auction, walletBalance }) {
 
     router.push(`/catalog/${auction.id}`);
   };
-
-  const isEnded = auction.status === "ENDED" || new Date(auction.endDate + " " + auction.endTime) < new Date();
 
   return (
     <Card className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]">
@@ -97,9 +104,7 @@ export function AuctionCard({ auction, walletBalance }) {
         </h3>
         <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4 text-luxury-gold" />
-          <span>
-            Ends: {auction.endDate} {auction.endTime}
-          </span>
+          <span>Ends: {auction.endDateTime}</span>
         </div>
         {auction.currentBid && (
           <div className="mt-4 flex items-baseline gap-2">
