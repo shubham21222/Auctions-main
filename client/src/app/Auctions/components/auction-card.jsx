@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "../../../components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Clock, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,14 +17,21 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
   const endDate = new Date(auction.endDateRaw);
+  const startDate = new Date(auction.startDateRaw);
   const isEnded = auction.status === "ENDED" || endDate < currentTime;
+  const isLive =
+    auction.status === "ACTIVE" && startDate <= currentTime && endDate > currentTime;
 
   console.log(`Auction ${auction.id}:`, {
+    startDateRaw: auction.startDateRaw,
     endDateRaw: auction.endDateRaw,
+    startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     currentTime: currentTime.toISOString(),
+    isLive,
     isEnded,
     status: auction.status,
+    auctionType: auction.auctionType,
   });
 
   const handleBidNowClick = () => {
@@ -45,7 +52,9 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     }
 
     if (walletBalance < auction.currentBid) {
-      toast.error(`Your wallet balance is less than $${auction.currentBid}. Please add balance to bid on this product.`);
+      toast.error(
+        `Your wallet balance is less than $${auction.currentBid}. Please add balance to bid on this product.`
+      );
       return;
     }
 
@@ -59,7 +68,11 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           onClick={() => setIsLiked(!isLiked)}
           className="rounded-full bg-white/80 p-2 backdrop-blur-sm transition-all hover:scale-110"
         >
-          <Heart className={`h-5 w-5 transition-colors ${isLiked ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+          <Heart
+            className={`h-5 w-5 transition-colors ${
+              isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+            }`}
+          />
         </button>
       </div>
       <CardHeader className="p-0">
@@ -95,9 +108,18 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       <CardContent className="p-6">
         <div className="mb-2 flex items-center gap-2">
           <Badge variant="secondary" className="bg-luxury-gold/10 text-luxury-gold">
-            Lot #{auction.id}
+            {auction.lotNumber}
           </Badge>
-          {auction.featured && <Badge className="bg-luxury-charcoal text-luxury-cream">Featured</Badge>}
+          {auction.featured && (
+            <Badge className="bg-luxury-charcoal text-luxury-cream">Featured</Badge>
+          )}
+          <Badge
+            className={`${
+              isLive ? "bg-green-600" : "bg-gray-600"
+            } text-white`}
+          >
+            {isLive ? "Live" : auction.auctionType}
+          </Badge>
         </div>
         <h3 className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold">
           {auction.title}
@@ -109,7 +131,9 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         {auction.currentBid && (
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-sm text-muted-foreground">Current Bid:</span>
-            <span className="text-lg font-semibold text-luxury-charcoal">${auction.currentBid.toLocaleString()}</span>
+            <span className="text-lg font-semibold text-luxury-charcoal">
+              ${auction.currentBid.toLocaleString()}
+            </span>
           </div>
         )}
         {isEnded && (

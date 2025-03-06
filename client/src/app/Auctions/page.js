@@ -5,36 +5,57 @@ import Header from "../components/Header";
 import { AuctionCard } from "./components/auction-card";
 import { AuctionFilters } from "./components/auction-filters";
 import { LuxuryBackground } from "./components/luxury-background";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
-import { loadStripe } from "@stripe/stripe-js";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+import { useSocket } from "@/hooks/useSocket"; // Import the custom hook
 
 export default function AuctionCalendar() {
   const [auctions, setAuctions] = useState([]);
-  const [showInfoBox, setShowInfoBox] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date()); 
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [filters, setFilters] = useState({
+    category: "",
+    priceRange: [0, 100000],
+    searchQuery: "",
+    auctionType: "",
+    status: "",
+    date: null,
+  });
+
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const token = useSelector((state) => state.auth.token);
   const walletBalance = useSelector((state) =>
     state.auth.user?.walletBalance ? Number(state.auth.user.walletBalance) : 0
   );
 
-  const handleCloseInfoBox = () => {
-    setShowInfoBox(false);
-  };
+  const { socket, liveAuctions, setLiveAuctions, joinAuction } = useSocket();
 
   const fetchAuctions = async () => {
     setLoading(true);
     try {
       const headers = token ? { Authorization: `${token}` } : {};
-      const auctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/all`, {
+      const queryParams = new URLSearchParams({
+        ...(filters.category && { category: filters.category }),
+        ...(filters.priceRange[1] !== 100000 && { priceRange: filters.priceRange[1] }),
+        ...(filters.searchQuery && { searchQuery: filters.searchQuery }),
+        ...(filters.auctionType && { auctionType: filters.auctionType }),
+        ...(filters.status && { status: filters.status }),
+        page: 1,
+        limit: 10,
+      }).toString();
+
+      const url = `${config.baseURL}/v1/api/auction/all${queryParams ? `?${queryParams}` : ""}`;
+      const auctionsResponse = await fetch(url, {
         method: "GET",
         headers,
       });
@@ -49,11 +70,12 @@ export default function AuctionCalendar() {
         const enrichedAuctions = await Promise.all(
           auctionItems.map(async (auction) => {
             try {
-              const productResponse = await fetch(`${config.baseURL}/v1/api/product/${auction.product._id}`, {
-                method: "GET",
-                headers,
-              });
-              if (!productResponse.ok) throw new Error(`Failed to fetch product ${auction.product._id}`);
+              const productResponse = await fetch(
+                `${config.baseURL}/v1/api/product/${auction.product._id}`,
+                { method: "GET", headers }
+              );
+              if (!productResponse.ok)
+                throw new Error(`Failed to fetch product ${auction.product._id}`);
               const productData = await productResponse.json();
 
               return {
@@ -62,13 +84,17 @@ export default function AuctionCalendar() {
                 images: productData.items?.image || ["/placeholder.svg"],
                 endDateTime: auction.endDateFormatted,
                 endDateRaw: auction.endDate,
+                startDateRaw: auction.startDate,
                 currentBid: auction.currentBid,
+                startingBid: auction.startingBid,
                 status: auction.status,
+                auctionType: auction.auctionType,
+                lotNumber: auction.lotNumber,
                 featured: true,
-                product: {
-                  _id: auction.product._id,
-                },
+                product: { _id: auction.product._id },
                 winner: auction.winner ? auction.winner.name : null,
+                currentBidder: auction.currentBidder,
+                bids: auction.bids || [],
               };
             } catch (error) {
               console.error(`Error fetching product for auction ${auction._id}:`, error);
@@ -78,19 +104,46 @@ export default function AuctionCalendar() {
                 images: ["/placeholder.svg"],
                 endDateTime: auction.endDateFormatted,
                 endDateRaw: auction.endDate,
+                startDateRaw: auction.startDate,
                 currentBid: auction.currentBid,
+                startingBid: auction.startingBid,
                 status: auction.status,
+                auctionType: auction.auctionType,
+                lotNumber: auction.lotNumber,
                 featured: true,
-                product: {
-                  _id: auction.product._id,
-                },
+                product: { _id: auction.product._id },
                 winner: auction.winner ? auction.winner.name : null,
+                currentBidder: auction.currentBidder,
+                bids: auction.bids || [],
               };
             }
           })
         );
 
-        setAuctions(enrichedAuctions);
+        // Apply date filter locally if set
+        const filteredAuctions = filters.date
+          ? enrichedAuctions.filter((auction) => {
+              const startDate = new Date(auction.startDateRaw);
+              return (
+                startDate.getFullYear() === filters.date.getFullYear() &&
+                startDate.getMonth() === filters.date.getMonth() &&
+                startDate.getDate() === filters.date.getDate()
+              );
+            })
+          : enrichedAuctions;
+
+        setAuctions(filteredAuctions);
+
+        // Sync live auctions with socket
+        const liveAuctionsData = filteredAuctions.filter(
+          (auction) =>
+            auction.status === "ACTIVE" &&
+            new Date(auction.startDateRaw) <= new Date() &&
+            new Date(auction.endDateRaw) > new Date()
+        );
+        setLiveAuctions(liveAuctionsData);
+        liveAuctionsData.forEach((auction) => joinAuction(auction.id));
+
         toast.success("Auctions loaded successfully!");
       } else {
         throw new Error(auctionsData.message);
@@ -98,6 +151,7 @@ export default function AuctionCalendar() {
     } catch (error) {
       console.error("Error fetching auctions:", error);
       setAuctions([]);
+      setLiveAuctions([]);
       toast.error("Failed to load auctions.");
     } finally {
       setLoading(false);
@@ -107,21 +161,16 @@ export default function AuctionCalendar() {
   useEffect(() => {
     fetchAuctions();
 
-    // Update current time every second for real-time end check
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
-    // Refresh auction data every 60 seconds
-    const fetchInterval = setInterval(() => {
-      fetchAuctions();
-    }, 60000);
+    return () => clearInterval(timeInterval);
+  }, [token, filters]);
 
-    return () => {
-      clearInterval(timeInterval);
-      clearInterval(fetchInterval);
-    };
-  }, []);
+  const handleFilterChange = (newFilters) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
 
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
@@ -148,16 +197,19 @@ export default function AuctionCalendar() {
             <span>LUXURY AUCTIONS</span>
             <Sparkles className="h-4 w-4" />
           </div>
-          <h1 className="mb-4 text-5xl font-bold tracking-tight text-luxury-charcoal">Auction Calendar</h1>
+          <h1 className="mb-4 text-5xl font-bold tracking-tight text-luxury-charcoal">
+            Auction Calendar
+          </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Discover extraordinary pieces from the world’s most prestigious collections. Each auction is carefully
             curated to bring you the finest in luxury.
           </p>
         </div>
 
-
         <div className="mb-8 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Showing {auctions.length} Exceptional Pieces</span>
+          <span className="text-sm text-muted-foreground">
+            Showing {auctions.length} Exceptional Pieces
+          </span>
           <Select>
             <SelectTrigger className="w-[240px] border-luxury-gold/20">
               <SelectValue placeholder="Sort by" />
@@ -175,7 +227,7 @@ export default function AuctionCalendar() {
 
         <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
           <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-6 backdrop-blur-sm">
-            <AuctionFilters />
+            <AuctionFilters onFilterChange={handleFilterChange} />
           </aside>
           <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
             {loading ? (
@@ -188,7 +240,12 @@ export default function AuctionCalendar() {
               <p>No auctions available.</p>
             ) : (
               auctions.map((auction) => (
-                <AuctionCard key={auction.id} auction={auction} walletBalance={walletBalance} currentTime={currentTime} />
+                <AuctionCard
+                  key={auction.id}
+                  auction={auction}
+                  walletBalance={walletBalance}
+                  currentTime={currentTime}
+                />
               ))
             )}
           </div>
@@ -197,42 +254,4 @@ export default function AuctionCalendar() {
       <Footer />
     </>
   );
-
-  function handlePaymentClick() {
-    if (!isLoggedIn) {
-      toast.error("Please login to make a payment.");
-      return;
-    }
-
-    stripePromise.then((stripe) => {
-      if (!stripe) {
-        toast.error("Payment service unavailable. Please try again later.");
-        return;
-      }
-
-      fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: 10000,
-          description: "Auction Participation Fee",
-        }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            return response.json().then((errorData) => {
-              throw new Error(errorData.error || "Failed to create checkout session");
-            });
-          }
-          return response.json();
-        })
-        .then((session) => stripe.redirectToCheckout({ sessionId: session.id }))
-        .catch((error) => {
-          console.error("Payment initiation error:", error.message);
-          toast.error("Error redirecting to payment. Please try again.");
-        });
-    });
-  }
 }
