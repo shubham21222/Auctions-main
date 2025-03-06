@@ -13,7 +13,7 @@ export const useSocket = () => {
   useEffect(() => {
     if (!userId || !token) return;
 
-    const socketIo = io("https://bid.nyelizabeth.com/", {
+    const socketIo = io("http://localhost:4000", {
       query: { userId },
       auth: { token },
       transports: ["websocket"],
