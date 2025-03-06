@@ -982,7 +982,8 @@ export const getAuctionDetails = async (req, res) => {
                     product: {
                         $first: {
                             title: "$productDetails.title",
-                            price: "$productDetails.price"
+                            price: "$productDetails.price",
+                            image: "$productDetails.image",
                         }
                     },
                     category: {
