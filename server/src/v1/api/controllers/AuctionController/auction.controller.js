@@ -1102,6 +1102,7 @@ export const getUserAuctions = async (req, res) => {
                     product: {
                         title: 1,
                         price: 1,
+                        image: 1,
                         _id: 1,
                     },
                     startingBid: 1,
