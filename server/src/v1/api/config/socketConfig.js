@@ -7,7 +7,7 @@ const auctionWatchers = {};
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["http://localhost:3000"], // Ensure this matches your frontend
+      origin: ["https://bid.nyelizabeth.com/"], // Ensure this matches your frontend
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
   });
