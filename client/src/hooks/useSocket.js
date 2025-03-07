@@ -29,7 +29,7 @@ export const useSocket = () => {
       return;
     }
 
-    const socketIo = io("http://localhost:4000", {
+    const socketIo = io("https://bid.nyelizabeth.com:4000", {
       query: { userId },
       auth: { token },
       transports: ["websocket"],
