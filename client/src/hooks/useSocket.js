@@ -21,7 +21,7 @@ export const useSocket = () => {
       if (userCache[id]) return userCache[id];
 
       try {
-        const response = await fetch(`http://localhost:4000/v1/api/auth/getUserById/${id}`, {
+        const response = await fetch(`https://bid.nyelizabeth.com/v1/api/auth/getUserById/${id}`, {
           method: "GET",
           headers: {
             Authorization: `${token}`,
@@ -47,7 +47,7 @@ export const useSocket = () => {
       if (auctionCache[id]) return auctionCache[id];
 
       try {
-        const response = await fetch(`http://localhost:4000/v1/api/auction/getbyId/${id}`, {
+        const response = await fetch(`https://bid.nyelizabeth.com/v1/api/auction/getbyId/${id}`, {
           method: "GET",
           headers: {
             Authorization: `${token}`,
