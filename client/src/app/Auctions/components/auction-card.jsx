@@ -62,7 +62,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   };
 
   return (
-    <Card className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]">
+    <Card className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] min-h-0">
       <div className="absolute right-4 top-4 z-10">
         <button
           onClick={() => setIsLiked(!isLiked)}

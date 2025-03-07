@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useDispatch } from "react-redux";
-import { setToken, setEmail, setUser, setUserId } from "@/redux/authSlice"; // Import Redux actions
+import { setToken, setEmail, setUser, setUserId } from "@/redux/authSlice";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,58 +11,76 @@ import login from "../../../public/login.webp";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 
-const LoginModal = ({ isOpen, onClose, onOpenSignup }) => { // Added onOpenSignup prop
+const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
 
-  // Handle form submission (unchanged)
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      setLoading(true);
+    setLoading(true);
 
+    try {
       // Send login request to the backend
       const response = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
         email: emailInput,
         password,
       });
 
-      const token = response.data.items?.token;
-      console.log("Token received:", token);
+      const { status, message, items, token } = response.data;
 
-      if (!token) {
-        throw new Error("No token received from the server.");
+      // Check if the API indicates failure (status: false)
+      if (!status) {
+        const trimmedMessage = message.trim(); // Trim whitespace from the message
+        if (trimmedMessage === "Invalid email") {
+          toast.error("Invalid email. Please check your email address.", {
+            style: {
+              background: "#FF4500",
+              color: "#fff",
+            },
+            icon: "❌",
+          });
+        } else if (trimmedMessage === "Invalid password") {
+          toast.error("Invalid password. Please try again.", {
+            style: {
+              background: "#FF4500",
+              color: "#fff",
+            },
+            icon: "❌",
+          });
+        } else {
+          toast.error(trimmedMessage || "An error occurred. Please try again.", {
+            style: {
+              background: "#FF4500",
+              color: "#fff",
+            },
+            icon: "❌",
+          });
+        }
+        setLoading(false);
+        return; // Exit the function early on failure
+      }
+
+      // If status is true, proceed with success handling
+      if (!token || !items) {
+        throw new Error("No token or user data received from the server.");
       }
 
       // Store token in Redux
       dispatch(setToken(token));
 
-      // Verify the token using POST API
-      const verifyResponse = await axios.post(`${config.baseURL}/v1/api/auth/verify/${token}`, {
-        token,
-      });
-      console.log("Token verified:", verifyResponse.data);
+      // Extract user data (assuming items contains user info after successful login)
+      const userData = items;
 
-      // Extract user data from verify response
-      const userData = verifyResponse.data.items;
+      // Save user data in Redux
+      dispatch(setUser(userData));
+      dispatch(setUserId(userData._id));
+      dispatch(setEmail(userData.email));
 
-      if (userData) {
-        // Save the full user object (including Payment_Status) in Redux
-        dispatch(setUser(userData));
-        // Save user ID separately
-        dispatch(setUserId(userData._id));
-        // Save email in Redux
-        dispatch(setEmail(userData.email));
-
-        dispatch(setUser(userData));
-        
-        console.log("User data saved in Redux:", userData);
-      } else {
-        console.error("User data not found in verify response:", verifyResponse.data);
-      }
+      console.log("User data saved in Redux:", userData);
 
       // Show success toast notification
       toast.success("Login successful!", {
@@ -76,25 +94,17 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => { // Added onOpenSignu
       setLoading(false);
       onClose();
     } catch (err) {
-      console.error("Error during login or verification:", err.response?.data || err.message);
+      console.error("Error during login:", err.response?.data || err.message);
 
-      if (err.response?.data?.message === "Verification failed") {
-        toast.error("Verification failed. Please log in again with correct credentials.", {
-          style: {
-            background: "#FF4500",
-            color: "#fff",
-          },
-          icon: "❌",
-        });
-      } else {
-        toast.error(err.response?.data?.message || "An error occurred. Please try again.", {
-          style: {
-            background: "#FF4500",
-            color: "#fff",
-          },
-          icon: "❌",
-        });
-      }
+      // Handle network or unexpected errors
+      const errorMessage = err.response?.data?.message || err.message || "An error occurred. Please try again.";
+      toast.error(errorMessage, {
+        style: {
+          background: "#FF4500",
+          color: "#fff",
+        },
+        icon: "❌",
+      });
 
       setLoading(false);
     }
@@ -107,7 +117,7 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => { // Added onOpenSignu
 
   return (
     <>
-      {/* <Toaster position="top-right" reverseOrder={false} /> */}
+      <Toaster position="top-right" reverseOrder={false} />
 
       <AnimatePresence>
         {isOpen && (
