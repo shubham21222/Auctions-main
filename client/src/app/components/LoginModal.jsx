@@ -30,7 +30,7 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
         password,
       });
 
-      const { status, message, items, token } = response.data;
+      const { status, message, items } = response.data;
 
       // Check if the API indicates failure (status: false)
       if (!status) {
@@ -65,22 +65,21 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
       }
 
       // If status is true, proceed with success handling
-      if (!token || !items) {
+      const { token, user } = items; // Destructure token and user from items
+
+      if (!token || !user) {
         throw new Error("No token or user data received from the server.");
       }
 
       // Store token in Redux
       dispatch(setToken(token));
 
-      // Extract user data (assuming items contains user info after successful login)
-      const userData = items;
-
       // Save user data in Redux
-      dispatch(setUser(userData));
-      dispatch(setUserId(userData._id));
-      dispatch(setEmail(userData.email));
+      dispatch(setUser(user));
+      dispatch(setUserId(user._id));
+      dispatch(setEmail(user.email));
 
-      console.log("User data saved in Redux:", userData);
+      console.log("User data saved in Redux:", user);
 
       // Show success toast notification
       toast.success("Login successful!", {
@@ -117,7 +116,7 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
 
   return (
     <>
-      <Toaster position="top-right" reverseOrder={false} />
+      {/* <Toaster position="top-right" reverseOrder={false} /> */}
 
       <AnimatePresence>
         {isOpen && (

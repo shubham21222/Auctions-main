@@ -17,8 +17,7 @@ export default function Login() {
   const router = useRouter();
   const dispatch = useDispatch();
   const auth = useSelector((state) => state.auth);
-  const token = auth?.token || null;
-  const [orders, setOrders] = useState([]); // Unused, consider removing if not needed
+  const token = auth?.token || null; const [orders, setOrders] = useState([]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,83 +25,31 @@ export default function Login() {
 
     try {
       const loginResponse = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
-        email: username, // Assuming username is email here
+        email: username,
         password,
       });
 
-      const { status, message, items } = loginResponse.data;
-
-      // Check if the API indicates failure (status: false)
-      if (!status) {
-        const trimmedMessage = message.trim(); // Trim whitespace from the message
-        if (trimmedMessage === "Invalid email") {
-          toast.error("Invalid email. Please check your email address.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
-            icon: "❌",
-          });
-        } else if (trimmedMessage === "Invalid password") {
-          toast.error("Invalid password. Please try again.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
-            icon: "❌",
-          });
-        } else {
-          toast.error(trimmedMessage || "Login failed. Please check your credentials.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
-            icon: "❌",
-          });
-        }
-        setLoading(false);
-        return; // Exit early on failure
-      }
-
-      // If status is true, proceed with success handling
+      const { items } = loginResponse.data;
       const { token, user } = items;
 
-      if (!token || !user) {
-        throw new Error("No token or user data received from the server.");
-      }
+      if (token && user) {
+        dispatch(setToken(token));
+        const verifyResponse = await axios.post(`${config.baseURL}/v1/api/auth/verify/${token}`);
 
-      dispatch(setToken(token));
-      const verifyResponse = await axios.post(`${config.baseURL}/v1/api/auth/verify/${token}`);
-
-      if (verifyResponse.data.status && verifyResponse.data.items.role === "ADMIN") {
-        dispatch(setUser(user));
-        dispatch(setEmail(user.email));
-        toast.success("Login successful!", {
-          style: {
-            background: "#32CD32",
-            color: "#fff",
-          },
-          icon: "✅",
-        });
-        router.push("/Admin/Admin-dashboard");
+        if (verifyResponse.data.status && verifyResponse.data.items.role === "ADMIN") {
+          dispatch(setUser(user));
+          dispatch(setEmail(user.email));
+          toast.success("Login successful!");
+          router.push("/Admin/Admin-dashboard");
+        } else {
+          toast.error("You are not authorized as an admin.");
+        }
       } else {
-        toast.error("You are not authorized as an admin.", {
-          style: {
-            background: "#FF4500",
-            color: "#fff",
-          },
-          icon: "❌",
-        });
+        toast.error("Login failed. Please check your credentials.");
       }
     } catch (error) {
       console.error("Error during login:", error);
-      toast.error(error.message || "Invalid credentials or server error.", {
-        style: {
-          background: "#FF4500",
-          color: "#fff",
-        },
-        icon: "❌",
-      });
+      toast.error("Invalid credentials or server error.");
     } finally {
       setLoading(false);
     }
@@ -116,7 +63,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-4">
-      <Toaster position="top-right" />
+      {/* <Toaster position="top-right" /> */}
       <motion.div
         variants={cardVariants}
         initial="hidden"
