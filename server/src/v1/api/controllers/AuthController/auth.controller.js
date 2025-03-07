@@ -87,7 +87,7 @@ export const login = async (req, res, next) => {
 
         // If user not found, return an error
         if (!findUser) {
-            return badRequest(res, "Invalid credentials");
+            return badRequest(res, "Invalid email ");
         }
 
         // If user exists but has no password (e.g., social login users)
@@ -116,7 +116,7 @@ export const login = async (req, res, next) => {
         // Validate password
         const isMatch = await findUser.matchPassword(password);
         if (!isMatch) {
-            return badRequest(res, "Invalid credentials");
+            return badRequest(res, "Invalid password");
         }
 
         // Generate token and update activeToken in DB
