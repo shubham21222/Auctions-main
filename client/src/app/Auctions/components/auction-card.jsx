@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Clock, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 
 export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState("");
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
@@ -20,7 +21,41 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const startDate = new Date(auction.startDateRaw);
   const isEnded = auction.status === "ENDED" || endDate < currentTime;
   const isLive =
-    auction.status === "ACTIVE" && startDate <= currentTime && endDate > currentTime;
+    auction.status === "ACTIVE" &&
+    startDate <= currentTime &&
+    endDate > currentTime &&
+    auction.auctionType === "LIVE";
+  const isTimed =
+    auction.status === "ACTIVE" &&
+    startDate <= currentTime &&
+    endDate > currentTime &&
+    auction.auctionType === "TIMED";
+
+  // Calculate time remaining
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const timeDiff = endDate - now;
+
+      if (timeDiff <= 0) {
+        setTimeRemaining("Ended");
+        return;
+      }
+
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [endDate]);
+
+  const timeDiffInDays = (endDate - new Date()) / (1000 * 60 * 60 * 24);
+  const timerColor = timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
 
   console.log(`Auction ${auction.id}:`, {
     startDateRaw: auction.startDateRaw,
@@ -29,9 +64,11 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     endDate: endDate.toISOString(),
     currentTime: currentTime.toISOString(),
     isLive,
+    isTimed,
     isEnded,
     status: auction.status,
     auctionType: auction.auctionType,
+    timeRemaining,
   });
 
   const handleBidNowClick = () => {
@@ -115,10 +152,10 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           )}
           <Badge
             className={`${
-              isLive ? "bg-green-600" : "bg-gray-600"
+              isLive ? "bg-green-600" : isTimed ? "bg-blue-600" : "bg-gray-600"
             } text-white`}
           >
-            {isLive ? "Live" : auction.auctionType}
+            {isLive ? "Live" : isTimed ? "Timed" : auction.auctionType}
           </Badge>
         </div>
         <h3 className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold">
@@ -127,6 +164,10 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4 text-luxury-gold" />
           <span>Ends: {auction.endDateTime}</span>
+        </div>
+        <div className={`mt-2 text-sm font-medium ${timerColor}`}>
+          <Clock className="h-4 w-4 inline mr-1" />
+          Time Remaining: {timeRemaining}
         </div>
         {auction.currentBid && (
           <div className="mt-4 flex items-baseline gap-2">

@@ -123,13 +123,13 @@ export default function AuctionCalendar() {
         // Apply date filter locally if set
         const filteredAuctions = filters.date
           ? enrichedAuctions.filter((auction) => {
-              const startDate = new Date(auction.startDateRaw);
-              return (
-                startDate.getFullYear() === filters.date.getFullYear() &&
-                startDate.getMonth() === filters.date.getMonth() &&
-                startDate.getDate() === filters.date.getDate()
-              );
-            })
+            const startDate = new Date(auction.startDateRaw);
+            return (
+              startDate.getFullYear() === filters.date.getFullYear() &&
+              startDate.getMonth() === filters.date.getMonth() &&
+              startDate.getDate() === filters.date.getDate()
+            );
+          })
           : enrichedAuctions;
 
         setAuctions(filteredAuctions);
@@ -226,30 +226,30 @@ export default function AuctionCalendar() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
-  <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-6 backdrop-blur-sm">
-    <AuctionFilters onFilterChange={handleFilterChange} />
-  </aside>
-  <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
-    {loading ? (
-      <>
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
-      </>
-    ) : auctions.length === 0 ? (
-      <p>No active auctions available.</p>
-    ) : (
-      auctions.map((auction) => (
-        <AuctionCard
-          key={auction.id}
-          auction={auction}
-          walletBalance={walletBalance}
-          currentTime={currentTime}
-        />
-      ))
-    )}
-  </div>
-</div>
+          <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-6 backdrop-blur-sm">
+            <AuctionFilters onFilterChange={handleFilterChange} />
+          </aside>
+          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
+            {loading ? (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            ) : auctions.length === 0 ? (
+              <p>No active auctions available.</p>
+            ) : (
+              auctions.map((auction) => (
+                <AuctionCard
+                  key={auction.id}
+                  auction={auction}
+                  walletBalance={walletBalance}
+                  currentTime={currentTime}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
       <Footer />
     </>
