@@ -1,41 +1,56 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { CalendarIcon } from "lucide-react";
-import { useState, useEffect } from "react"; // Added useEffect
-import { format } from "date-fns";
+import { useState, useEffect } from "react";
 
 export function AuctionFilters({ onFilterChange }) {
-  const [date, setDate] = useState(null);
+  const [date, setDate] = useState(""); // Store as YYYY-MM-DD string
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const [auctionTypes, setAuctionTypes] = useState({
     "Live Auction": false,
     "Timed Auction": false,
-    "Buy Now": false,
   });
-  const [categories, setCategories] = useState({
-    Jewelry: false,
-    Watches: false,
-    Handbags: false,
-    Art: false,
-    Wine: false,
+  const [categories, setCategories] = useState({}); // Checkbox states
+  const [categoryData, setCategoryData] = useState([]); // Raw API data
+  const [status, setStatus] = useState({
+    Active: true, // Default to Active
+    Ended: false,
   });
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categoryMap = {
-    Jewelry: "67a86485dc96bf86883785cc",
-    Art: "67a8644cdc96bf86883785c8",
-    Handbags: "67a8643adc96bf86883785c4", // Assuming "FASHION" includes Handbags
-    Watches: "67a86485dc96bf86883785cc", // Adjust if you have a specific ID
-    Wine: "67aacb6f376f82a7736b3616", // Assuming "OTHERS" includes Wine
+  // Fetch categories on mount
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
+        if (!response.ok) throw new Error("Failed to fetch categories");
+        const data = await response.json();
+        setCategoryData(data.items); // Store raw data
+        const categoryObj = data.items.reduce((acc, category) => {
+          acc[category.name] = false; // Initialize all as unchecked
+          return acc;
+        }, {});
+        setCategories(categoryObj);
+      } catch (error) {
+        console.error("Error fetching categories:", error.message);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const categoryMap = categoryData.reduce((acc, category) => {
+    acc[category.name] = category._id;
+    return acc;
+  }, {});
+
+  const auctionTypeMap = {
+    "Live Auction": "LIVE",
+    "Timed Auction": "TIMED",
   };
 
-  // Function to apply filters
   const applyFilters = () => {
     const selectedCategories = Object.entries(categories)
       .filter(([_, checked]) => checked)
@@ -43,7 +58,11 @@ export function AuctionFilters({ onFilterChange }) {
       .join(",");
     const selectedAuctionType = Object.entries(auctionTypes)
       .filter(([_, checked]) => checked)
-      .map(([type]) => (type === "Timed Auction" ? "TIMED" : type))
+      .map(([type]) => auctionTypeMap[type])
+      .join(",");
+    const selectedStatus = Object.entries(status)
+      .filter(([_, checked]) => checked)
+      .map(([status]) => status.toUpperCase())
       .join(",");
 
     onFilterChange({
@@ -51,28 +70,47 @@ export function AuctionFilters({ onFilterChange }) {
       priceRange: priceRange,
       searchQuery: searchQuery.trim(),
       auctionType: selectedAuctionType || "",
-      status: selectedAuctionType === "TIMED" ? "ACTIVE" : "", // Assuming "Live Auction" implies ACTIVE
-      date: date,
+      status: selectedStatus || "ACTIVE",
+      date: date ? new Date(date) : null,
     });
   };
 
-  // Trigger filter change whenever any filter updates
   useEffect(() => {
     applyFilters();
-  }, [date, priceRange, auctionTypes, categories, searchQuery]);
+  }, [date, priceRange, auctionTypes, categories, status, searchQuery]);
+
+  const handleStatusChange = (statusOption) => (checked) => {
+    if (checked) {
+      setStatus({
+        Active: statusOption === "Active",
+        Ended: statusOption === "Ended",
+      });
+    } else {
+      setStatus({
+        Active: statusOption === "Ended",
+        Ended: statusOption === "Active",
+      });
+    }
+  };
 
   const handleResetFilters = () => {
-    setDate(null);
+    setDate("");
     setPriceRange([0, 100000]);
-    setAuctionTypes({ "Live Auction": false, "Timed Auction": false, "Buy Now": false });
-    setCategories({ Jewelry: false, Watches: false, Handbags: false, Art: false, Wine: false });
+    setAuctionTypes({ "Live Auction": false, "Timed Auction": false });
+    setCategories((prev) =>
+      Object.keys(prev).reduce((acc, key) => {
+        acc[key] = false;
+        return acc;
+      }, {})
+    );
+    setStatus({ Active: true, Ended: false });
     setSearchQuery("");
     onFilterChange({
       category: "",
       priceRange: [0, 100000],
       searchQuery: "",
       auctionType: "",
-      status: "",
+      status: "ACTIVE",
       date: null,
     });
   };
@@ -92,26 +130,12 @@ export function AuctionFilters({ onFilterChange }) {
 
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Auction Date</h3>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-start border-luxury-gold/20 font-normal hover:border-luxury-gold/40 hover:bg-luxury-gold/5"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4 text-luxury-gold" />
-              {date ? format(date, "PPP") : "Pick a date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(newDate) => setDate(newDate)}
-              initialFocus
-              className="rounded-md border bg-white border-luxury-gold/20"
-            />
-          </PopoverContent>
-        </Popover>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full border border-luxury-gold/20 p-2 rounded-md text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40"
+        />
       </div>
 
       <div className="space-y-4">
@@ -134,10 +158,10 @@ export function AuctionFilters({ onFilterChange }) {
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Buying Format</h3>
         <div className="space-y-3">
-          {["Live Auction", "Timed Auction", "Buy Now"].map((format) => (
+          {Object.keys(auctionTypes).map((format) => (
             <div key={format} className="flex items-center space-x-2">
               <Checkbox
-                id={format.toLowerCase().replace(" ", "-")}
+                id={format.replace(" ", "-")}
                 checked={auctionTypes[format]}
                 onCheckedChange={(checked) =>
                   setAuctionTypes((prev) => ({ ...prev, [format]: checked }))
@@ -152,16 +176,36 @@ export function AuctionFilters({ onFilterChange }) {
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Categories</h3>
         <div className="space-y-3">
-          {["Jewelry", "Watches", "Handbags", "Art", "Wine"].map((category) => (
-            <div key={category} className="flex items-center space-x-2">
+          {Object.keys(categories).length > 0 ? (
+            Object.keys(categories).map((category) => (
+              <div key={category} className="flex items-center space-x-2">
+                <Checkbox
+                  id={category.toLowerCase()}
+                  checked={categories[category]}
+                  onCheckedChange={(checked) =>
+                    setCategories((prev) => ({ ...prev, [category]: checked }))
+                  }
+                />
+                <Label htmlFor={category.toLowerCase()}>{category}</Label>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading categories...</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-luxury-charcoal">Status</h3>
+        <div className="space-y-3">
+          {Object.keys(status).map((statusOption) => (
+            <div key={statusOption} className="flex items-center space-x-2">
               <Checkbox
-                id={category.toLowerCase()}
-                checked={categories[category]}
-                onCheckedChange={(checked) =>
-                  setCategories((prev) => ({ ...prev, [category]: checked }))
-                }
+                id={statusOption.toLowerCase()}
+                checked={status[statusOption]}
+                onCheckedChange={handleStatusChange(statusOption)}
               />
-              <Label htmlFor={category.toLowerCase()}>{category}</Label>
+              <Label htmlFor={statusOption.toLowerCase()}>{statusOption}</Label>
             </div>
           ))}
         </div>

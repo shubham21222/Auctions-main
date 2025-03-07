@@ -63,7 +63,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-4">
-      <Toaster position="top-right" />
+      {/* <Toaster position="top-right" /> */}
       <motion.div
         variants={cardVariants}
         initial="hidden"

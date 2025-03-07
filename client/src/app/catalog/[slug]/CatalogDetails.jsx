@@ -12,23 +12,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
-import { useState } from "react"; // Removed useEffect since GET is not used
-import { loadStripe } from "@stripe/stripe-js";
-import { useRouter } from "next/navigation";
-import config from "@/app/config_BASE_URL";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { selectUserId } from "@/redux/authSlice";
-import { Elements } from "@stripe/react-stripe-js";
 import BidHistory from "./BidHistory";
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+import config from "@/app/config_BASE_URL";
 
 export default function CatalogDetails({ product, auction, loading, onBidNowClick, token }) {
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
-
   const userId = useSelector(selectUserId);
-  const router = useRouter();
 
   const SkeletonCard = () => (
     <div className="group relative bg-white rounded-lg shadow-md overflow-hidden">
@@ -51,20 +44,16 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     }
 
     try {
-      // Join Auction API call
-      const response = await fetch(
-        `${config.baseURL}/v1/api/auction/join?=${userId}`, // userId in URL path
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `${token}`,
-          },
-          body: JSON.stringify({
-            auctionId: auction._id, // auctionId in payload
-          }),
-        }
-      );
+      const response = await fetch(`${config.baseURL}/v1/api/auction/join?=${userId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify({
+          auctionId: auction._id,
+        }),
+      });
 
       const result = await response.json();
       if (!response.ok) {
@@ -99,67 +88,33 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const BidForm = () => {
     const [localBidAmount, setLocalBidAmount] = useState("");
 
-    const handleBidSubmit = async (event) => {
+    const handleBidSubmit = (event) => {
       event.preventDefault();
-
       const bidValue = parseFloat(localBidAmount);
       if (isNaN(bidValue) || bidValue <= auction.currentBid) {
-        toast.error(`Bid must be greater than the current bid of $${auction.currentBid}.`);
+        toast.error(`Bid must be greater than $${auction.currentBid}.`);
         return;
       }
-
-      try {
-        const response = await fetch("/api/create-payment-intent", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: Math.round(bidValue * 100),
-            currency: "usd",
-            metadata: {
-              userId: userId,
-              auctionId: auction._id,
-              bidAmount: bidValue,
-              token: token,
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to create payment intent");
-        }
-
-        const { clientSecret } = await response.json();
-
-        router.push(
-          `/checkout-intent?clientSecret=${clientSecret}&bidAmount=${bidValue}&auctionId=${auction._id}&productId=${product.id}&token=${token}`
-        );
-        setIsBidModalOpen(false);
-      } catch (error) {
-        console.error("Bid submission error:", error);
-        toast.error(error.message || "Failed to initiate checkout. Please try again.");
-      }
-    };
-
-    const handleInputChange = (e) => {
-      console.log("Input changed:", e.target.value);
-      setLocalBidAmount(e.target.value);
+      onBidNowClick(bidValue); // Only initiates payment intent, not bid placement
+      setIsBidModalOpen(false);
     };
 
     return (
       <DialogContent className="sm:max-w-[425px] bg-white rounded-lg shadow-lg">
         <DialogHeader>
-          <DialogTitle className="text-luxury-charcoal text-xl font-semibold">Place Your Bid</DialogTitle>
+          <DialogTitle className="text-luxury-charcoal text-xl font-semibold">
+            Place Your Bid
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleBidSubmit}>
           <div className="py-4 space-y-4">
-            <p className="text-gray-600 mb-2">Current Bid: ${auction?.currentBid.toLocaleString()}</p>
+            <p className="text-gray-600 mb-2">
+              Current Bid: ${auction?.currentBid.toLocaleString()}
+            </p>
             <Input
               type="number"
               value={localBidAmount}
-              onChange={handleInputChange}
+              onChange={(e) => setLocalBidAmount(e.target.value)}
               placeholder="Enter your bid amount"
               className="w-full border-luxury-gold/20 focus:border-luxury-gold"
               min={auction?.currentBid + 1}
@@ -221,7 +176,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
           <h3 className="text-xl font-semibold text-luxury-charcoal mb-4">Description</h3>
           <p className="text-gray-600 leading-relaxed">
             {product?.description ||
-              "Join us for this exclusive auction featuring a curated selection of luxury items. Don’t miss your chance to bid on extraordinary pieces!"}
+              "Join us for this exclusive auction featuring a curated selection of luxury items."}
           </p>
         </div>
 
@@ -299,11 +254,9 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
         )}
       </div>
 
-      <Elements stripe={stripePromise}>
-        <Dialog open={isBidModalOpen} onOpenChange={setIsBidModalOpen}>
-          <BidForm />
-        </Dialog>
-      </Elements>
+      <Dialog open={isBidModalOpen} onOpenChange={setIsBidModalOpen}>
+        <BidForm />
+      </Dialog>
     </div>
   );
 }

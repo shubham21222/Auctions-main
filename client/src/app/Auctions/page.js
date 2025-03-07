@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-import { useSocket } from "@/hooks/useSocket"; // Import the custom hook
+import { useSocket } from "@/hooks/useSocket";
 
 export default function AuctionCalendar() {
   const [auctions, setAuctions] = useState([]);
@@ -28,7 +28,7 @@ export default function AuctionCalendar() {
     priceRange: [0, 100000],
     searchQuery: "",
     auctionType: "",
-    status: "",
+    status: "ACTIVE", // Default to ACTIVE
     date: null,
   });
 
@@ -49,7 +49,7 @@ export default function AuctionCalendar() {
         ...(filters.priceRange[1] !== 100000 && { priceRange: filters.priceRange[1] }),
         ...(filters.searchQuery && { searchQuery: filters.searchQuery }),
         ...(filters.auctionType && { auctionType: filters.auctionType }),
-        ...(filters.status && { status: filters.status }),
+        ...(filters.status && { status: filters.status }), // Use status from filters
         page: 1,
         limit: 10,
       }).toString();
@@ -123,13 +123,13 @@ export default function AuctionCalendar() {
         // Apply date filter locally if set
         const filteredAuctions = filters.date
           ? enrichedAuctions.filter((auction) => {
-              const startDate = new Date(auction.startDateRaw);
-              return (
-                startDate.getFullYear() === filters.date.getFullYear() &&
-                startDate.getMonth() === filters.date.getMonth() &&
-                startDate.getDate() === filters.date.getDate()
-              );
-            })
+            const startDate = new Date(auction.startDateRaw);
+            return (
+              startDate.getFullYear() === filters.date.getFullYear() &&
+              startDate.getMonth() === filters.date.getMonth() &&
+              startDate.getDate() === filters.date.getDate()
+            );
+          })
           : enrichedAuctions;
 
         setAuctions(filteredAuctions);
@@ -229,7 +229,7 @@ export default function AuctionCalendar() {
           <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-6 backdrop-blur-sm">
             <AuctionFilters onFilterChange={handleFilterChange} />
           </aside>
-          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
             {loading ? (
               <>
                 <SkeletonCard />
@@ -237,7 +237,7 @@ export default function AuctionCalendar() {
                 <SkeletonCard />
               </>
             ) : auctions.length === 0 ? (
-              <p>No auctions available.</p>
+              <p>No active auctions available.</p>
             ) : (
               auctions.map((auction) => (
                 <AuctionCard
