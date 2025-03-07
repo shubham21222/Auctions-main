@@ -617,6 +617,30 @@ export const getAllUsers = async (req, res, next) => {
 };
 
 
+// get user by id //
+
+export const getUserById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        validateMongoDbId(id);
+
+        const user = await
+            User.findById(id).select("-password -activeToken");
+
+
+        if (!user) {
+            return notFound(res, 'User not found');
+        }
+
+        return success(res, "User found", user);
+
+    }
+    catch (error) {
+        onError(res, error);
+    }
+}
+
+
 
 
 
