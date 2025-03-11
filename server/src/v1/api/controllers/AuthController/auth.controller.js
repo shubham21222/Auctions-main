@@ -624,6 +624,7 @@ export const getUserById = async (req, res, next) => {
         const { id } = req.params;
         validateMongoDbId(id);
 
+
         const user = await
             User.findById(id).select("-password -activeToken");
 
@@ -639,6 +640,30 @@ export const getUserById = async (req, res, next) => {
         onError(res, error);
     }
 }
+
+
+// get user by Billing Address //
+
+export const getUserByBillingAddress = async (req, res, next) => {
+    try {
+        
+        const {id} = req.params;
+        validateMongoDbId(id);
+
+        const user = await User.findById(id).select("BillingDetails");
+        if(!user){
+        return notFound(res, "User not found");
+        }
+
+        return success(res, "User found", user);
+        
+    } catch (error) {
+        return unknownError(res, error);  
+    }
+}
+
+
+
 
 
 
