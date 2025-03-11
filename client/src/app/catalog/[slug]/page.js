@@ -1,4 +1,3 @@
-// pages/catalog/[slug].js
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -102,7 +101,8 @@ export default function CatalogPage() {
   useEffect(() => {
     if (auction?.auctionType === "LIVE" && socket) {
       joinAuction(auctionId);
-      addNotification("success", `You joined auction ${auctionId}`);
+      const auctionTitle = auction?.product?.title || auctionId;
+      addNotification("success", `You joined auction: ${auctionTitle}`);
     }
   }, [socket, auction, auctionId, joinAuction]);
 
@@ -128,8 +128,10 @@ export default function CatalogPage() {
       return;
     }
 
+    const auctionTitle = auction.product?.title || auctionId;
+
     if (bidAmount <= auction.currentBid) {
-      addNotification("error", `Bid must be higher than $${auction.currentBid}.`);
+      addNotification("error", `Bid on ${auctionTitle} must be higher than $${auction.currentBid}.`);
       return;
     }
 
@@ -167,7 +169,7 @@ export default function CatalogPage() {
       );
     } catch (error) {
       console.error("Payment intent error:", error);
-      addNotification("error", error.message || "Failed to initiate checkout.");
+      addNotification("error", error.message || `Failed to initiate checkout for ${auctionTitle}.`);
     }
   };
 

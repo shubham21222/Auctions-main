@@ -12,16 +12,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { selectUserId } from "@/redux/authSlice";
 import BidHistory from "./BidHistory";
 import config from "@/app/config_BASE_URL";
 
-export default function CatalogDetails({ product, auction, loading, onBidNowClick, token }) {
+export default function CatalogDetails({ product, auction, loading, onBidNowClick }) {
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
+  const [userCache, setUserCache] = useState({}); // Cache for usernames
+  const [bidsWithUsernames, setBidsWithUsernames] = useState([]); // Bids with usernames
   const userId = useSelector(selectUserId);
+  const token = useSelector((state) => state.auth.token);
 
   const SkeletonCard = () => (
     <div className="group relative bg-white rounded-lg shadow-md overflow-hidden">
@@ -32,6 +35,66 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       </div>
     </div>
   );
+
+  // Fetch username by user ID
+  const fetchUserName = useCallback(
+    async (id) => {
+      if (!token || !id) {
+        console.log("Missing token or ID:", { token, id });
+        return id;
+      }
+      if (userCache[id]) return userCache[id];
+
+      try {
+        const response = await fetch(`${config.baseURL}/v1/api/auth/getUserById/${id}`, {
+          method: "GET",
+          headers: {
+            Authorization: `${token}`,
+          },
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch user");
+        }
+        const data = await response.json();
+        const userName = data.items?.name || id;
+        console.log(`Fetched username for ${id}: ${userName}`);
+        setUserCache((prev) => ({ ...prev, [id]: userName }));
+        return userName;
+      } catch (error) {
+        console.error(`Error fetching user ${id}:`, error.message);
+        return id; // Fallback to ID on error
+      }
+    },
+    [token, userCache]
+  );
+
+  // Update bids with usernames when auction changes
+  useEffect(() => {
+    if (!auction?.bids) {
+      console.log("No bids available in auction:", auction);
+      setBidsWithUsernames([]);
+      return;
+    }
+
+    const updateBidsWithUsernames = async () => {
+      try {
+        const updatedBids = await Promise.all(
+          auction.bids.map(async (bid) => ({
+            ...bid,
+            bidderName: await fetchUserName(bid.bidder),
+          }))
+        );
+        console.log("Updated bids with usernames:", updatedBids);
+        setBidsWithUsernames(updatedBids);
+      } catch (error) {
+        console.error("Error updating bids:", error);
+        setBidsWithUsernames(auction.bids.map((bid) => ({ ...bid, bidderName: bid.bidder })));
+      }
+    };
+
+    updateBidsWithUsernames();
+  }, [auction, fetchUserName]);
 
   const handleJoinAuction = async () => {
     if (!userId) {
@@ -95,7 +158,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
         toast.error(`Bid must be greater than $${auction.currentBid}.`);
         return;
       }
-      onBidNowClick(bidValue); // Only initiates payment intent, not bid placement
+      onBidNowClick(bidValue);
       setIsBidModalOpen(false);
     };
 
@@ -221,7 +284,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                 )}
               </div>
             </div>
-            <BidHistory bids={auction.bids || []} />
+            <BidHistory bids={bidsWithUsernames} />
           </div>
         ) : (
           <p className="text-center text-gray-500 text-lg">No auction data available.</p>

@@ -2,11 +2,11 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useDispatch } from "react-redux";
-import { setToken, setEmail, setUser, setUserId } from "@/redux/authSlice";
+import { setToken, setEmail, setUser, setUserId, updateBillingDetails } from "@/redux/authSlice"; // Added updateBillingDetails
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import login from "../../../public/login.webp";
 import config from "../config_BASE_URL";
 import Link from "next/link";
@@ -24,7 +24,7 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
     setLoading(true);
 
     try {
-      // Send login request to the backend
+      // Step 1: Send login request to the backend
       const response = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
         email: emailInput,
         password,
@@ -34,59 +34,77 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
 
       // Check if the API indicates failure (status: false)
       if (!status) {
-        const trimmedMessage = message.trim(); // Trim whitespace from the message
+        const trimmedMessage = message.trim();
         if (trimmedMessage === "Invalid email") {
           toast.error("Invalid email. Please check your email address.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
+            style: { background: "#FF4500", color: "#fff" },
             icon: "❌",
           });
         } else if (trimmedMessage === "Invalid password") {
           toast.error("Invalid password. Please try again.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
+            style: { background: "#FF4500", color: "#fff" },
             icon: "❌",
           });
         } else {
           toast.error(trimmedMessage || "An error occurred. Please try again.", {
-            style: {
-              background: "#FF4500",
-              color: "#fff",
-            },
+            style: { background: "#FF4500", color: "#fff" },
             icon: "❌",
           });
         }
         setLoading(false);
-        return; // Exit the function early on failure
+        return;
       }
 
-      // If status is true, proceed with success handling
-      const { token, user } = items; // Destructure token and user from items
-
+      // Step 2: Handle successful login
+      const { token, user } = items;
       if (!token || !user) {
         throw new Error("No token or user data received from the server.");
       }
 
-      // Store token in Redux
+      // Dispatch initial user data and token
       dispatch(setToken(token));
-
-      // Save user data in Redux
       dispatch(setUser(user));
       dispatch(setUserId(user._id));
       dispatch(setEmail(user.email));
+      console.log("Initial user data saved in Redux:", user);
 
-      console.log("User data saved in Redux:", user);
+      // Step 3: Verify token and get additional user data (including billing details)
+      try {
+        const verifyResponse = await axios.post(
+          `${config.baseURL}/v1/api/auth/verify/${token}`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const { status: verifyStatus, items: verifyItems } = verifyResponse.data;
+        if (verifyStatus && verifyItems && typeof verifyItems === "object") {
+          const verifiedUserData = verifyItems;
+          console.log("Verified user data:", verifiedUserData);
+
+          // Update user with verified data
+          dispatch(setUser({ ...verifiedUserData, token }));
+
+          // Dispatch billing details (even if empty)
+          const billingDetails =
+            verifiedUserData.BillingDetails && verifiedUserData.BillingDetails.length > 0
+              ? verifiedUserData.BillingDetails[0] // Assuming single billing detail
+              : {};
+          dispatch(updateBillingDetails(billingDetails));
+          console.log("Billing details dispatched:", billingDetails);
+        } else {
+          console.warn("No valid items in verify response:", verifyResponse.data);
+        }
+      } catch (verifyErr) {
+        console.error("Verification error:", verifyErr.message);
+        toast.success("Login successful, but verification failed. Using basic user data.", {
+          style: { background: "#FFD700", color: "#000" },
+          icon: "⚠️",
+        });
+      }
 
       // Show success toast notification
       toast.success("Login successful!", {
-        style: {
-          background: "#32CD32",
-          color: "#fff",
-        },
+        style: { background: "#32CD32", color: "#fff" },
         icon: "✅",
       });
 
@@ -94,30 +112,22 @@ const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
       onClose();
     } catch (err) {
       console.error("Error during login:", err.response?.data || err.message);
-
-      // Handle network or unexpected errors
       const errorMessage = err.response?.data?.message || err.message || "An error occurred. Please try again.";
       toast.error(errorMessage, {
-        style: {
-          background: "#FF4500",
-          color: "#fff",
-        },
+        style: { background: "#FF4500", color: "#fff" },
         icon: "❌",
       });
-
       setLoading(false);
     }
   };
 
   // Handle "Join" click
   const handleJoinClick = () => {
-    onOpenSignup(); // Trigger the callback to open SignupModal and close LoginModal
+    onOpenSignup();
   };
 
   return (
     <>
-      {/* <Toaster position="top-right" reverseOrder={false} /> */}
-
       <AnimatePresence>
         {isOpen && (
           <motion.div
