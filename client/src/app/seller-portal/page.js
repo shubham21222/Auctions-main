@@ -150,7 +150,7 @@ const SellerDetailsPage = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-100 py-12">
+      <div className="min-h-screen mt-6 bg-gradient-to-br from-gray-100 to-blue-100 py-12">
         <div className="max-w-6xl mx-auto px-6">
           {loading ? (
             <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-6 text-center">
