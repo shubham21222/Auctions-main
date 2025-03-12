@@ -390,13 +390,13 @@ export default function Checkout() {
     }
   }, [productId, token]);
 
-  if (!clientSecret || !bidAmount || !auctionId || !productId || !token) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-500">Invalid checkout parameters. Please try again.</p>
-      </div>
-    );
-  }
+  // if (!clientSecret || !bidAmount || !auctionId || !productId || !token) {
+  //   return (
+  //     <div className="text-center py-12">
+  //       <p className="text-red-500">Invalid checkout parameters. Please try again.</p>
+  //     </div>
+  //   );
+  // }
 
   if (loading) {
     return <div className="text-center py-12">Loading...</div>;

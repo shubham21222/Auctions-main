@@ -14,7 +14,6 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const token = useSelector((state) => state.auth.token);
 
-
   // Fetch data from API
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -22,7 +21,7 @@ export default function Dashboard() {
         const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/getDashboardStats", {
           method: "GET",
           headers: {
-            "Authorization": `${token}`, // Pass the token here
+            "Authorization": `${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -49,12 +48,12 @@ export default function Dashboard() {
 
   // Transform API data for charts
   const monthlySalesData = dashboardData?.monthlySales.map((item) => ({
-    name: new Date(2025, item.month - 1).toLocaleString("default", { month: "short" }), // Convert month number to name
+    name: new Date(2025, item.month - 1).toLocaleString("default", { month: "short" }),
     total: item.totalSales,
   })) || [];
 
   const dailyVisitorsData = dashboardData?.weeklyVisitors.map((item) => ({
-    name: item.day.slice(0, 3), // Shorten day name (e.g., "Sun")
+    name: item.day.slice(0, 3),
     visitors: item.visitors,
   })) || [];
 
@@ -65,6 +64,11 @@ export default function Dashboard() {
   if (error) {
     return <div className="text-center text-red-500">Error: {error}</div>;
   }
+
+  // Calculate min and max for Y-axis domain to ensure proper scaling
+  const visitorsValues = dailyVisitorsData.map((item) => item.visitors);
+  const minVisitors = Math.min(...visitorsValues) * 0.9; // Add some padding below min
+  const maxVisitors = Math.max(...visitorsValues) * 1.1; // Add some padding above max
 
   return (
     <div className="space-y-8">
@@ -111,7 +115,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">+{dashboardData?.activeAuctions.toLocaleString() || "0"}</div>
-              <p className="text-xs opacity-80">{/* No change data for active auctions in API */}+0% from last month</p>
+              <p className="text-xs opacity-80">+0% from last month</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -140,7 +144,7 @@ export default function Dashboard() {
               config={{
                 total: {
                   label: "Total Sales",
-                  color: "#10b981", // Green
+                  color: "#10b981",
                 },
               }}
               className="h-[350px]"
@@ -172,24 +176,28 @@ export default function Dashboard() {
               config={{
                 visitors: {
                   label: "Visitors",
-                  color: "#3b82f6", // Blue
+                  color: "#3b82f6",
                 },
               }}
               className="h-[350px]"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dailyVisitorsData}>
+                <LineChart data={dailyVisitorsData} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <YAxis
+                    stroke="#6b7280"
+                    fontSize={12}
+                    domain={[minVisitors, maxVisitors]} // Dynamic scaling
+                  />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line
                     type="monotone"
                     dataKey="visitors"
                     stroke="var(--color-visitors)"
                     strokeWidth={3}
-                    dot={{ r: 5, fill: "#3b82f6", strokeWidth: 2 }}
-                    activeDot={{ r: 8 }}
+                    dot={{ r: 4, fill: "#3b82f6", strokeWidth: 1 }} // Smaller dots
+                    activeDot={{ r: 6 }} // Smaller active dot
                     className="transition-all duration-300"
                   />
                 </LineChart>
