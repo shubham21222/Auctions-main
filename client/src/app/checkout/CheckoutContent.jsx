@@ -173,7 +173,7 @@ export default function CheckoutContent() {
       if (!newProductDetails.productId || !token || !userId) return;
 
       try {
-        const billingResponse = await fetch(`http://localhost:4000/v1/api/auth/getUserByBillingAddress/${userId}`, {
+        const billingResponse = await fetch(`https://bid.nyelizabeth.com/v1/api/auth/getUserByBillingAddress/${userId}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
