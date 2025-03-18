@@ -1,42 +1,22 @@
-"use client";
-import { motion } from "framer-motion";
-
-const animationVariants = {
-	initial: {
-		opacity: 0,
-		y: 50,
-	},
-	animate: {
-		opacity: 1,
-		y: 0,
-		transition: {
-			staggerChildren: 0.2,
-			duration: 0.7,
-		},
-	},
-};
+// No "use client" needed, works in Server Components
 
 function FadeInStaggerTwo({ children, className = "", id = "" }) {
 	return (
-		<motion.div
-			variants={animationVariants}
-			initial="initial"
-			whileInView="animate"
-			viewport={{ once: true }}
-			className={className}
-			id={id}
-		>
-			{children}
-		</motion.div>
+	  <div
+		className={`animate-fade-in ${className}`} // Simple fade-in animation
+		id={id}
+	  >
+		{children}
+	  </div>
 	);
-}
-
-function FadeInStaggerTwoChildren({ children, className = "", id = "" }) {
+  }
+  
+  function FadeInStaggerTwoChildren({ children, className = "", id = "" }) {
 	return (
-		<motion.div className={className} id={id} variants={animationVariants}>
-			{children}
-		</motion.div>
+	  <div className={className} id={id}>
+		{children} {/* No animation here, just a wrapper */}
+	  </div>
 	);
-}
-
-export { FadeInStaggerTwo, FadeInStaggerTwoChildren };
+  }
+  
+  export { FadeInStaggerTwo, FadeInStaggerTwoChildren };

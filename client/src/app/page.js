@@ -1,18 +1,16 @@
 import Image from "next/image";
 import Header from "./components/Header";
-import HeroThumbs from "./components/HeroThumbs";
 import HeroContent from "./components/HeroContent";
 import AboutUs from "./components/Aboutus";
-import StatsSection from "./components/StatsSection";
 import Footer from "./components/Footer";
-import TrendingBrands from "./components/TrendingBrands";
-import NewsletterForm from "./components/NewsletterForm";
-import { ProductCard } from "./Buy-now/components/product-card";
-import PartnersSection from "./components/PartnersSection";
-import PopularArtists from "./components/Artsits";
 import LatestProducts from "./components/LatestProducts";
+import BelowFoldSections from "./components/BelowFoldSections";
+import { Suspense } from "react";
 
-export default function Home() {
+// Placeholder image (create a tiny version, e.g., 10 KB, in public/)
+const placeholderImage = "/banner-placeholder.webp";
+
+export default function Home() {  
   const products = [
     {
       image: "https://beta.nyelizabeth.com/wp-content/uploads/2025/01/product4ccd551f28184638f7c306b6172c7158.webp",
@@ -38,21 +36,39 @@ export default function Home() {
     <>
       <Header />
       <div className="relative mx-auto max-w-[100vw] lg:mx-[50px] md:mx-[30px] sm:mx-[12px] mt-[80px] rounded-[20px] overflow-hidden h-[82vh]">
-        {/* Preload the hero image */}
-        <link rel="preload" href="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/banner-Image2_3_11zon.webp" as="image" />
+        {/* Preload the tiny placeholder image */}
+        <link
+          rel="preload"
+          href={placeholderImage}
+          as="image"
+          fetchPriority="high"
+        />
 
-        {/* Optimized Hero Background Image */}
+        {/* Initial Placeholder Image (tiny, fast-loading) */}
         <Image
-          src="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/banner-Image2_3_11zon.webp"
-          alt="Hero Background"
+          src={placeholderImage}
+          alt="Hero Background Placeholder"
           fill
           className="object-cover object-center"
-          quality={75} // Reduce quality for faster loading (adjust as needed)
-          priority // Load immediately as it’s above the fold
-          sizes="100vw" // Ensure responsive sizing
-          placeholder="blur" // Optional: Add a blur placeholder for better UX
-          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PQAI8wNPJ7PZuAAAAABJRU5ErkJggg==" // Base64 blur placeholder
+          quality={10} // Ultra-low quality for speed
+          priority
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+          placeholder="blur"
+          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PQAI8wNPJ7PZuAAAAABJRU5ErkJggg=="
         />
+
+        {/* Full Image (lazy-loaded in Suspense) */}
+        <Suspense fallback={null}>
+          <Image
+            src="/banner.webp"
+            alt="Hero Background"
+            fill
+            className="object-cover object-center"
+            quality={50}
+            loading="lazy" // Lazy-load the full image
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+          />
+        </Suspense>
 
         {/* Semi-transparent overlay */}
         <div className="absolute inset-0 bg-black bg-opacity-50 z-10"></div>
@@ -64,19 +80,14 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Above-the-fold components */}
       <AboutUs />
       <LatestProducts />
-      {/* <HeroThumbs /> */}
-      {/* <div className="grid mx-auto max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {products.map((product, index) => (
-          <ProductCard key={index} {...product} />
-        ))}
-      </div> */}
-      <StatsSection />
-      <TrendingBrands />
-      <PopularArtists />
-      <PartnersSection />
-      <NewsletterForm />
+
+      {/* Below-the-fold components */}
+      <BelowFoldSections />
+
       <Footer />
     </>
   );

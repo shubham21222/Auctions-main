@@ -22,6 +22,7 @@ const PurchasesPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
 
   // Fetch user's orders
   useEffect(() => {

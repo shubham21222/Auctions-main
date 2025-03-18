@@ -6,25 +6,56 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import MakeOfferModal from "./MakeOfferModal";
+import LoginModal from "@/app/components/LoginModal";
+import SignupModal from "@/app/components/SignupModal";
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
 import { selectIsLoggedIn } from "@/redux/authSlice";
 
-export default function ProductDetails({ isLoading, product, productId }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function ProductDetails({
+  isLoading,
+  product,
+  productId,
+  setShowLoginModal, // Added from ProductPage
+  setShowSignupModal, // Added from ProductPage
+}) {
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const isLoggedIn = useSelector(selectIsLoggedIn);
 
   const handleMakeOfferClick = () => {
     if (!isLoggedIn) {
-      toast.error("Please log in to make an offer.");
-      return; // Do nothing further if not logged in
+      setIsLoginModalOpen(true);
+      setShowLoginModal(true); // Sync with TopBar
+      return;
     }
-    // If logged in, open the modal
-    setIsModalOpen(true);
+    setIsOfferModalOpen(true);
   };
 
+  const handleOpenSignup = () => {
+    setIsLoginModalOpen(false);
+    setIsSignupModalOpen(true);
+    setShowSignupModal(true); // Sync with TopBar
+  };
+
+  const handleOpenLogin = () => {
+    setIsSignupModalOpen(false);
+    setIsLoginModalOpen(true);
+    setShowLoginModal(true); // Sync with TopBar
+  };
+
+  const closeAllModals = () => {
+    setIsOfferModalOpen(false);
+    setIsLoginModalOpen(false);
+    setIsSignupModalOpen(false);
+    setShowLoginModal(false);
+    setShowSignupModal(false);
+  };
+
+
   return (
+    <>
     <div className="space-y-8">
       <div className="flex justify-between items-start">
         {isLoading ? (
@@ -79,7 +110,6 @@ export default function ProductDetails({ isLoading, product, productId }) {
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 text-base py-4 rounded-xl shadow-lg hover:shadow-xl"
             onClick={handleMakeOfferClick}
-            // Removed disabled={!isLoggedIn}
           >
             Make an Offer
           </Button>
@@ -119,13 +149,26 @@ export default function ProductDetails({ isLoading, product, productId }) {
         </div>
       </div>
 
-      <MakeOfferModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+      {/* Make Offer Modal */}
+
+    </div>
+    <MakeOfferModal
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
         minPrice={product?.price?.min ?? 0}
         product={product}
-        productId={productId} // Pass productId from ProductPage
+        productId={productId}
       />
-    </div>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={closeAllModals}
+        onOpenSignup={handleOpenSignup}
+      />
+      <SignupModal
+        isOpen={isSignupModalOpen}
+        onClose={closeAllModals}
+        onOpenLogin={handleOpenLogin}
+      />
+    </>
   );
 }

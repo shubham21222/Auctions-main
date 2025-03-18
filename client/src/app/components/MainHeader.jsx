@@ -190,7 +190,7 @@ const MainHeader = ({
                 {searchResults.map((product) => (
                   <li key={product._id} className="border-b border-gray-100 last:border-b-0">
                     <Link
-                      href={`/product/${product._id}`}
+                      href={`/products/${product._id}`}
                       className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
                     >
                       <Image

@@ -1,63 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import toast from "react-hot-toast";
-import { updateBillingDetails } from "@/redux/authSlice"; // Import the new action
+import countries from "i18n-iso-countries";
 
-export default function BillingDetailsForm({ token }) {
-  const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth.user);
-  const isBillingDetailsAvailable = useSelector((state) => state.auth.isBillingDetailsAvailable);
-  const billingDetailsFromRedux = useSelector((state) => state.auth.user?.BillingDetails[0] || {});
+// Register English locale for browser environment
+import enLocale from "i18n-iso-countries/langs/en.json";
+countries.registerLocale(enLocale);
 
-  const [isEditing, setIsEditing] = useState(!isBillingDetailsAvailable); // Enable form if no details exist
+export default function BillingDetailsForm({ token, onBillingUpdate }) {
   const [billingDetails, setBillingDetails] = useState({
     firstName: "",
     lastName: "",
     companyName: "",
-    streetAddress: "",
+    address: "",
     city: "",
     state: "",
     zipCode: "",
     phone: "",
     email: "",
+    country: "", // Stores ISO Alpha-2 code (e.g., "IN")
     orderNotes: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Pre-fill form with user data or existing billing details
-  useEffect(() => {
-    if (user) {
-      const initialDetails = isBillingDetailsAvailable
-        ? {
-            firstName: billingDetailsFromRedux.firstName || "",
-            lastName: billingDetailsFromRedux.lastName || "",
-            companyName: billingDetailsFromRedux.company_name || "",
-            streetAddress: billingDetailsFromRedux.streetAddress || "",
-            city: billingDetailsFromRedux.city || "",
-            state: billingDetailsFromRedux.state || "",
-            zipCode: billingDetailsFromRedux.zipcode || "",
-            phone: billingDetailsFromRedux.phone || "",
-            email: billingDetailsFromRedux.email || user.email || "",
-            orderNotes: billingDetailsFromRedux.orderNotes || "",
-          }
-        : {
-            firstName: user.name?.split(" ")[0] || "",
-            lastName: user.name?.split(" ").slice(1).join(" ") || "",
-            companyName: "",
-            streetAddress: "",
-            city: "",
-            state: "",
-            zipCode: "",
-            phone: "",
-            email: user.email || "",
-            orderNotes: "",
-          };
-      setBillingDetails(initialDetails);
-    }
-  }, [user, isBillingDetailsAvailable, billingDetailsFromRedux]);
+  const countryList = countries.getNames("en", { select: "official" }); // { "IN": "India", "US": "United States", ... }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -67,9 +35,27 @@ export default function BillingDetailsForm({ token }) {
     }));
   };
 
+  const handleCountryChange = (e) => {
+    const isoCode = e.target.value;
+    console.log("Selected Country ISO Code:", isoCode); // Should log "IN" for India
+    setBillingDetails((prev) => ({
+      ...prev,
+      country: isoCode,
+    }));
+  };
+
   const handleUpdateBilling = async () => {
+    if (!billingDetails.country) {
+      setError("Country is required");
+      toast.error("Country is required");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
+    // API expects full country name, so map ISO code to name
+    const countryFullName = countryList[billingDetails.country] || billingDetails.country;
 
     const payload = {
       BillingDetails: [
@@ -77,12 +63,13 @@ export default function BillingDetailsForm({ token }) {
           firstName: billingDetails.firstName,
           lastName: billingDetails.lastName,
           company_name: billingDetails.companyName,
-          streetAddress: billingDetails.streetAddress,
+          streetAddress: billingDetails.address,
           city: billingDetails.city,
           state: billingDetails.state,
           zipcode: billingDetails.zipCode,
           phone: billingDetails.phone,
           email: billingDetails.email,
+          country: countryFullName, // Send full name to API
           orderNotes: billingDetails.orderNotes,
         },
       ],
@@ -101,9 +88,20 @@ export default function BillingDetailsForm({ token }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to update billing address");
 
-      // Update Redux with new billing details
-      dispatch(updateBillingDetails(payload.BillingDetails[0]));
-      setIsEditing(false); // Disable editing after successful update
+      // Pass ISO code back to CheckoutContent
+      const normalizedDetails = {
+        firstName: billingDetails.firstName,
+        lastName: billingDetails.lastName,
+        address: billingDetails.address,
+        city: billingDetails.city,
+        state: billingDetails.state,
+        zipCode: billingDetails.zipCode,
+        phone: billingDetails.phone,
+        email: billingDetails.email,
+        country: billingDetails.country, // ISO code (e.g., "IN")
+      };
+      console.log("Normalized Details for CheckoutContent:", normalizedDetails);
+      onBillingUpdate(normalizedDetails);
       toast.success("Billing address updated successfully!");
     } catch (err) {
       setError(err.message);
@@ -116,144 +114,137 @@ export default function BillingDetailsForm({ token }) {
   return (
     <div className="p-6 border rounded-2xl bg-gray-50 shadow-sm">
       <h2 className="text-xl font-semibold mb-4 text-gray-700">Billing Details</h2>
-      {isBillingDetailsAvailable && !isEditing ? (
-        <div className="space-y-2">
-          <p><strong>First Name:</strong> {billingDetails.firstName}</p>
-          <p><strong>Last Name:</strong> {billingDetails.lastName}</p>
-          {billingDetails.companyName && <p><strong>Company Name:</strong> {billingDetails.companyName}</p>}
-          <p><strong>Street Address:</strong> {billingDetails.streetAddress}</p>
-          <p><strong>City:</strong> {billingDetails.city}</p>
-          <p><strong>State:</strong> {billingDetails.state}</p>
-          <p><strong>ZIP Code:</strong> {billingDetails.zipCode}</p>
-          <p><strong>Phone:</strong> {billingDetails.phone}</p>
-          <p><strong>Email:</strong> {billingDetails.email}</p>
-          {billingDetails.orderNotes && <p><strong>Order Notes:</strong> {billingDetails.orderNotes}</p>}
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="mt-4 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300"
-          >
-            Edit Billing Details
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              name="firstName"
-              type="text"
-              placeholder="First Name"
-              value={billingDetails.firstName}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-            <input
-              name="lastName"
-              type="text"
-              placeholder="Last Name"
-              value={billingDetails.lastName}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-          </div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
-            name="companyName"
+            name="firstName"
             type="text"
-            placeholder="Company Name (Optional)"
-            value={billingDetails.companyName}
-            onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loading}
-          />
-          <input
-            name="streetAddress"
-            type="text"
-            placeholder="Street Address"
-            value={billingDetails.streetAddress}
+            placeholder="First Name"
+            value={billingDetails.firstName}
             onChange={handleInputChange}
             className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
             disabled={loading}
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              name="city"
-              type="text"
-              placeholder="City"
-              value={billingDetails.city}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-            <input
-              name="state"
-              type="text"
-              placeholder="State"
-              value={billingDetails.state}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              name="zipCode"
-              type="text"
-              placeholder="ZIP Code"
-              value={billingDetails.zipCode}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-            <input
-              name="phone"
-              type="text"
-              placeholder="Phone"
-              value={billingDetails.phone}
-              onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={loading}
-            />
-          </div>
           <input
-            name="email"
-            type="email"
-            placeholder="Email Address"
-            value={billingDetails.email}
+            name="lastName"
+            type="text"
+            placeholder="Last Name"
+            value={billingDetails.lastName}
             onChange={handleInputChange}
             className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
             disabled={loading}
           />
-          <textarea
-            name="orderNotes"
-            placeholder="Order Notes (Optional)"
-            value={billingDetails.orderNotes}
+        </div>
+        <input
+          name="companyName"
+          type="text"
+          placeholder="Company Name (Optional)"
+          value={billingDetails.companyName}
+          onChange={handleInputChange}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+        />
+        <input
+          name="address"
+          type="text"
+          placeholder="Street Address"
+          value={billingDetails.address}
+          onChange={handleInputChange}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+          disabled={loading}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            name="city"
+            type="text"
+            placeholder="City"
+            value={billingDetails.city}
             onChange={handleInputChange}
             className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
             disabled={loading}
           />
-          <button
-            type="button"
-            onClick={handleUpdateBilling}
+          <input
+            name="state"
+            type="text"
+            placeholder="State"
+            value={billingDetails.state}
+            onChange={handleInputChange}
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
             disabled={loading}
-            className={`w-full mt-4 bg-blue-600 text-white py-2 rounded-lg transition duration-300 ${
-              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
-            }`}
-          >
-            {loading ? "Updating..." : "Update Billing Address"}
-          </button>
-          {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+          />
         </div>
-      )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            name="zipCode"
+            type="text"
+            placeholder="ZIP Code"
+            value={billingDetails.zipCode}
+            onChange={handleInputChange}
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+            disabled={loading}
+          />
+          <input
+            name="phone"
+            type="text"
+            placeholder="Phone"
+            value={billingDetails.phone}
+            onChange={handleInputChange}
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+            disabled={loading}
+          />
+        </div>
+        <input
+          name="email"
+          type="email"
+          placeholder="Email Address"
+          value={billingDetails.email}
+          onChange={handleInputChange}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+          disabled={loading}
+        />
+        <select
+          name="country"
+          value={billingDetails.country}
+          onChange={handleCountryChange}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+          required
+        >
+          <option value="">Select a country</option>
+          {Object.entries(countryList).map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <textarea
+          name="orderNotes"
+          placeholder="Order Notes (Optional)"
+          value={billingDetails.orderNotes}
+          onChange={handleInputChange}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+        />
+        <button
+          type="button"
+          onClick={handleUpdateBilling}
+          disabled={loading}
+          className={`w-full mt-4 bg-blue-600 text-white py-2 rounded-lg transition duration-300 ${
+            loading ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
+          }`}
+        >
+          {loading ? "Updating..." : "Update Billing Address"}
+        </button>
+        {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+      </div>
     </div>
   );
 }

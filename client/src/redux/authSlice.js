@@ -9,6 +9,7 @@ const initialState = {
     superAdminDetails: null,
     isLoggedIn: false,
     isBillingDetailsAvailable: false, // New flag for billing details availability
+    paymentDetails: null, // Add this to store payment data
     items: {
         email: null,
         passwordResetToken: null,
@@ -106,6 +107,12 @@ export const authSlice = createSlice({
                 state.isBillingDetailsAvailable = true; // Set flag to true when details are updated
             }
         },
+        setPaymentDetails(state, action) { // New action
+            state.paymentDetails = action.payload;
+        },
+        clearPaymentDetails(state) { // Optional: Clear after use
+            state.paymentDetails = null;
+        },
     },
 });
 
@@ -126,6 +133,8 @@ export const {
     setLoggedIn,
     updatePaymentStatus,
     updateWalletBalance,
+    setPaymentDetails,
+    clearPaymentDetails,
     updateBillingDetails, // New action for updating billing details
 } = authSlice.actions;
 
@@ -142,6 +151,7 @@ export const selectWalletBalance = (state) => {
 };
 export const selectBillingDetails = (state) => state.auth.user?.BillingDetails || [];
 export const selectIsBillingDetailsAvailable = (state) => state.auth.isBillingDetailsAvailable;
+export const selectPaymentDetails = (state) => state.auth.paymentDetails; // New selector
 
 export default authSlice.reducer;
 

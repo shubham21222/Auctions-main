@@ -17,9 +17,11 @@ const HowItWorks = () => {
         </Link>
         <p className="mt-2 text-sm text-gray-600">
           Looking for items you already submitted?{' '}
+          <Link href="/seller-portal">
           <span className="text-blue-600 cursor-pointer hover:text-blue-800 transition-colors duration-300">
             Click here
           </span>
+          </Link>
         </p>
 
         <div className="mt-12 text-center">
