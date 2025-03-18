@@ -21,6 +21,7 @@ import categoryModel from "../../models/Category/category.model.js"
 import UserModel from "../../models/Auth/User.js"
 import OrderModel from "../../models/Order/order.js"
 import stripe from "../../config/stripeConfig.js"
+import bidIncrementModel from "../../models/Auction/bidIncrementModel.js"
 import moment from "moment"; // Install moment.js if not installed
 import mongoose from "mongoose"
 import { response } from "express"
@@ -317,6 +318,27 @@ export const getAuctions = async (req, res) => {
               }
             },
 
+            {
+                $lookup: {
+                    from: 'bidincrements',
+                    let: { currentBid: "$currentBid" },
+                    pipeline: [
+                        { $match: { $expr: { $lte: ["$price", "$$currentBid"] } } },
+                        { $sort: { price: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'bidIncrementRule'
+                }
+            },
+
+            {
+                $addFields: {
+                    minBidIncrement: {
+                        $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0]
+                    }
+                }
+            },
+
             { $sort: sortStage },
             { $skip: skip },
             { $limit: pageSize },
@@ -341,7 +363,7 @@ export const getAuctions = async (req, res) => {
                         name:1,
                         email:1
                     },
-                    minBidIncrement: 1,
+                    minBidIncrement: 1,  // ✅ Added Minimum Bid Incremen
                     lotNumber: 1,
                     bids: {
                         $map: {
@@ -445,6 +467,29 @@ export const getAuctionById = async (req, res) => {
                     as: 'participants'
                 }
             },
+
+            // ✅ Lookup for Minimum Bid Increment
+            {
+                $lookup: {
+                    from: 'bidincrements',
+                    let: { currentBid: "$currentBid" },
+                    pipeline: [
+                        { $match: { $expr: { $lte: ["$price", "$$currentBid"] } } },
+                        { $sort: { price: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'bidIncrementRule'
+                }
+            },
+
+            {
+                $addFields: {
+                    minBidIncrement: {
+                        $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0]
+                    }
+                }
+            },
+
             {
                 $project: {
                     product: {
@@ -881,8 +926,31 @@ export const placeBid = async (req, res) => {
             return badRequest(res, "Your bid must be higher than the current bid.");
         }
 
+
+          // ✅ Fetch bid increment rule based on current price
+
+       // ✅ Fetch bid increment rule based on the current bid price
+       const bidRule = await bidIncrementModel
+       .findOne({ price: { $lte: findAuction.currentBid } })
+       .sort({ price: -1 });
+
+    //    console.log("Bid Rule:", bidRule);
+
+   if (!bidRule) {
+       return badRequest(res, "Bid increment rule not found.");
+   }
+
+   const requiredBid = findAuction.currentBid + bidRule.increment;
+
+   // Ensure bid is at least the minimum required bid
+   if (bidAmount < requiredBid) {
+       return badRequest(res, `Your bid must be at least $${requiredBid}.`);
+   }
+
+
         // Update auction with new bid
         findAuction.currentBid = bidAmount;
+        findAuction.minBidIncrement = requiredBid;
         findAuction.currentBidder = req.user._id;
         findAuction.bids.push({
             bidder: req.user._id,
@@ -1277,6 +1345,48 @@ const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
     }
 };
 
+
+
+// Admin set the Bid Increment //
+
+export const setBidIncrement = async (req, res) => {
+    try {
+        const { increments } = req.body;
+
+        if (!Array.isArray(increments) || increments.length === 0) {
+            return badRequest(res, "Please provide a valid increments array.");
+        }
+
+        for (const increment of increments) {
+            const { price, increment: bidIncrement } = increment;
+
+            if (isNaN(price) || isNaN(bidIncrement) || price < 0 || bidIncrement <= 0) {
+                return badRequest(res, "Each entry must have a valid price and increment value.");
+            }
+
+            await bidIncrementModel.findOneAndUpdate(
+                { price },  // Find by price
+                { increment: bidIncrement }, // Update increment value
+                { upsert: true, new: true }  // Insert if not exists
+            );
+        }
+
+        return success(res, "Bid increments updated successfully.");
+    } catch (error) {
+        return unknownError(res, error);
+    }
+};
+
+
+
+export const getBidIncrement = async (req, res) => {
+    try{
+        const increments = await bidIncrementModel.find().sort({ price: 1 });
+        return success(res , "Bid increments retrieved successfully" , increments)
+    }catch(error){
+        return unknownError(res , error)
+    }
+}
 
 
 

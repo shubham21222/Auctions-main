@@ -13,7 +13,9 @@ import {
     placeBid,
     getAuctionDetails,
     getUserAuctions,
-    getDashboardStats
+    getDashboardStats,
+    setBidIncrement,
+    getBidIncrement
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
@@ -64,5 +66,12 @@ router.get("/getUserAuctions" , IsAuthenticated , getUserAuctions)
 router.get("/getDashboardStats" , IsAuthenticated , authorizeRoles("ADMIN") , getDashboardStats)
 
 // router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
+
+
+// Bid Increment //
+
+router.post("/setBidIncrement"  , setBidIncrement)
+
+router.get("/getBidIncrement" , getBidIncrement)
 
 export default router;

@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
+import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -18,6 +19,16 @@ export const initializeSocket = (server) => {
       userSocketMap[userId] = socket.id;
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
+
+        // 🎯 **Admin sending auction messages**
+        socket.on("adminAction", ({ auctionId, actionType }) => {
+          console.log(`Admin Action: ${actionType} for Auction ${auctionId}`);
+    
+          // Send message to all users in this auction
+          io.to(auctionId).emit("auctionMessage", { auctionId, actionType });
+        });
+
+
 
     socket.on("joinAuction", async ({ auctionId }) => {
       try {
@@ -56,6 +67,20 @@ export const initializeSocket = (server) => {
           });
         }
 
+        const bidRule = await bidIncrementModel.findOne({price:{ $lte: bidAmount }}).sort({price: -1});
+        if (bidRule && bidAmount < auction.currentBid + bidRule.increment) {
+          return socket.emit("error", {
+            message: `Bid must be at least $${auction.currentBid + bidRule.increment}.`,
+          });
+        }
+
+        const requiredBid = auction.currentBid + bidRule.increment;
+        if (bidAmount < requiredBid) {
+          return socket.emit("error", {
+            message: `Bid must be at least $${requiredBid}.`,
+          });
+        }
+
         auction.bids.push({
           bidder: userId,
           bidAmount,
@@ -63,6 +88,7 @@ export const initializeSocket = (server) => {
         });
 
         auction.currentBid = bidAmount;
+        auction.minBidIncrement = bidRule.increment;
         auction.currentBidder = userId;
         await auction.save();
 

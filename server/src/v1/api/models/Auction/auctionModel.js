@@ -20,7 +20,7 @@ const auctionSchema = new mongoose.Schema(
         bids: [bidSchema],
         winner: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         winnerBidTime: { type: Date },
-        minBidIncrement: { type: Number, default: 10 }, // Optional
+        minBidIncrement: { type: Number, default: 0 }, // Optional
         lotNumber: { type: String, unique: true }, // Ensure unique LOT numbers
         status: { type: String, enum: ["ACTIVE", "ENDED"], default: "ACTIVE" },
         auctionType: { type: String, enum: ["LIVE", "TIMED"], default: "TIMED" },
