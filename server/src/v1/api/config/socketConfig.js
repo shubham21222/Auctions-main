@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
+import mongoose from "mongoose";
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -117,6 +118,110 @@ export const initializeSocket = (server) => {
         console.error("Error placing bid:", error);
       }
     });
+
+     // 🎯 Fetch auction data by ID (Socket event)
+     socket.on("getAuctionData", async ({ auctionId }) => {
+      try {
+        if (!mongoose.Types.ObjectId.isValid(auctionId)) {
+          return socket.emit("auctionDataError", { message: "Invalid auction ID." });
+        }
+
+        const auction = await Auction.aggregate([
+          { $match: { _id: new mongoose.Types.ObjectId(auctionId) } },
+          {
+            $lookup: {
+              from: "products",
+              localField: "product",
+              foreignField: "_id",
+              as: "product",
+            },
+          },
+          { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+          { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "participants",
+              foreignField: "_id",
+              as: "participants",
+            },
+          },
+          {
+            $lookup: {
+              from: "bidincrements",
+              let: { currentBid: "$currentBid" },
+              pipeline: [
+                { $match: { $expr: { $lte: ["$price", "$$currentBid"] } } },
+                { $sort: { price: -1 } },
+                { $limit: 1 },
+              ],
+              as: "bidIncrementRule",
+            },
+          },
+          {
+            $addFields: {
+              minBidIncrement: {
+                $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0],
+              },
+            },
+          },
+          {
+            $project: {
+              product: {
+                title: { $ifNull: ["$product.title", ""] },
+                description: { $ifNull: ["$product.description", ""] },
+                price: { $ifNull: ["$product.price", ""] },
+                _id: { $ifNull: ["$product._id", ""] },
+              },
+              category: { _id: 1, name: 1 },
+              startingBid: 1,
+              currentBid: 1,
+              currentBidder: 1,
+              status: 1,
+              startDate: 1,
+              endDate: 1,
+              createdBy: 1,
+              winner: 1,
+              minBidIncrement: 1,
+              lotNumber: 1,
+              bids: 1,
+              winnerBidTime: 1,
+              auctionType: 1,
+              participants: {
+                $map: {
+                  input: "$participants",
+                  as: "participant",
+                  in: {
+                    _id: { $ifNull: ["$$participant._id", ""] },
+                    name: { $ifNull: ["$$participant.name", ""] },
+                    email: { $ifNull: ["$$participant.email", ""] },
+                  },
+                },
+              },
+            },
+          },
+        ]);
+
+        if (!auction.length) {
+          return socket.emit("auctionDataError", { message: "Auction not found." });
+        }
+
+        console.log(`Auction data sent for ID: ${auctionId}`);
+        socket.emit("auctionData", auction[0]);
+      } catch (error) {
+        console.error("Error fetching auction data:", error);
+        socket.emit("auctionDataError", { message: "Internal server error." });
+      }
+    });
+
 
     socket.on("endAuction", async ({ auctionId }) => {
       try {
