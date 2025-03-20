@@ -2,6 +2,8 @@ import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
+// import User from "../models/User/userModel.js";
+import User from "../models/Auth/User.js"
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -9,7 +11,7 @@ const auctionWatchers = {};
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["https://bid.nyelizabeth.com"], // Ensure this matches your frontend
+      origin: ["https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
   });
@@ -21,15 +23,61 @@ export const initializeSocket = (server) => {
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
 
-        // 🎯 **Admin sending auction messages**
-        socket.on("adminAction", ({ auctionId, actionType }) => {
-          console.log(`Admin Action: ${actionType} for Auction ${auctionId}`);
+    socket.on("sendMessage", async ({ auctionId, message, userId }) => {
+      try {
+        console.log(`Received sendMessage event - auctionId: ${auctionId}, message: ${message}, userId: ${userId}`);
+        
+        const user = await User.findById(userId);
+        if (!user) {
+          console.log(`User not found for userId: ${userId}`);
+          return socket.emit("error", { message: "User not found." });
+        }
+        if (user.role !== "ADMIN") {
+          console.log(`User ${userId} is not an admin, role: ${user.role}`);
+          return socket.emit("error", { message: "Unauthorized: Only admins can send messages." });
+        }
     
-          // Send message to all users in this auction
-          io.to(auctionId).emit("auctionMessage", { auctionId, actionType });
+        console.log(`Broadcasting auctionMessage to auction room ${auctionId}`);
+        io.to(auctionId).emit("auctionMessage", {
+          auctionId,
+          message,
+          sender: {
+            id: userId,
+            name: user.name,
+            role: user.role
+          },
+          timestamp: new Date()
         });
+      } catch (error) {
+        console.error("Error sending message:", error);
+        socket.emit("error", { message: "Failed to send message." });
+      }
+    });
 
+    socket.on("adminAction", async ({ auctionId, actionType, userId }) => {
+      try {
+        console.log(`Admin Action: ${actionType} for Auction ${auctionId}`);
+        
+        const user = await User.findById(userId);
+        if (!user || user.role !== "ADMIN") {
+          return socket.emit("error", { message: "Unauthorized: Only admins can perform actions." });
+        }
 
+        io.to(auctionId).emit("auctionMessage", {
+          auctionId,
+          actionType,
+          sender: {
+            id: userId,
+            name: user.name,
+            role: user.role
+          },
+          timestamp: new Date()
+        });
+      } catch (error) {
+        console.error("Error processing admin action:", error);
+        socket.emit("error", { message: "Failed to process admin action." });
+      }
+    });
 
     socket.on("joinAuction", async ({ auctionId }) => {
       try {
@@ -55,27 +103,46 @@ export const initializeSocket = (server) => {
       }
     });
 
-    socket.on("placeBid", async ({ auctionId, bidAmount, userId }) => {
+    socket.on("placeBid", async ({ auctionId, bidAmount, userId: bidderId }) => {
       try {
         const auction = await Auction.findById(auctionId).populate("bids");
         if (!auction || auction.status === "ENDED") {
           return socket.emit("error", { message: "Auction not active." });
         }
 
-        if (bidAmount <= auction.currentBid) { // Fixed comparison
+        const getBidIncrement = (currentBid) => {
+          if (currentBid >= 1000000) return 50000;
+          if (currentBid >= 500000) return 25000;
+          if (currentBid >= 250000) return 10000;
+          if (currentBid >= 100000) return 5000;
+          if (currentBid >= 50000) return 2500;
+          if (currentBid >= 25000) return 1000;
+          if (currentBid >= 10000) return 500;
+          if (currentBid >= 5000) return 250;
+          if (currentBid >= 1000) return 100;
+          if (currentBid >= 100) return 50;
+          if (currentBid >= 50) return 10;
+          if (currentBid >= 25) return 5;
+          return 1;
+        };
+
+        const currentBid = auction.currentBid || 0;
+        const bidIncrement = getBidIncrement(currentBid);
+        const requiredBid = currentBid + bidIncrement;
+
+        if (bidAmount <= currentBid) {
           return socket.emit("error", {
-            message: `Bid must be higher than the current bid of $${auction.currentBid}.`,
+            message: `Bid must be higher than the current bid of $${currentBid}.`,
           });
         }
 
-        const bidRule = await bidIncrementModel.findOne({price:{ $lte: bidAmount }}).sort({price: -1});
-        if (bidRule && bidAmount < auction.currentBid + bidRule.increment) {
+        const bidRule = await bidIncrementModel.findOne({ price: { $lte: bidAmount } }).sort({ price: -1 });
+        if (bidRule && bidAmount < currentBid + bidRule.increment) {
           return socket.emit("error", {
-            message: `Bid must be at least $${auction.currentBid + bidRule.increment}.`,
+            message: `Bid must be at least $${currentBid + bidRule.increment}.`,
           });
         }
 
-        const requiredBid = auction.currentBid + bidRule.increment;
         if (bidAmount < requiredBid) {
           return socket.emit("error", {
             message: `Bid must be at least $${requiredBid}.`,
@@ -83,26 +150,27 @@ export const initializeSocket = (server) => {
         }
 
         auction.bids.push({
-          bidder: userId,
+          bidder: bidderId,
           bidAmount,
           bidTime: new Date(),
         });
-
         auction.currentBid = bidAmount;
-        auction.minBidIncrement = bidRule.increment;
-        auction.currentBidder = userId;
+        auction.currentBidder = bidderId;
+        auction.minBidIncrement = bidRule ? bidRule.increment : bidIncrement;
         await auction.save();
 
-        console.log(`Bid placed: ${bidAmount} by ${userId} on auction ${auctionId}`);
+        console.log(`Bid placed: ${bidAmount} by ${bidderId} on auction ${auctionId}`);
         io.in(auctionId).emit("bidUpdate", {
           auctionId,
           bidAmount,
-          userId,
+          bidderId,
+          minBidIncrement: auction.minBidIncrement,
+          bids: auction.bids,
         });
 
         const lastBidderId =
           auction.bids.length > 1 ? auction.bids[auction.bids.length - 2].bidder : null;
-        if (lastBidderId && lastBidderId.toString() !== userId) {
+        if (lastBidderId && lastBidderId.toString() !== bidderId) {
           const lastBidderSocketId = userSocketMap[lastBidderId];
           if (lastBidderSocketId) {
             console.log(`Notifying outbid user ${lastBidderId} at socket ${lastBidderSocketId}`);
@@ -116,11 +184,11 @@ export const initializeSocket = (server) => {
         }
       } catch (error) {
         console.error("Error placing bid:", error);
+        socket.emit("error", { message: "Failed to place bid." });
       }
     });
 
-     // 🎯 Fetch auction data by ID (Socket event)
-     socket.on("getAuctionData", async ({ auctionId }) => {
+    socket.on("getAuctionData", async ({ auctionId }) => {
       try {
         if (!mongoose.Types.ObjectId.isValid(auctionId)) {
           return socket.emit("auctionDataError", { message: "Invalid auction ID." });
@@ -221,7 +289,6 @@ export const initializeSocket = (server) => {
         socket.emit("auctionDataError", { message: "Internal server error." });
       }
     });
-
 
     socket.on("endAuction", async ({ auctionId }) => {
       try {

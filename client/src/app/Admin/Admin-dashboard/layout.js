@@ -82,6 +82,8 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard/orders", icon: Truck, label: "Orders" },
     { href: "/Admin/Admin-dashboard/users", icon: Users, label: "Users" },
     { href: "/Admin/Admin-dashboard/Sellers", icon: UserCheck, label: "Sellers" },
+    { href: "/Admin/Admin-dashboard/live-auctions", icon: UserCheck, label: "Live Auctions" },
+
   ];
 
   return (
