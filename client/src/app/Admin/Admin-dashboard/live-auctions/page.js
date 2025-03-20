@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 const AdminLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
   const userId = useSelector((state) => state.auth._id);
-  const { socket, liveAuctions, joinAuction, getAuctionData, notifications } = useSocket();
+  const { socket, liveAuctions, joinAuction, getAuctionData, notifications, sendMessage, performAdminAction } = useSocket();
   const [currentAuction, setCurrentAuction] = useState(null);
   const [auctions, setAuctions] = useState([]); // All auctions
   const [upcomingLots, setUpcomingLots] = useState([]);
@@ -184,8 +184,8 @@ const AdminLiveAuctionPage = () => {
     }
 
     try {
-      // Emit via WebSocket
-      socket.emit("adminAction", { auctionId: currentAuction._id, actionType });
+      // Use the new performAdminAction function
+      performAdminAction(currentAuction._id, actionType);
 
       // If the action ends the auction, emit endAuction and update status via API
       if (actionType === "SOLD" || actionType === "PASS") {
@@ -229,9 +229,22 @@ const AdminLiveAuctionPage = () => {
       return;
     }
 
-    socket.emit("sendMessage", { auctionId: currentAuction._id, message });
-    setMessage("");
-    toast.success("Message sent successfully!");
+    try {
+      // Use the new sendMessage function
+      sendMessage(currentAuction._id, message);
+      
+      // Add the message to local bid history immediately
+      setBidHistory((prev) => [
+        ...prev,
+        { message: `Admin: ${message}`, bidTime: new Date() },
+      ]);
+      
+      setMessage("");
+      toast.success("Message sent successfully!");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    }
   };
 
   if (loading) {
@@ -239,181 +252,247 @@ const AdminLiveAuctionPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold">LIVE AUCTIONEERS</h1>
-          <p>NY ELIZABETH</p>
-        </div>
-        <div>
-          <p>
-            {currentLotIndex} of {totalLots} Lots |{" "}
-            {totalLots > 0
-              ? Math.round(((totalLots - currentLotIndex) / totalLots) * 100)
-              : 0}% Remaining
-          </p>
-          <p>Online: {watchers}</p>
-          <Button
-            onClick={fetchAuctionData}
-            className="mt-2 bg-blue-500 text-white hover:bg-blue-600"
-          >
-            Refresh Auctions
-          </Button>
+      <div className="bg-white border-b shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">LIVE AUCTIONEERS</h1>
+              <p className="text-gray-600">NY ELIZABETH</p>
+            </div>
+            <div className="flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-6">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">
+                  Lot {currentLotIndex} of {totalLots} | {totalLots > 0 ? Math.round(((totalLots - currentLotIndex) / totalLots) * 100) : 0}% Remaining
+                </p>
+                <p className="text-sm text-gray-600">Online: {watchers}</p>
+              </div>
+              <Button
+                onClick={fetchAuctionData}
+                className="bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200"
+              >
+                Refresh Auctions
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto p-4">
-        {/* Live Auction Section */}
-        <h2 className="text-2xl font-bold mb-4">Current Live Auction</h2>
+      <div className="container mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Current Live Auction</h2>
         {currentAuction ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Section: Product and Upcoming Lots */}
-            <div className="space-y-4">
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold">LOT: {currentAuction?.lotNumber || "N/A"}</h2>
-                <h3 className="text-xl font-bold">
-                  {currentAuction?.product?.title || "HERMES H HEURE WOMEN'S WATCH"}
-                </h3>
-                <div className="relative w-full h-64">
-                  <Image
-                    src={currentAuction?.product?.image || "/placeholder.svg"}
-                    alt={currentAuction?.product?.title || "Product Image"}
-                    fill
-                    className="object-contain"
-                  />
+            <div className="lg:col-span-5 space-y-6">
+              {/* Current Lot Card */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        LOT: {currentAuction?.lotNumber || "N/A"}
+                      </span>
+                      <h3 className="text-xl font-bold text-gray-900 mt-2">
+                        {currentAuction?.product?.title || "HERMES H HEURE WOMEN'S WATCH"}
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Brand</p>
+                      <p className="font-semibold text-gray-900">{currentAuction?.product?.brand || "HERMES"}</p>
+                    </div>
+                  </div>
+                  <div className="relative w-full h-72 mb-4 rounded-lg overflow-hidden">
+                    <Image
+                      src={currentAuction?.product?.image || "/placeholder.svg"}
+                      alt={currentAuction?.product?.title || "Product Image"}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Estimate</p>
+                      <p className="font-semibold text-gray-900">
+                        ${currentAuction?.startingBid || 1650} - ${(currentAuction?.startingBid || 1650) + 1000}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Current Bid</p>
+                      <p className="font-semibold text-blue-600">
+                        ${currentAuction?.currentBid?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-2">Brand: {currentAuction?.product?.brand || "HERMES"}</p>
-                <p>
-                  Estimate: ${currentAuction?.startingBid || 1650} - $
-                  {(currentAuction?.startingBid || 1650) + 1000}
-                </p>
               </div>
 
               {/* Upcoming Lots */}
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold">Upcoming Lots</h3>
-                {upcomingLots.length > 0 ? (
-                  <ul className="space-y-2 mt-2">
-                    {upcomingLots.slice(0, 4).map((lot) => (
-                      <li key={lot._id} className="text-sm">
-                        Lot {lot.lotNumber} - {lot.product?.title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500 mt-2">No upcoming lots available.</p>
-                )}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Lots</h3>
+                  {upcomingLots.length > 0 ? (
+                    <div className="space-y-3">
+                      {upcomingLots.slice(0, 4).map((lot) => (
+                        <div key={lot._id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+                          <div className="w-12 h-12 relative rounded-md overflow-hidden">
+                            <Image
+                              src={lot.product?.image || "/placeholder.svg"}
+                              alt={lot.product?.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">Lot {lot.lotNumber}</p>
+                            <p className="text-xs text-gray-600">{lot.product?.title}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No upcoming lots available.</p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Right Section: Competing Bids, Bid History, and Controls */}
-            <div className="space-y-4">
+            {/* Right Section: Bids and Controls */}
+            <div className="lg:col-span-7 space-y-6">
               {/* Competing Bids */}
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold">Competing Bids</h3>
-                {competingBids.length > 0 ? (
-                  <ul className="space-y-1 mt-2">
-                    {competingBids.map((bid, index) => (
-                      <li key={index} className="text-sm">
-                        ${bid.amount} ({bid.label})
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500 mt-2">No competing bids yet.</p>
-                )}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Competing Bids</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {competingBids.length > 0 ? (
+                      competingBids.map((bid, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-sm text-gray-600">Bid {index + 1}</p>
+                          <p className="font-semibold text-gray-900">${bid.amount.toLocaleString()}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 col-span-full">No competing bids yet.</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Bid History */}
-              <div className="bg-white p-4 rounded-lg shadow-md h-48 overflow-y-auto">
-                <h3 className="text-lg font-semibold">Bid History</h3>
-                {bidHistory.length > 0 ? (
-                  <ul className="space-y-1 mt-2">
-                    {bidHistory.map((entry, index) => (
-                      <li key={index} className="text-sm">
-                        {entry.message ? (
-                          <span className="text-blue-600">{entry.message}</span>
-                        ) : (
-                          `$${entry.bidAmount} - Bidder ${entry.bidder?.name || entry.bidder?._id || "Unknown"}`
-                        )}{" "}
-                        - {new Date(entry.bidTime).toLocaleTimeString()}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500 mt-2">No bids yet.</p>
-                )}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Bid History</h3>
+                  <div className="h-64 overflow-y-auto space-y-2">
+                    {bidHistory.length > 0 ? (
+                      bidHistory.map((entry, index) => (
+                        <div key={index} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+                          <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                          <div className="flex-1">
+                            <p className="text-sm">
+                              {entry.message ? (
+                                <span className="text-blue-600 font-medium">{entry.message}</span>
+                              ) : (
+                                <span className="text-gray-900">
+                                  ${entry.bidAmount?.toLocaleString()} - Bidder {entry.bidder?.name || entry.bidder?._id || "Unknown"}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(entry.bidTime).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No bids yet.</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Admin Controls */}
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <div className="flex justify-between items-center mb-4">
-                  <Button
-                    onClick={() => handleAdminAction("FAIR_WARNING")}
-                    className="bg-yellow-500 text-white hover:bg-yellow-600"
-                    disabled={currentAuction?.status === "ENDED"}
-                  >
-                    Fair Warning
-                  </Button>
-                  <Button
-                    onClick={() => handleAdminAction("FINAL_CALL")}
-                    className="bg-orange-500 text-white hover:bg-orange-600"
-                    disabled={currentAuction?.status === "ENDED"}
-                  >
-                    Final Call
-                  </Button>
-                  <p>Reserve Not Met</p>
-                </div>
-                <div className="flex gap-2 mb-4">
-                  <Input
-                    type="number"
-                    value={currentAuction?.currentBid || 0}
-                    readOnly
-                    className="w-1/3"
-                  />
-                  <Button
-                    onClick={() => handleAdminAction("SOLD")}
-                    className="bg-green-500 text-white hover:bg-green-600"
-                    disabled={currentAuction?.status === "ENDED"}
-                  >
-                    Sold
-                  </Button>
-                  <Button
-                    onClick={() => handleAdminAction("PASS")}
-                    className="bg-red-500 text-white hover:bg-red-600"
-                    disabled={currentAuction?.status === "ENDED"}
-                  >
-                    Pass
-                  </Button>
-                  <Button
-                    onClick={() => handleAdminAction("NEXT_LOT")}
-                    className="bg-blue-500 text-white hover:bg-blue-600"
-                  >
-                    Next Lot
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Message Text"
-                    className="w-3/4"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    className="bg-gray-500 text-white hover:bg-gray-600"
-                  >
-                    Send Message
-                  </Button>
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin Controls</h3>
+                  <div className="space-y-4">
+                    {/* Warning Buttons */}
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => handleAdminAction("FAIR_WARNING")}
+                        className="flex-1 bg-yellow-500 text-white hover:bg-yellow-600 transition-colors duration-200"
+                        disabled={currentAuction?.status === "ENDED"}
+                      >
+                        Fair Warning
+                      </Button>
+                      <Button
+                        onClick={() => handleAdminAction("FINAL_CALL")}
+                        className="flex-1 bg-orange-500 text-white hover:bg-orange-600 transition-colors duration-200"
+                        disabled={currentAuction?.status === "ENDED"}
+                      >
+                        Final Call
+                      </Button>
+                    </div>
+
+                    {/* Status and Action Buttons */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          value={currentAuction?.currentBid || 0}
+                          readOnly
+                          className="bg-gray-50"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleAdminAction("SOLD")}
+                          className="bg-green-500 text-white hover:bg-green-600 transition-colors duration-200"
+                          disabled={currentAuction?.status === "ENDED"}
+                        >
+                          Sold
+                        </Button>
+                        <Button
+                          onClick={() => handleAdminAction("PASS")}
+                          className="bg-red-500 text-white hover:bg-red-600 transition-colors duration-200"
+                          disabled={currentAuction?.status === "ENDED"}
+                        >
+                          Pass
+                        </Button>
+                        <Button
+                          onClick={() => handleAdminAction("NEXT_LOT")}
+                          className="bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200"
+                        >
+                          Next Lot
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Enter message..."
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        className="bg-gray-600 text-white hover:bg-gray-700 transition-colors duration-200"
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-center text-gray-500 text-lg">No active live auction found.</p>
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No active live auction found.</p>
+          </div>
         )}
       </div>
     </div>

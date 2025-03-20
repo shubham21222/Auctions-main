@@ -23,6 +23,7 @@ export const useSocket = () => {
 
   // Initialize socket connection
   useEffect(() => {
+    console.log("useSocket - userId:", userId, "token:", token);
     if (!userId || !token) {
       console.log("Missing userId or token, skipping socket connection");
       return;
@@ -32,6 +33,16 @@ export const useSocket = () => {
       query: { userId },
       auth: { token },
       transports: ["websocket"],
+    });
+
+    socketIo.on("connect", () => {
+      console.log("Connected to Socket.IO server:", socketIo.id);
+      addNotification("success", "Connected to auction server!");
+    });
+
+    socketIo.on("connect_error", (err) => {
+      console.error("Socket connection error:", err.message);
+      addNotification("error", `Connection failed: ${err.message}`);
     });
 
     setSocket(socketIo);
@@ -120,10 +131,13 @@ export const useSocket = () => {
       addNotification("error", `Error: ${message}`);
     });
 
-    // Add listener for auctionMessage (admin messages)
-    socket.on("auctionMessage", ({ auctionId, actionType }) => {
-      console.log("Received auctionMessage:", { auctionId, actionType });
-      addNotification("info", `Admin: ${actionType}`);
+    socket.on("auctionMessage", ({ auctionId, message, actionType, sender, timestamp }) => {
+      console.log("Received auctionMessage:", { auctionId, message, actionType, sender, timestamp });
+      if (message) {
+        addNotification("info", `Admin: ${message}`);
+      } else if (actionType) {
+        addNotification("info", `Admin: ${actionType}`);
+      }
     });
 
     return () => {
@@ -140,12 +154,13 @@ export const useSocket = () => {
     };
   }, [socket, isMounted, userId, addNotification]);
 
-  // Socket actions
   const joinAuction = useCallback(
     (auctionId) => {
       if (socket && auctionId) {
         socket.emit("joinAuction", { auctionId });
         console.log(`Joined auction room: ${auctionId}`);
+      } else {
+        console.log("Failed to join auction room - socket or auctionId missing:", { socket, auctionId });
       }
     },
     [socket]
@@ -171,6 +186,26 @@ export const useSocket = () => {
     [socket]
   );
 
+  const sendMessage = useCallback(
+    (auctionId, message) => {
+      if (socket && auctionId && message) {
+        socket.emit("sendMessage", { auctionId, message, userId });
+        console.log(`Sent message to auction ${auctionId}: ${message}`);
+      }
+    },
+    [socket, userId]
+  );
+
+  const performAdminAction = useCallback(
+    (auctionId, actionType) => {
+      if (socket && auctionId && actionType) {
+        socket.emit("adminAction", { auctionId, actionType, userId });
+        console.log(`Performed admin action ${actionType} on auction ${auctionId}`);
+      }
+    },
+    [socket, userId]
+  );
+
   return {
     socket,
     liveAuctions,
@@ -178,6 +213,8 @@ export const useSocket = () => {
     joinAuction,
     placeBid,
     getAuctionData,
+    sendMessage,
+    performAdminAction,
     notifications,
   };
 };

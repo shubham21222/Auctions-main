@@ -27,12 +27,13 @@ const getBidIncrement = (currentBid) => {
   return 1;
 };
 
-export default function CatalogDetails({ product, auction, loading, onBidNowClick, token, notifications }) {
+export default function CatalogDetails({ product, auction, loading, onBidNowClick, token, notifications, socket, messages }) {
   const [isJoined, setIsJoined] = useState(false);
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [bidAmount, setBidAmount] = useState("");
-  const [adminMessages, setAdminMessages] = useState([]); // Store admin messages for bid history
+  const [adminMessages, setAdminMessages] = useState([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const userId = useSelector((state) => state.auth._id);
 
   const SkeletonCard = () => (
@@ -93,16 +94,22 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     updateBidsWithUsernames();
   }, [auction, fetchUserName]);
 
-  // Add admin messages to bid history
+  // Update admin messages when messages prop changes
   useEffect(() => {
-    const adminNotifications = notifications.filter((n) => n.type === "info");
-    setAdminMessages((prev) =>
-      adminNotifications.map((n) => ({
-        message: n.message,
-        bidTime: new Date(n.id), // Use notification ID as a timestamp
-      }))
-    );
-  }, [notifications]);
+    console.log("Messages prop updated:", messages);
+    if (messages && Array.isArray(messages)) {
+      const formattedMessages = messages.map((msg) => ({
+        message: msg.message || msg.actionType,
+        bidTime: msg.timestamp || new Date(),
+        sender: typeof msg.sender === "object" ? msg.sender.name || "Admin" : msg.sender || "Admin",
+        type: msg.type || "message"
+      }));
+      console.log("Formatted messages:", formattedMessages);
+      setAdminMessages(formattedMessages);
+    } else {
+      setAdminMessages([]);
+    }
+  }, [messages]);
 
   const handleJoinAuction = async () => {
     if (!userId) {
@@ -140,16 +147,21 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     const minBid = currentBid + bidIncrement;
     const bidValue = parseFloat(bidAmount);
 
-    if (isNaN(bidValue) || bidValue < minBid) {
-      toast.error(`Bid must be at least $${minBid.toLocaleString()} (increment: $${bidIncrement.toLocaleString()}).`);
+    if (isNaN(bidValue)) {
+      toast.error("Please enter a valid bid amount");
       return;
     }
 
-    onBidNowClick(bidValue);
+    if (bidValue < minBid) {
+      toast.error(`Bid must be at least $${minBid.toLocaleString()}`);
+      return;
+    }
+
+    const roundedBid = Math.round(bidValue * 100) / 100;
+    onBidNowClick(roundedBid);
     setBidAmount("");
   };
 
-  // Combine bids and admin messages for display in bid history
   const combinedHistory = [
     ...bidsWithUsernames.map((bid) => ({
       type: "bid",
@@ -161,11 +173,14 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       type: "message",
       message: msg.message,
       bidTime: msg.bidTime,
+      sender: msg.sender,
     })),
   ].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
 
+  console.log("Combined history:", combinedHistory);
+
   return (
-    <div className="container mx-auto px-4 py-12 bg-gradient-to-b from-gray-50 to-gray-100">
+    <div className="space-y-8">
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <SkeletonCard />
@@ -173,100 +188,183 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
           <SkeletonCard />
         </div>
       ) : product ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {product.images.map((image, index) => (
-            <div
-              key={index}
-              className="relative aspect-square overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300"
-            >
-              <Image
-                src={image}
-                alt={`${product.name} image ${index + 1}`}
-                fill
-                className="object-cover hover:scale-105 transition-transform duration-500"
-              />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="md:w-24 flex md:flex-col gap-2 flex-col overflow-x-auto md:overflow-x-visible">
+                {product.images.map((image, index) => (
+                  <div
+                    key={index}
+                    onClick={() => setSelectedImageIndex(index)}
+                    className={`relative w-20 h-20 md:w-24 md:h-24 flex-shrink-0 overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group ${
+                      selectedImageIndex === index ? 'ring-2 ring-blue-500' : ''
+                    }`}
+                  >
+                    <Image
+                      src={image}
+                      alt={`${product.name} image ${index + 1}`}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-300" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl shadow-lg">
+                  <Image
+                    src={product.images[selectedImageIndex]}
+                    alt={`${product.name} main image`}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                  <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                    {selectedImageIndex + 1} / {product.images.length}
+                  </div>
+                </div>
+              </div>
             </div>
-          ))}
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">Product Description</h3>
+              <p className="text-gray-600 leading-relaxed">
+                {product?.description || "No description available."}
+              </p>
+            </div>
+
+            {auction && (
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4">Place Your Bid</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Current Bid</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      ${auction.currentBid?.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Minimum Bid</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      ${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Bid Increment</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      ${getBidIncrement(auction.currentBid).toLocaleString()}
+                    </span>
+                  </div>
+                  {!isJoined ? (
+                    <Button
+                      onClick={handleJoinAuction}
+                      className="w-full bg-green-500 text-white hover:bg-green-600"
+                    >
+                      Join Auction
+                    </Button>
+                  ) : auction.status !== "ENDED" ? (
+                    <form onSubmit={handleBidSubmit} className="space-y-4">
+                      <Input
+                        type="number"
+                        value={bidAmount}
+                        onChange={(e) => setBidAmount(e.target.value)}
+                        placeholder={`Enter at least $${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}`}
+                        min={auction.currentBid + getBidIncrement(auction.currentBid)}
+                        className="w-full border-gray-300 focus:border-blue-500"
+                        disabled={auction.status === "ENDED"}
+                      />
+                      <Button
+                        type="submit"
+                        className="w-full bg-blue-500 text-white hover:bg-blue-600"
+                        disabled={auction.status === "ENDED"}
+                      >
+                        {auction.auctionType === "LIVE" ? "Place Bid" : "Proceed to Checkout"}
+                      </Button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <p className="text-center text-gray-500 text-lg">No product images available.</p>
       )}
 
-      <div className="grid md:grid-cols-2 gap-8 mt-12">
+      {auction && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Description</h3>
-          <p className="text-gray-600 leading-relaxed">
-            {product?.description || "No description available."}
-          </p>
-        </div>
-
-        {auction ? (
-          <div className="space-y-6">
-            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-4">Auction Details</h3>
-              <p>Starting Price: ${auction.startingBid.toLocaleString()}</p>
-              <p>Current Bid: ${auction.currentBid.toLocaleString()}</p>
-              <p>Bid Increment: ${getBidIncrement(auction.currentBid).toLocaleString()}</p>
-              <p>Minimum Next Bid: ${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}</p>
-              <p>Watchers: {auction.watchers || 0}</p>
-              {auction.status === "ENDED" && (
-                <p className="text-red-400 mt-2">
-                  Auction Ended - Winner: {auction.winner || "N/A"}
-                </p>
-              )}
-
-              {!isJoined ? (
-                <Button
-                  onClick={handleJoinAuction}
-                  className="mt-4 bg-green-500 text-white hover:bg-green-600"
-                >
-                  Join Auction
-                </Button>
-              ) : auction.status !== "ENDED" ? (
-                <form onSubmit={handleBidSubmit} className="mt-4 flex gap-2">
-                  <Input
-                    type="number"
-                    value={bidAmount}
-                    onChange={(e) => setBidAmount(e.target.value)}
-                    placeholder={`Enter at least $${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}`}
-                    min={auction.currentBid + getBidIncrement(auction.currentBid)}
-                    step={getBidIncrement(auction.currentBid)}
-                    className="w-full border-gray-300 focus:border-blue-500"
-                    disabled={auction.status === "ENDED"}
-                  />
-                  <Button
-                    type="submit"
-                    className="bg-blue-500 text-white hover:bg-blue-600"
-                    disabled={auction.status === "ENDED"}
-                  >
-                    {auction.auctionType === "LIVE" ? "Place Bid" : "Proceed to Checkout"}
-                  </Button>
-                </form>
-              ) : null}
+          <h3 className="text-2xl font-semibold text-gray-800 mb-4">Auction Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Auction Type</span>
+                <span className="font-semibold text-gray-900">{auction.auctionType}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Status</span>
+                <span className={`font-semibold ${auction.status === "ACTIVE" ? "text-green-600" : "text-red-600"}`}>
+                  {auction.status}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Lot Number</span>
+                <span className="font-semibold text-gray-900">{auction.lotNumber}</span>
+              </div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-2">Bid History & Admin Messages</h3>
-              <ul className="space-y-1 max-h-48 overflow-y-auto">
-                {combinedHistory.map((entry, index) => (
-                  <li key={index} className="text-sm">
-                    {entry.type === "bid" ? (
-                      <span>
-                        {entry.bidderName} bid ${entry.bidAmount.toLocaleString()} -{" "}
-                        {new Date(entry.bidTime).toLocaleTimeString()}
-                      </span>
-                    ) : (
-                      <span className="text-blue-600">
-                        {entry.message} - {new Date(entry.bidTime).toLocaleTimeString()}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Start Date</span>
+                <span className="font-semibold text-gray-900">
+                  {new Date(auction.startDate).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">End Date</span>
+                <span className="font-semibold text-gray-900">
+                  {new Date(auction.endDate).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Participants</span>
+                <span className="font-semibold text-gray-900">{auction.participants?.length || 0}</span>
+              </div>
             </div>
           </div>
-        ) : (
-          <p className="text-center text-gray-500 text-lg">No auction data available.</p>
-        )}
+        </div>
+      )}
+
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-2xl font-semibold text-gray-800 mb-4">Bid History & Updates</h3>
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {combinedHistory.length > 0 ? (
+            combinedHistory.map((entry, index) => (
+              <div key={index} className="flex items-start space-x-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  {entry.type === "bid" ? (
+                    <div>
+                      <span className="font-semibold text-gray-900">{entry.bidderName}</span>
+                      <span className="text-gray-600"> placed a bid of </span>
+                      <span className="font-semibold text-blue-600">${entry.bidAmount.toLocaleString()}</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="font-semibold text-blue-600">{entry.sender}</span>
+                      <span className="text-gray-600">: </span>
+                      <span className="text-gray-800">{entry.message}</span>
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-500 mt-1">
+                    {new Date(entry.bidTime).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">No bids or updates yet.</p>
+          )}
+        </div>
       </div>
     </div>
   );
