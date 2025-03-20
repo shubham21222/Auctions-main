@@ -119,6 +119,85 @@ export const initializeSocket = (server) => {
       }
     });
 
+    // Inside initializeSocket
+socket.on("sendMessage", async ({ auctionId, message }) => {
+  try {
+    console.log(`Admin sent message for Auction ${auctionId}: ${message}`);
+    // Broadcast the message to all users in the auction room
+    io.to(auctionId).emit("auctionMessage", { auctionId, actionType: `MESSAGE: ${message}` });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    socket.emit("error", { message: "Failed to send message." });
+  }
+});
+
+    socket.on("placeBid", async ({ auctionId, bidAmount, userId: bidderId }) => {
+      try {
+        const auction = await Auction.findById(auctionId).populate("bids");
+        if (!auction || auction.status === "ENDED") {
+          return socket.emit("error", { message: "Auction not active." });
+        }
+    
+        const getBidIncrement = (currentBid) => {
+          if (currentBid >= 1000000) return 50000;
+          if (currentBid >= 500000) return 25000;
+          if (currentBid >= 250000) return 10000;
+          if (currentBid >= 100000) return 5000;
+          if (currentBid >= 50000) return 2500;
+          if (currentBid >= 25000) return 1000;
+          if (currentBid >= 10000) return 500;
+          if (currentBid >= 5000) return 250;
+          if (currentBid >= 1000) return 100;
+          if (currentBid >= 100) return 50;
+          if (currentBid >= 50) return 10;
+          if (currentBid >= 25) return 5;
+          return 1;
+        };
+    
+        const currentBid = auction.currentBid || 0;
+        const bidIncrement = getBidIncrement(currentBid);
+        const requiredBid = currentBid + bidIncrement;
+    
+        if (bidAmount < requiredBid) {
+          return socket.emit("error", {
+            message: `Bid must be at least $${requiredBid}.`,
+          });
+        }
+    
+        auction.bids.push({
+          bidder: bidderId,
+          bidAmount,
+          bidTime: new Date(),
+        });
+        auction.currentBid = bidAmount;
+        auction.currentBidder = bidderId;
+        await auction.save();
+    
+        console.log(`Bid placed: ${bidAmount} by ${bidderId} on auction ${auctionId}`);
+        io.in(auctionId).emit("bidUpdate", {
+          auctionId,
+          bidAmount,
+          bidderId,
+          bids: auction.bids,
+        });
+    
+        const lastBidderId =
+          auction.bids.length > 1 ? auction.bids[auction.bids.length - 2].bidder : null;
+        if (lastBidderId && lastBidderId.toString() !== bidderId) {
+          const lastBidderSocketId = userSocketMap[lastBidderId];
+          if (lastBidderSocketId) {
+            io.to(lastBidderSocketId).emit("outbidNotification", {
+              message: "You've been outbid!",
+              auctionId,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error placing bid:", error);
+        socket.emit("error", { message: "Failed to place bid." });
+      }
+    });
+
      // 🎯 Fetch auction data by ID (Socket event)
      socket.on("getAuctionData", async ({ auctionId }) => {
       try {

@@ -3,22 +3,25 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { selectWalletBalance } from "@/redux/authSlice";
-import config from "@/app/config_BASE_URL";
+import { useSocket } from "@/hooks/useSocket";
 import CatalogHeader from "./CatalogHeader";
 import CatalogDetails from "./CatalogDetails";
 import CatalogFooter from "./CatalogFooter";
 import Footer from "@/app/components/Footer";
 import Header from "@/app/components/Header";
-import { useSocket } from "@/hooks/useSocket";
+import config from "@/app/config_BASE_URL";
 
-// Notification Display Component
 const Notification = ({ type, message }) => {
-  const bgColor = type === "success" ? "bg-green-500" : type === "error" ? "bg-red-500" : "bg-blue-500";
+  const bgColor =
+    type === "success"
+      ? "bg-green-500"
+      : type === "error"
+      ? "bg-red-500"
+      : type === "warning"
+      ? "bg-yellow-500"
+      : "bg-blue-500"; // Use blue for admin messages (type: "info")
   return (
-    <div className={`${bgColor} text-white p-2 rounded mb-2 shadow-lg`}>
-      {message}
-    </div>
+    <div className={`${bgColor} text-white p-2 rounded mb-2 shadow-lg`}>{message}</div>
   );
 };
 
@@ -29,15 +32,14 @@ export default function CatalogPage() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const token = useSelector((state) => state.auth.token);
-  const walletBalance = useSelector(selectWalletBalance);
   const userId = useSelector((state) => state.auth._id);
   const router = useRouter();
-  const { socket, liveAuctions, joinAuction, notifications } = useSocket();
+  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications } =
+    useSocket();
 
   const fetchAuctionAndProduct = useCallback(async () => {
     if (!token || !auctionId) {
       setLoading(false);
-      addNotification("error", "Missing token or auction ID");
       return;
     }
 
@@ -52,6 +54,11 @@ export default function CatalogPage() {
       if (auctionData.status && auctionData.items) {
         const auctionResult = auctionData.items;
         setAuction(auctionResult);
+        setLiveAuctions((prev) => {
+          const exists = prev.find((a) => a.id === auctionId);
+          if (!exists) return [...prev, { ...auctionResult, id: auctionId }];
+          return prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult } : a));
+        });
 
         const productId = auctionResult.product._id;
         const productResponse = await fetch(`${config.baseURL}/v1/api/product/${productId}`, {
@@ -68,108 +75,56 @@ export default function CatalogPage() {
             description: productData.items.description,
             price: { min: productData.items.price, max: productData.items.price + 1000 },
           });
-        } else {
-          throw new Error("Invalid product data");
         }
-      } else {
-        throw new Error("Invalid auction data");
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      addNotification("error", error.message || "Failed to load auction or product details.");
-      setAuction(null);
-      setProduct(null);
     } finally {
       setLoading(false);
     }
-  }, [auctionId, token]);
-
-  // Custom notification handler (local to CatalogPage)
-  const [localNotifications, setLocalNotifications] = useState([]);
-  const addNotification = (type, message) => {
-    const id = Date.now();
-    setLocalNotifications((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setLocalNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 5000);
-  };
+  }, [auctionId, token, setLiveAuctions]);
 
   useEffect(() => {
     fetchAuctionAndProduct();
-  }, [fetchAuctionAndProduct]);
+    if (auctionId) getAuctionData(auctionId);
+  }, [auctionId, fetchAuctionAndProduct, getAuctionData]);
 
   useEffect(() => {
     if (auction?.auctionType === "LIVE" && socket) {
       joinAuction(auctionId);
-      const auctionTitle = auction?.product?.title || auctionId;
-      addNotification("success", `You joined auction: ${auctionTitle}`);
     }
   }, [socket, auction, auctionId, joinAuction]);
 
   useEffect(() => {
-    if (liveAuctions.length > 0 && auction) {
-      const updatedAuction = liveAuctions.find((a) => a.id === auctionId);
-      if (updatedAuction) {
-        setAuction((prev) => ({
-          ...prev,
-          currentBid: updatedAuction.currentBid || prev.currentBid,
-          currentBidder: updatedAuction.currentBidder || prev.currentBidder,
-          status: updatedAuction.status || prev.status,
-          winner: updatedAuction.winner || prev.winner,
-          watchers: updatedAuction.watchers || prev.watchers,
-        }));
-      }
+    const liveAuction = liveAuctions.find((a) => a.id === auctionId);
+    if (liveAuction) {
+      setAuction((prev) => ({ ...prev, ...liveAuction }));
     }
   }, [liveAuctions, auctionId]);
 
   const handlePlaceBid = async (bidAmount) => {
-    if (!auction) {
-      addNotification("error", "No auction data available.");
-      return;
-    }
-
-    const auctionTitle = auction.product?.title || auctionId;
-
-    if (bidAmount <= auction.currentBid) {
-      addNotification("error", `Bid on ${auctionTitle} must be higher than $${auction.currentBid}.`);
-      return;
-    }
-
-    if (!userId) {
-      addNotification("error", "User not authenticated.");
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/create-payment-intent", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: Math.round(bidAmount * 100),
-          currency: "usd",
-          metadata: {
-            userId,
-            auctionId,
-            bidAmount,
-            token,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create payment intent");
+    if (!auction) return;
+    if (auction.auctionType === "LIVE") {
+      placeBid(auctionId, bidAmount);
+    } else {
+      try {
+        const response = await fetch("/api/create-payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: Math.round(bidAmount * 100),
+            currency: "usd",
+            metadata: { userId, auctionId, bidAmount, token },
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to create payment intent");
+        const { clientSecret } = await response.json();
+        router.push(
+          `/checkout-intent?clientSecret=${clientSecret}&bidAmount=${bidAmount}&auctionId=${auctionId}&productId=${auction.product._id}&token=${token}&auctionType=${auction.auctionType}`
+        );
+      } catch (error) {
+        console.error("Payment intent error:", error);
       }
-
-      const { clientSecret } = await response.json();
-      router.push(
-        `/checkout-intent?clientSecret=${clientSecret}&bidAmount=${bidAmount}&auctionId=${auctionId}&productId=${auction.product._id}&token=${token}&auctionType=${auction.auctionType}`
-      );
-    } catch (error) {
-      console.error("Payment intent error:", error);
-      addNotification("error", error.message || `Failed to initiate checkout for ${auctionTitle}.`);
     }
   };
 
@@ -177,9 +132,8 @@ export default function CatalogPage() {
     <>
       <Header />
       <div className="bg-gray-50 mt-[80px] min-h-screen relative">
-        {/* Notification Display */}
         <div className="fixed top-20 right-4 z-50 w-80">
-          {[...notifications, ...localNotifications].map((notification) => (
+          {notifications.map((notification) => (
             <Notification
               key={notification.id}
               type={notification.type}
@@ -194,6 +148,7 @@ export default function CatalogPage() {
           loading={loading}
           onBidNowClick={handlePlaceBid}
           token={token}
+          notifications={notifications} // Pass notifications to CatalogDetails
         />
         <CatalogFooter />
       </div>
