@@ -1397,19 +1397,15 @@ export const stripeWebhookHandler = async (req, res) => {
         const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
 
         switch (event.type) {
-            case "payment_intent.succeeded": {
-                const paymentIntent = event.data.object;
-                console.log(`💰 Payment successful: ${paymentIntent.id}`);
+            // ✅ Successful Payment from Payment Link
+            case "checkout.session.completed": {
+                const session = event.data.object;
+                console.log(`💰 Payment successful: ${session.id}`);
 
-                // Retrieve Payment Intent details
-                const paymentDetails = await stripe.paymentIntents.retrieve(paymentIntent.id);
-                console.log("✅ Retrieved PaymentIntent:", paymentDetails);
+                if (session.metadata && session.metadata.auctionId) {
+                    const auctionId = session.metadata.auctionId;
 
-                // 🔹 Check if it's an Auction payment
-                if (paymentDetails.metadata && paymentDetails.metadata.auctionId) {
-                    const auctionId = paymentDetails.metadata.auctionId;
-
-                    // ✅ Update Auction payment_status to PAID
+                    // ✅ Update Auction as PAID
                     const updatedAuction = await auctionModel.findByIdAndUpdate(
                         auctionId,
                         { payment_status: "PAID" },
@@ -1425,21 +1421,26 @@ export const stripeWebhookHandler = async (req, res) => {
                 break;
             }
 
-            case "payment_intent.payment_failed": {
-                const paymentIntent = event.data.object;
-                console.log(`❌ Payment failed: ${paymentIntent.id}`);
+            // ❌ Payment Link Expired
+            case "checkout.session.expired": {
+                const session = event.data.object;
+                console.log(`⌛ Payment link expired: ${session.id}`);
 
-                // 🔹 Update Order with FAILED payment status
-                const updatedOrder = await auctionModel.findOneAndUpdate(
-                    { client_secret: paymentIntent.client_secret },
-                    { $set: { payment_status: "FAILED" } },
-                    { new: true }
-                );
+                if (session.metadata && session.metadata.auctionId) {
+                    const auctionId = session.metadata.auctionId;
 
-                if (!updatedOrder) {
-                    console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
-                } else {
-                    console.log("✅ Order updated with FAILED status:", updatedOrder);
+                    // ❌ Mark Auction as EXPIRED
+                    const updatedAuction = await auctionModel.findByIdAndUpdate(
+                        auctionId,
+                        { payment_status: "FAILED" },
+                        { new: true }
+                    );
+
+                    if (updatedAuction) {
+                        console.log(`⌛ Auction ${auctionId} marked as EXPIRED.`);
+                    } else {
+                        console.error(`❌ Auction not found for ID: ${auctionId}`);
+                    }
                 }
                 break;
             }
