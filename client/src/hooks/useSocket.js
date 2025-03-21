@@ -12,7 +12,6 @@ export const useSocket = () => {
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
 
-  // Add notification helper
   const addNotification = useCallback((type, message) => {
     const id = Date.now();
     setNotifications((prev) => [...prev, { id, type, message }]);
@@ -21,7 +20,6 @@ export const useSocket = () => {
     }, 5000);
   }, []);
 
-  // Initialize socket connection
   useEffect(() => {
     console.log("useSocket - userId:", userId, "token:", token);
     if (!userId || !token) {
@@ -54,7 +52,6 @@ export const useSocket = () => {
     };
   }, [userId, token]);
 
-  // Socket event listeners
   useEffect(() => {
     if (!socket || !isMounted) return;
 
@@ -71,27 +68,40 @@ export const useSocket = () => {
     socket.on("auctionData", (data) => {
       console.log("Received auctionData:", data);
       setLiveAuctions((prev) => {
-        const exists = prev.find((a) => a.auctionId === data.auctionId);
-        if (!exists) return [...prev, { ...data, id: data.auctionId }];
-        return prev.map((a) => (a.auctionId === data.auctionId ? { ...a, ...data, id: data.auctionId } : a));
+        const auctionId = data._id || data.auctionId; // Use _id from the auction data
+        if (!auctionId) {
+          console.error("Auction ID missing in auctionData:", data);
+          return prev;
+        }
+        const exists = prev.find((a) => a.id === auctionId);
+        if (!exists) {
+          console.log(`Adding new auction to liveAuctions: ${auctionId}`);
+          return [...prev, { ...data, id: auctionId }];
+        }
+        console.log(`Updating existing auction in liveAuctions: ${auctionId}`);
+        return prev.map((a) => (a.id === auctionId ? { ...a, ...data, id: auctionId } : a));
       });
     });
 
     socket.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids }) => {
-      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId });
-      setLiveAuctions((prev) =>
-        prev.map((auction) =>
-          auction.id === auctionId
-            ? {
-                ...auction,
-                currentBid: bidAmount,
-                currentBidder: bidderId,
-                minBidIncrement: minBidIncrement || auction.minBidIncrement,
-                bids: bids || auction.bids,
-              }
-            : auction
-        )
-      );
+      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids });
+      setLiveAuctions((prev) => {
+        const updatedAuctions = prev.map((auction) => {
+          if (auction.id === auctionId) {
+            console.log(`Updating auction ${auctionId} with new bid: ${bidAmount}`);
+            return {
+              ...auction,
+              currentBid: bidAmount,
+              currentBidder: bidderId,
+              minBidIncrement: minBidIncrement || auction.minBidIncrement,
+              bids: bids || auction.bids,
+            };
+          }
+          return auction;
+        });
+        console.log("Updated liveAuctions after bidUpdate:", updatedAuctions);
+        return updatedAuctions;
+      });
       if (bidderId !== userId) {
         addNotification("success", `New bid on auction ${auctionId}: $${bidAmount}`);
       }
@@ -189,6 +199,7 @@ export const useSocket = () => {
   const sendMessage = useCallback(
     (auctionId, message) => {
       if (socket && auctionId && message) {
+        console.log(`Sending message with userId: ${userId}`);
         socket.emit("sendMessage", { auctionId, message, userId });
         console.log(`Sent message to auction ${auctionId}: ${message}`);
       }
