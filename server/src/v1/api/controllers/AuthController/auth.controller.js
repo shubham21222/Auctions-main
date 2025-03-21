@@ -301,7 +301,7 @@ export const forgotPassword = async (req, res) => {
             <h2>Hello ${user.name},</h2>
         </div>
         <div class="content">
-            <p>We have received a request to reset your password for your account on <strong>Event Panel</strong>. If you did not request this change, you can ignore this email and your password will not be changed.</p>
+            <p>We have received a request to reset your password for your account on <strong>NY Elizabeth</strong>. If you did not request this change, you can ignore this email and your password will not be changed.</p>
             
             <p>To reset your password, please click on the following link and follow the instructions:</p>
             
