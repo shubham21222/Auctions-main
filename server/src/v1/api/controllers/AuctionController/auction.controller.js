@@ -1390,3 +1390,70 @@ export const getBidIncrement = async (req, res) => {
 
 
 
+export const stripeWebhookHandler = async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+
+    try {
+        const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+
+        switch (event.type) {
+            case "payment_intent.succeeded": {
+                const paymentIntent = event.data.object;
+                console.log(`💰 Payment successful: ${paymentIntent.id}`);
+
+                // Retrieve Payment Intent details
+                const paymentDetails = await stripe.paymentIntents.retrieve(paymentIntent.id);
+                console.log("✅ Retrieved PaymentIntent:", paymentDetails);
+
+                // 🔹 Check if it's an Auction payment
+                if (paymentDetails.metadata && paymentDetails.metadata.auctionId) {
+                    const auctionId = paymentDetails.metadata.auctionId;
+
+                    // ✅ Update Auction payment_status to PAID
+                    const updatedAuction = await auctionModel.findByIdAndUpdate(
+                        auctionId,
+                        { payment_status: "PAID" },
+                        { new: true }
+                    );
+
+                    if (updatedAuction) {
+                        console.log(`✅ Auction ${auctionId} marked as PAID.`);
+                    } else {
+                        console.error(`❌ Auction not found for ID: ${auctionId}`);
+                    }
+                }
+                break;
+            }
+
+            case "payment_intent.payment_failed": {
+                const paymentIntent = event.data.object;
+                console.log(`❌ Payment failed: ${paymentIntent.id}`);
+
+                // 🔹 Update Order with FAILED payment status
+                const updatedOrder = await auctionModel.findOneAndUpdate(
+                    { client_secret: paymentIntent.client_secret },
+                    { $set: { payment_status: "FAILED" } },
+                    { new: true }
+                );
+
+                if (!updatedOrder) {
+                    console.error("❌ Order not found for PaymentIntent:", paymentIntent.client_secret);
+                } else {
+                    console.log("✅ Order updated with FAILED status:", updatedOrder);
+                }
+                break;
+            }
+
+            default:
+                console.log(`⚠️ Unhandled event type: ${event.type}`);
+        }
+
+        res.status(200).send("Webhook received");
+    } catch (err) {
+        console.error("❌ Webhook verification failed:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+};
+
+
+

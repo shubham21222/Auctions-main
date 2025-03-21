@@ -25,7 +25,8 @@ const auctionSchema = new mongoose.Schema(
         status: { type: String, enum: ["ACTIVE", "ENDED"], default: "ACTIVE" },
         auctionType: { type: String, enum: ["LIVE", "TIMED"], default: "TIMED" },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-        Emailsend:{type:String , enum:['true' , 'false'] , default:'false'}
+        Emailsend:{type:String , enum:['true' , 'false'] , default:'false'},
+        payment_status: { type: String, enum:['PAID' , 'UNPAID' , 'PENDING' , 'FAILED'] , default:'UNPAID'},
     },
     {
         timestamps: true,

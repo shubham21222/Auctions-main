@@ -4,7 +4,7 @@ import { notFoundMiddleware } from "./src/v1/api/middlewares/notfoundmiddleware.
 import Routerlocation from "./src/v1/api/index.js";
 import { badRequest } from './src/v1/api/formatters/globalResponse.js';
 import compression from 'compression';
-import { stripeWebhook } from "./src/v1/api/controllers/AuctionController/auction.controller.js";
+import { stripeWebhook , stripeWebhookHandler} from "./src/v1/api/controllers/AuctionController/auction.controller.js";
 import path from "path";
 import { Orderwebhook } from "./src/v1/api/controllers/OrderController/order.controller.js";
 
@@ -18,7 +18,7 @@ import morgan from 'morgan';
 
 // Stripe webhook for order create
 app.post("/v1/api/auction/order-webhook", express.raw({ type: "application/json" }), Orderwebhook);
-
+app.post("/v1/api/auction/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhookHandler);
 // Prevent express.json() from affecting webhooks
 app.use((req, res, next) => {
   if (req.originalUrl.startsWith("/v1/api/auction/stripe-webhook") || req.originalUrl.startsWith("/v1/api/auction/order-webhook")) {
