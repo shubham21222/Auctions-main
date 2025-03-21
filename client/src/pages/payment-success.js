@@ -4,6 +4,7 @@ import { CheckCircle2, Package, Clock, Truck } from "lucide-react";
 import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import "../app/globals.css";
 
 const PaymentSuccess = () => {
   return (
