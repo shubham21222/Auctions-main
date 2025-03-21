@@ -37,7 +37,6 @@ export default function CatalogPage() {
   const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications } =
     useSocket();
 
-  // Join auction room as soon as socket and slug are available
   useEffect(() => {
     if (socket && slug) {
       socket.emit("joinAuction", { auctionId: slug });
@@ -45,7 +44,6 @@ export default function CatalogPage() {
     }
   }, [socket, slug]);
 
-  // Listen for auction messages
   useEffect(() => {
     if (!socket) return;
 
@@ -92,11 +90,16 @@ export default function CatalogPage() {
       const auctionData = await auctionResponse.json();
       if (auctionData.status && auctionData.items) {
         const auctionResult = { ...auctionData.items, messages: auctionData.items.messages || [] };
+        console.log("Fetched auction data:", auctionResult);
         setAuction(auctionResult);
         setLiveAuctions((prev) => {
           const exists = prev.find((a) => a.id === auctionId);
-          if (!exists) return [...prev, { ...auctionResult, id: auctionId }];
-          return prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult } : a));
+          if (!exists) {
+            console.log(`Adding auction ${auctionId} to liveAuctions`);
+            return [...prev, { ...auctionResult, id: auctionId }];
+          }
+          console.log(`Updating auction ${auctionId} in liveAuctions`);
+          return prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a));
         });
 
         const productId = auctionResult.product._id;
@@ -129,9 +132,20 @@ export default function CatalogPage() {
   }, [auctionId, fetchAuctionAndProduct, getAuctionData]);
 
   useEffect(() => {
+    console.log("liveAuctions updated:", liveAuctions);
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
     if (liveAuction) {
-      setAuction((prev) => ({ ...prev, ...liveAuction, messages: prev?.messages || [] }));
+      setAuction((prev) => {
+        if (!prev) {
+          console.log("Previous auction state is null, setting new state:", liveAuction);
+          return { ...liveAuction, messages: [] };
+        }
+        const updatedAuction = { ...prev, ...liveAuction, messages: prev.messages || [] };
+        console.log("Updated auction state with liveAuction data:", updatedAuction);
+        return updatedAuction;
+      });
+    } else {
+      console.log(`No liveAuction found for auctionId: ${auctionId} in liveAuctions:`, liveAuctions);
     }
   }, [liveAuctions, auctionId]);
 
@@ -177,7 +191,7 @@ export default function CatalogPage() {
         <div className="container mx-auto px-4 py-8 mt-[80px]">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <CatalogHeader productName={product?.name} auctionEndDate={auction?.endDate} />
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 p-6">
               <div className="lg:col-span-7 space-y-6">
                 <CatalogDetails
                   product={product}
@@ -189,43 +203,6 @@ export default function CatalogPage() {
                   socket={socket}
                   messages={auction?.messages || []}
                 />
-              </div>
-              <div className="lg:col-span-5">
-                <div className="sticky top-24">
-                  <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Auction Details</h2>
-                    {auction && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Current Bid</span>
-                          <span className="text-2xl font-bold text-blue-600">
-                            ${auction.currentBid?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Starting Price</span>
-                          <span className="text-lg font-semibold text-gray-900">
-                            ${auction.startingBid?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Time Left</span>
-                          <span className="text-lg font-semibold text-red-600">
-                            {new Date(auction.endDate).toLocaleString()}
-                          </span>
-                        </div>
-                        {/* <div className="pt-4 border-t">
-                          <button
-                            onClick={() => handlePlaceBid(auction.currentBid + 100)}
-                            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold"
-                          >
-                            Place Bid
-                          </button>
-                        </div> */}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
             <CatalogFooter />

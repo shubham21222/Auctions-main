@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link"; // Import Link for navigation to /terms page
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const [bidAmount, setBidAmount] = useState("");
   const [adminMessages, setAdminMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [termsAccepted, setTermsAccepted] = useState(false); // State for terms checkbox
   const userId = useSelector((state) => state.auth._id);
 
   const SkeletonCard = () => (
@@ -69,7 +71,6 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     [token, userCache]
   );
 
-  // Update bids with usernames
   useEffect(() => {
     if (!auction?.bids) {
       setBidsWithUsernames([]);
@@ -94,7 +95,6 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     updateBidsWithUsernames();
   }, [auction, fetchUserName]);
 
-  // Update admin messages when messages prop changes
   useEffect(() => {
     console.log("Messages prop updated:", messages);
     if (messages && Array.isArray(messages)) {
@@ -118,6 +118,10 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     }
     if (!auction) {
       toast.error("No active auction available");
+      return;
+    }
+    if (!termsAccepted) {
+      toast.error("You must accept the terms and conditions to join the auction.");
       return;
     }
 
@@ -197,7 +201,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
                     className={`relative w-20 h-20 md:w-24 md:h-24 flex-shrink-0 overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group ${
-                      selectedImageIndex === index ? 'ring-2 ring-blue-500' : ''
+                      selectedImageIndex === index ? "ring-2 ring-blue-500" : ""
                     }`}
                   >
                     <Image
@@ -242,36 +246,54 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Current Bid</span>
                     <span className="text-2xl font-bold text-blue-600">
-                      ${auction.currentBid?.toLocaleString()}
+                      ${auction.currentBid?.toLocaleString() || "0"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Minimum Bid</span>
                     <span className="text-lg font-semibold text-gray-900">
-                      ${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}
+                      ${(auction.currentBid + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Bid Increment</span>
                     <span className="text-lg font-semibold text-gray-900">
-                      ${getBidIncrement(auction.currentBid).toLocaleString()}
+                      ${getBidIncrement(auction.currentBid || 0).toLocaleString()}
                     </span>
                   </div>
                   {!isJoined ? (
-                    <Button
-                      onClick={handleJoinAuction}
-                      className="w-full bg-green-500 text-white hover:bg-green-600"
-                    >
-                      Join Auction
-                    </Button>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="terms"
+                          checked={termsAccepted}
+                          onChange={(e) => setTermsAccepted(e.target.checked)}
+                          className="h-5 w-5 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                        />
+                        <label htmlFor="terms" className="text-gray-600 text-sm">
+                          I agree to the{" "}
+                          <Link href="/terms" className="text-blue-600 hover:underline">
+                            Terms and Conditions
+                          </Link>
+                        </label>
+                      </div>
+                      <Button
+                        onClick={handleJoinAuction}
+                        className="w-full bg-green-500 text-white hover:bg-green-600"
+                        disabled={!termsAccepted} // Disable button if terms are not accepted
+                      >
+                        Join Auction
+                      </Button>
+                    </div>
                   ) : auction.status !== "ENDED" ? (
                     <form onSubmit={handleBidSubmit} className="space-y-4">
                       <Input
                         type="number"
                         value={bidAmount}
                         onChange={(e) => setBidAmount(e.target.value)}
-                        placeholder={`Enter at least $${(auction.currentBid + getBidIncrement(auction.currentBid)).toLocaleString()}`}
-                        min={auction.currentBid + getBidIncrement(auction.currentBid)}
+                        placeholder={`Enter at least $${(auction.currentBid + getBidIncrement(auction.currentBid || 0)).toLocaleString()}`}
+                        min={auction.currentBid + getBidIncrement(auction.currentBid || 0)}
                         className="w-full border-gray-300 focus:border-blue-500"
                         disabled={auction.status === "ENDED"}
                       />
