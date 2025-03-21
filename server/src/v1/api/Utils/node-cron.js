@@ -76,7 +76,7 @@ export const createPaymentLink = async (amount, currency, productName, metadata)
             ],
             after_completion: {
                 type: "redirect",
-                redirect: { url: "https://yourwebsite.com/payment-success" }, // Success URL
+                redirect: { url: "https://bid.nyelizabeth.com/payment-success" }, // Success URL
             },
             metadata: metadata,
         });

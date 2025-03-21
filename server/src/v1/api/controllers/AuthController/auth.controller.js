@@ -30,7 +30,7 @@ const generateResetPasswordToken = () => {
 
 // Register User //
 export const register = async (req, res , next) => {
-    const { email, password } = req.body;
+    const { email, password , BillingDetails} = req.body;
     try {
 
         const existingUser = await User.findOne({ email });
@@ -52,6 +52,7 @@ export const register = async (req, res , next) => {
             role: req.body.role,
             passwordResetToken: resetToken,
             passwordResetExpires: passwordResetExpires,
+            BillingDetails:BillingDetails
         }
 
         if(password){
