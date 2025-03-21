@@ -36,7 +36,6 @@ export default function Home() {
     <>
       <Header />
       <div className="relative mx-auto max-w-[100vw] lg:mx-[50px] md:mx-[30px] sm:mx-[12px] mt-[80px] rounded-[20px] overflow-hidden h-[82vh]">
-        {/* Preload the tiny placeholder image */}
         <link
           rel="preload"
           href={placeholderImage}
