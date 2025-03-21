@@ -354,6 +354,7 @@ export const getAuctions = async (req, res) => {
                     startingBid: 1,
                     currentBid: 1,
                     currentBidder: 1,
+                    payment_status:1,
                     status: 1,
                     startDate: 1,
                     endDate: 1,
@@ -509,6 +510,7 @@ export const getAuctionById = async (req, res) => {
                     winner: 1,
                     minBidIncrement: 1,
                     lotNumber: 1,
+                    payment_status:1,
                     bids: 1,
                     winnerBidTime: 1,
                     auctionType: 1,
@@ -1063,6 +1065,7 @@ export const getAuctionDetails = async (req, res) => {
                     status: { $first: "$status" },
                     auctionType: { $first: "$auctionType" },
                     startDate: { $first: "$startDate" },
+                    payment_status:{ $first: "$payment_status" },
                     endDate: { $first: "$endDate" },
                     participants:{
                         $push:{
@@ -1181,6 +1184,7 @@ export const getUserAuctions = async (req, res) => {
                     endDate: 1,
                     lotNumber: 1,
                     auctionType: 1,
+                    payment_status:1,
                     currentBidder: {
                         _id: 1,
                         name: 1,
