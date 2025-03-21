@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link"; // Import Link for navigation to /terms page
+import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const [bidAmount, setBidAmount] = useState("");
   const [adminMessages, setAdminMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [termsAccepted, setTermsAccepted] = useState(false); // State for terms checkbox
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const userId = useSelector((state) => state.auth._id);
 
   const SkeletonCard = () => (
@@ -281,7 +281,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                       <Button
                         onClick={handleJoinAuction}
                         className="w-full bg-green-500 text-white hover:bg-green-600"
-                        disabled={!termsAccepted} // Disable button if terms are not accepted
+                        disabled={!termsAccepted}
                       >
                         Join Auction
                       </Button>
@@ -302,7 +302,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                         className="w-full bg-blue-500 text-white hover:bg-blue-600"
                         disabled={auction.status === "ENDED"}
                       >
-                        {auction.auctionType === "LIVE" ? "Place Bid" : "Proceed to Checkout"}
+                        Place Bid {/* Always "Place Bid" for both LIVE and timed auctions */}
                       </Button>
                     </form>
                   ) : null}

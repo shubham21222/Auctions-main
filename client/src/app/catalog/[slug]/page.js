@@ -151,28 +151,9 @@ export default function CatalogPage() {
 
   const handlePlaceBid = async (bidAmount) => {
     if (!auction) return;
-    if (auction.auctionType === "LIVE") {
-      placeBid(auctionId, bidAmount);
-    } else {
-      try {
-        const response = await fetch("/api/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: Math.round(bidAmount * 100),
-            currency: "usd",
-            metadata: { userId, auctionId, bidAmount, token },
-          }),
-        });
-        if (!response.ok) throw new Error("Failed to create payment intent");
-        const { clientSecret } = await response.json();
-        router.push(
-          `/checkout-intent?clientSecret=${clientSecret}&bidAmount=${bidAmount}&auctionId=${auctionId}&productId=${auction.product._id}&token=${token}&auctionType=${auction.auctionType}`
-        );
-      } catch (error) {
-        console.error("Payment intent error:", error);
-      }
-    }
+
+    // Remove the auctionType check and always use placeBid for both LIVE and timed auctions
+    placeBid(auctionId, bidAmount);
   };
 
   return (
