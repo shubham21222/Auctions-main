@@ -110,10 +110,10 @@ const sendPaymentEmail = async (email, paymentLink, auctionTitle, bidAmount , pr
         let mailOptions = {
             from: process.env.CLIENT_EMAIL,
             to: email,
-            subject: `🎉 Congratulations! You Won the Auction for ${productTitle} (Lot ${auctionTitle})`,
+            subject: `🎉 Congratulations! You Won the Auction for ${productTitle} (${auctionTitle})`,
             html: `<p>Dear ${name || ""},</p>
         
-                   <p>Congratulations! You have won the auction for <b>${productTitle}</b> (Lot <b>${auctionTitle}</b>).</p>
+                   <p>Congratulations! You have won the auction for <b>${productTitle}</b> (<b>${auctionTitle}</b>).</p>
                    
                    <p><strong>Winning Bid:</strong> $${bidAmount}</p>
                    
