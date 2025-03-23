@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import BidHistory from "./BidHistory";
 import config from "@/app/config_BASE_URL";
+import BillingDetailsModal from "./BillingDetailsModal";
 
 // Bid increment rules
 const getBidIncrement = (currentBid) => {
@@ -36,6 +37,8 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const [adminMessages, setAdminMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [hasBillingDetails, setHasBillingDetails] = useState(null); // null = not checked yet
   const userId = useSelector((state) => state.auth._id);
 
   const SkeletonCard = () => (
@@ -70,6 +73,39 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     },
     [token, userCache]
   );
+
+  // Fetch billing details from API
+  const checkBillingDetails = useCallback(async () => {
+    if (!userId || !token) {
+      setHasBillingDetails(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/v1/api/auth/getUserByBillingAddress/${userId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status && data.items?.BillingDetails?.length > 0) {
+        setHasBillingDetails(true);
+      } else {
+        setHasBillingDetails(false);
+      }
+    } catch (error) {
+      console.error("Error fetching billing details:", error);
+      setHasBillingDetails(false); // Default to false on error
+    }
+  }, [userId, token]);
+
+  useEffect(() => {
+    if (userId) {
+      checkBillingDetails();
+    }
+  }, [userId, checkBillingDetails]);
 
   useEffect(() => {
     if (!auction?.bids) {
@@ -124,6 +160,15 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       toast.error("You must accept the terms and conditions to join the auction.");
       return;
     }
+    if (hasBillingDetails === null) {
+      toast.error("Checking billing details, please wait...");
+      return;
+    }
+    if (!hasBillingDetails) {
+      setIsBillingModalOpen(true);
+      toast.error("Please provide your billing details to join the auction.");
+      return;
+    }
 
     try {
       const response = await fetch(`${config.baseURL}/v1/api/auction/join?userId=${userId}`, {
@@ -146,6 +191,17 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
 
   const handleBidSubmit = (e) => {
     e.preventDefault();
+
+    if (hasBillingDetails === null) {
+      toast.error("Checking billing details, please wait...");
+      return;
+    }
+    if (!hasBillingDetails) {
+      setIsBillingModalOpen(true);
+      toast.error("Please provide your billing details to place a bid.");
+      return;
+    }
+
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
     const minBid = currentBid + bidIncrement;
@@ -164,6 +220,11 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     const roundedBid = Math.round(bidValue * 100) / 100;
     onBidNowClick(roundedBid);
     setBidAmount("");
+  };
+
+  const handleBillingUpdate = (normalizedDetails) => {
+    setIsBillingModalOpen(false);
+    setHasBillingDetails(true); // Update state after successful submission
   };
 
   const combinedHistory = [
@@ -281,7 +342,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                       <Button
                         onClick={handleJoinAuction}
                         className="w-full bg-green-500 text-white hover:bg-green-600"
-                        disabled={!termsAccepted}
+                        disabled={!termsAccepted || hasBillingDetails === null}
                       >
                         Join Auction
                       </Button>
@@ -302,7 +363,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                         className="w-full bg-blue-500 text-white hover:bg-blue-600"
                         disabled={auction.status === "ENDED"}
                       >
-                        Place Bid {/* Always "Place Bid" for both LIVE and timed auctions */}
+                        Place Bid
                       </Button>
                     </form>
                   ) : null}
@@ -388,6 +449,12 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
           )}
         </div>
       </div>
+
+      <BillingDetailsModal
+        isOpen={isBillingModalOpen}
+        onClose={() => setIsBillingModalOpen(false)}
+        onBillingUpdate={handleBillingUpdate}
+      />
     </div>
   );
 }
