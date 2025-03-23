@@ -82,7 +82,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/v1/api/auth/getUserByBillingAddress/${userId}`, {
+      const response = await fetch(`http://bid.nyelizabeth.com/v1/api/auth/getUserByBillingAddress/${userId}`, {
         method: "GET",
         headers: {
           Authorization: `${token}`,
