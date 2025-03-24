@@ -223,6 +223,7 @@ cron.schedule("*/1 * * * *", async () => {
                     console.error(`❌ Failed to send email to ${findUser.email}`);
                 }
             }
+            
         }
 
         console.log(`✅ ${expiredAuctions.length} auctions updated to ENDED, emails sent where needed.`);
