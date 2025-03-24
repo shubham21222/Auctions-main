@@ -256,7 +256,7 @@ export default function CheckoutContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen mt-[60px] bg-gray-50 py-10 flex justify-center items-center">
+      <div className="min-h-screen mt-[60px] bg-gradient-to-b from-gray-50 to-white py-10 flex justify-center items-center">
         <div className="max-w-7xl w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="animate-pulse">
             <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto mb-6"></div>
@@ -283,80 +283,153 @@ export default function CheckoutContent() {
   console.log("Rendering - billingDetails:", billingDetails, "apiBillingDetails:", apiBillingDetails);
 
   return (
-    <div className="min-h-screen mt-[60px] bg-gray-50 py-10 flex justify-center items-center">
-      <div className="max-w-7xl w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50 -z-10"></div>
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Secure Checkout</h1>
+    <div className="min-h-screen mt-[60px] bg-gradient-to-b from-gray-50 to-white py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50 -z-10"></div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+          
+          <div className="p-8">
+            <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Secure Checkout</h1>
+            <p className="text-center text-gray-600 mb-8">Complete your purchase with confidence</p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            {apiBillingDetails === null || apiBillingDetails.length === 0 ? (
-              <BillingDetailsForm token={token} onBillingUpdate={handleBillingUpdate} />
-            ) : (
-              <div className="p-4 bg-gray-50 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Billing Details</h3>
-                <p>First Name: {billingDetails?.firstName || ""}</p>
-                <p>Last Name: {billingDetails?.lastName || ""}</p>
-                <p>Street Address: {billingDetails?.address || ""}</p>
-                <p>City: {billingDetails?.city || ""}</p>
-                <p>State: {billingDetails?.state || ""}</p>
-                <p>ZIP Code: {billingDetails?.zipCode || ""}</p>
-                <p>Country: {billingDetails?.country || ""}</p>
-                <p>Phone: {billingDetails?.phone || ""}</p>
-                <p>Email: {billingDetails?.email || ""}</p>
-                <button
-                  onClick={() => setApiBillingDetails([])}
-                  className="mt-2 text-blue-500 hover:text-blue-700 underline"
-                >
-                  Edit Billing Details
-                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                {apiBillingDetails === null || apiBillingDetails.length === 0 ? (
+                  <BillingDetailsForm token={token} onBillingUpdate={handleBillingUpdate} />
+                ) : (
+                  <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-gray-700">Billing Details</h3>
+                      <button
+                        onClick={() => setApiBillingDetails([])}
+                        className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        Edit Details
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Name</p>
+                        <p className="font-medium">{`${billingDetails?.firstName || ""} ${billingDetails?.lastName || ""}`}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium">{billingDetails?.email || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="font-medium">{billingDetails?.phone || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Address</p>
+                        <p className="font-medium">{billingDetails?.address || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">City</p>
+                        <p className="font-medium">{billingDetails?.city || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">State</p>
+                        <p className="font-medium">{billingDetails?.state || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">ZIP Code</p>
+                        <p className="font-medium">{billingDetails?.zipCode || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Country</p>
+                        <p className="font-medium">{billingDetails?.country || ""}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="p-6 border rounded-2xl bg-gray-50 shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">Your Offer</h2>
-            {productDetails.productImage ? (
-              <Image
-                src={decodeURIComponent(productDetails.productImage)}
-                alt={productDetails.productName}
-                width={200}
-                height={200}
-                className="rounded-lg w-full object-cover mb-4 shadow-md"
-              />
-            ) : (
-              <div className="w-full h-48 bg-gray-200 animate-pulse rounded-lg mb-4" />
-            )}
-            <p className="text-gray-700 font-medium">{productDetails.productName}</p>
-            <div className="mt-4 text-gray-600 space-y-1">
-              <p>Product Price (On Hold): <span className="font-bold text-lg">${parseFloat(productDetails.offerPrice).toLocaleString()}</span></p>
-              <p>Auction Fee (Charged): <span className="font-bold text-red-500">+$100</span></p>
-              <p className="text-lg font-semibold">Total Authorized: <span className="font-bold text-green-600">${(parseFloat(productDetails.offerPrice) + 100).toLocaleString()}</span></p>
+              <div className="lg:col-span-1">
+                <div className="sticky top-8">
+                  <div className="p-6 border rounded-xl bg-white shadow-sm">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Order Summary</h2>
+                    {productDetails.productImage ? (
+                      <div className="relative aspect-square mb-4 rounded-lg overflow-hidden">
+                        <Image
+                          src={decodeURIComponent(productDetails.productImage)}
+                          alt={productDetails.productName}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-square bg-gray-200 animate-pulse rounded-lg mb-4" />
+                    )}
+                    <p className="text-gray-700 font-medium mb-4">{productDetails.productName}</p>
+                    
+                    <div className="space-y-3 py-4 border-t border-b">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Product Price (On Hold)</span>
+                        <span className="font-semibold">${parseFloat(productDetails.offerPrice).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Auction Fee</span>
+                        <span className="font-semibold text-red-500">+$100</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="text-lg font-semibold">Total Authorized</span>
+                        <span className="text-lg font-bold text-green-600">${(parseFloat(productDetails.offerPrice) + 100).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <Elements stripe={stripePromise}>
+                        <CheckoutForm
+                          productDetails={productDetails}
+                          userId={userId}
+                          token={token}
+                          billingDetails={billingDetails}
+                          orderId={orderId}
+                          paymentIntentClientSecret={paymentIntentClientSecret}
+                          onError={setError}
+                        />
+                      </Elements>
+                    </div>
+
+                    {error && (
+                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-600 text-sm">{error}</p>
+                      </div>
+                    )}
+                    
+                    {isSubmitDisabled && (
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-yellow-600 text-sm">Please complete all required fields to proceed.</p>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 text-center mt-4">
+                      By submitting, you agree to our{" "}
+                      <Link href="/terms" className="text-blue-600 hover:underline">
+                        terms and conditions
+                      </Link>
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => router.back()} 
+                    className="mt-4 w-full text-gray-600 hover:text-gray-800 font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                    </svg>
+                    Go Back
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <Elements stripe={stripePromise}>
-              <CheckoutForm
-                productDetails={productDetails}
-                userId={userId}
-                token={token}
-                billingDetails={billingDetails}
-                orderId={orderId}
-                paymentIntentClientSecret={paymentIntentClientSecret}
-                onError={setError}
-              />
-            </Elements>
-
-            {error && <p className="text-red-500 text-center mt-2">{error}</p>}
-            {isSubmitDisabled && <p className="text-red-500 text-center mt-2">Please complete all required fields.</p>}
-            <p className="text-xs text-gray-500 text-center mt-3">
-              By submitting, you agree to our <Link href="/terms" className="text-blue-600 hover:underline">terms and conditions</Link>.
-            </p>
           </div>
         </div>
-
-        <button onClick={() => router.back()} className="mt-6 text-blue-500 hover:text-blue-700 underline block text-center transition-colors">
-          Go Back
-        </button>
       </div>
     </div>
   );

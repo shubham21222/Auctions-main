@@ -285,7 +285,7 @@ const MainHeader = ({
               <Link href="/FAQs" className="hover:text-purple-600">
                 FAQ
               </Link>
-              <Link href="/participated-auctions" className="hover:text-purple-600">
+              <Link href="/Auctions" className="hover:text-purple-600">
                 Auctions
               </Link>
               <Link href="/Buy-now" className="hover:text-purple-600">

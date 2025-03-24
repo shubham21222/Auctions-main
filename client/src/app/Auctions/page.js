@@ -144,7 +144,7 @@ export default function AuctionCalendar() {
         setLiveAuctions(liveAuctionsData);
         liveAuctionsData.forEach((auction) => joinAuction(auction.id));
 
-        toast.success("Auctions loaded successfully!");
+        // toast.success("Auctions loaded successfully!");
       } else {
         throw new Error(auctionsData.message);
       }
@@ -189,7 +189,7 @@ export default function AuctionCalendar() {
   return (
     <>
       <Header />
-      <LuxuryBackground />
+      {/* <LuxuryBackground /> */}
       <div className="container relative mx-auto px-4 mt-[40px] py-12">
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">

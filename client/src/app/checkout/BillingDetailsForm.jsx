@@ -112,138 +112,191 @@ export default function BillingDetailsForm({ token, onBillingUpdate }) {
   };
 
   return (
-    <div className="p-6 border rounded-2xl bg-gray-50 shadow-sm">
-      <h2 className="text-xl font-semibold mb-4 text-gray-700">Billing Details</h2>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+      <h2 className="text-xl font-semibold mb-6 text-gray-700">Billing Details</h2>
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">First Name</label>
+            <input
+              name="firstName"
+              type="text"
+              placeholder="Enter your first name"
+              value={billingDetails.firstName}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Last Name</label>
+            <input
+              name="lastName"
+              type="text"
+              placeholder="Enter your last name"
+              value={billingDetails.lastName}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Company Name (Optional)</label>
           <input
-            name="firstName"
+            name="companyName"
             type="text"
-            placeholder="First Name"
-            value={billingDetails.firstName}
+            placeholder="Enter your company name"
+            value={billingDetails.companyName}
             onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             disabled={loading}
           />
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Street Address</label>
           <input
-            name="lastName"
+            name="address"
             type="text"
-            placeholder="Last Name"
-            value={billingDetails.lastName}
+            placeholder="Enter your street address"
+            value={billingDetails.address}
             onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             required
             disabled={loading}
           />
         </div>
-        <input
-          name="companyName"
-          type="text"
-          placeholder="Company Name (Optional)"
-          value={billingDetails.companyName}
-          onChange={handleInputChange}
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={loading}
-        />
-        <input
-          name="address"
-          type="text"
-          placeholder="Street Address"
-          value={billingDetails.address}
-          onChange={handleInputChange}
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-          disabled={loading}
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">City</label>
+            <input
+              name="city"
+              type="text"
+              placeholder="Enter your city"
+              value={billingDetails.city}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">State</label>
+            <input
+              name="state"
+              type="text"
+              placeholder="Enter your state"
+              value={billingDetails.state}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">ZIP Code</label>
+            <input
+              name="zipCode"
+              type="text"
+              placeholder="Enter your ZIP code"
+              value={billingDetails.zipCode}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Phone</label>
+            <input
+              name="phone"
+              type="text"
+              placeholder="Enter your phone number"
+              value={billingDetails.phone}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              required
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Email Address</label>
           <input
-            name="city"
-            type="text"
-            placeholder="City"
-            value={billingDetails.city}
+            name="email"
+            type="email"
+            placeholder="Enter your email address"
+            value={billingDetails.email}
             onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-            disabled={loading}
-          />
-          <input
-            name="state"
-            type="text"
-            placeholder="State"
-            value={billingDetails.state}
-            onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             required
             disabled={loading}
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            name="zipCode"
-            type="text"
-            placeholder="ZIP Code"
-            value={billingDetails.zipCode}
-            onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Country</label>
+          <select
+            name="country"
+            value={billingDetails.country}
+            onChange={handleCountryChange}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             disabled={loading}
-          />
-          <input
-            name="phone"
-            type="text"
-            placeholder="Phone"
-            value={billingDetails.phone}
-            onChange={handleInputChange}
-            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+          >
+            <option value="">Select a country</option>
+            {Object.entries(countryList).map(([code, name]) => (
+              <option key={code} value={code}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Order Notes (Optional)</label>
+          <textarea
+            name="orderNotes"
+            placeholder="Add any additional notes for your order"
+            value={billingDetails.orderNotes}
+            onChange={handleInputChange}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors min-h-[100px] resize-y"
             disabled={loading}
           />
         </div>
-        <input
-          name="email"
-          type="email"
-          placeholder="Email Address"
-          value={billingDetails.email}
-          onChange={handleInputChange}
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-          disabled={loading}
-        />
-        <select
-          name="country"
-          value={billingDetails.country}
-          onChange={handleCountryChange}
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={loading}
-          required
-        >
-          <option value="">Select a country</option>
-          {Object.entries(countryList).map(([code, name]) => (
-            <option key={code} value={code}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <textarea
-          name="orderNotes"
-          placeholder="Order Notes (Optional)"
-          value={billingDetails.orderNotes}
-          onChange={handleInputChange}
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={loading}
-        />
+
         <button
           type="button"
           onClick={handleUpdateBilling}
           disabled={loading}
-          className={`w-full mt-4 bg-blue-600 text-white py-2 rounded-lg transition duration-300 ${
-            loading ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
+          className={`w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-medium transition duration-300 ${
+            loading ? "opacity-50 cursor-not-allowed" : "hover:from-blue-700 hover:to-indigo-700"
           }`}
         >
-          {loading ? "Updating..." : "Update Billing Address"}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Updating...
+            </div>
+          ) : (
+            "Update Billing Address"
+          )}
         </button>
-        {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
       </div>
     </div>
   );

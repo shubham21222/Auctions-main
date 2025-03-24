@@ -44,7 +44,7 @@ export default function LatestProducts() {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="text-4xl font-bold text-center bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4"
+                    className="text-4xl font-bold text-center text-gray-800 mb-6"
                 >
                     Latest Luxury Arrivals
                 </motion.h2>
@@ -102,7 +102,7 @@ export default function LatestProducts() {
                 >
                     <a
                         href="/buy-now"
-                        className="inline-block px-8 py-3 bg-gradient-to-r from-primary to-primary/60 text-white rounded-full hover:shadow-lg transition-all duration-300"
+                        className="inline-block px-8 py-3 bg-blue-900 text-white rounded-full hover:shadow-lg transition-all duration-300"
                     >
                         Explore All Products
                     </a>
