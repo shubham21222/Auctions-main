@@ -166,7 +166,7 @@ export default function Home() {
       <LuxuryBackground />
       <main className="min-h-screen pt-[100px]">
         <div className="container mx-auto px-6 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold text-gray-800">
             Explore Our Products
           </h1>
         </div>
@@ -239,7 +239,7 @@ export default function Home() {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 rounded-full bg-gradient-to-r from-primary to-primary/60 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                    className="px-4 py-2 rounded-full bg-blue-900 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
                   >
                     Previous
                   </button>
@@ -264,7 +264,7 @@ export default function Home() {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 rounded-full bg-gradient-to-r from-primary to-primary/60 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                    className="px-4 py-2 rounded-full bg-blue-900 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
                   >
                     Next
                   </button>
