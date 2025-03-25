@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
@@ -19,7 +18,7 @@ const getBidIncrement = (currentBid) => {
   if (currentBid >= 250000) return 10000;
   if (currentBid >= 100000) return 5000;
   if (currentBid >= 50000) return 2500;
-  if (currentBid >= 25000) return 1000;
+  if (currentBid >= 25025) return 1000;
   if (currentBid >= 10000) return 500;
   if (currentBid >= 5000) return 250;
   if (currentBid >= 1000) return 100;
@@ -33,13 +32,13 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   const [isJoined, setIsJoined] = useState(false);
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
-  const [bidAmount, setBidAmount] = useState("");
   const [adminMessages, setAdminMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [hasBillingDetails, setHasBillingDetails] = useState(null); // null = not checked yet
-  const userId = useSelector((state) => state.auth._id);
+
+  const userId = useSelector((state) => state.auth.user?._id);
 
   const SkeletonCard = () => (
     <div className="group relative bg-white rounded-lg shadow-md overflow-hidden">
@@ -56,6 +55,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       if (!token || !id) return id;
       if (userCache[id]) return userCache[id];
 
+      console.log(`Fetching user name for ID: ${id}`);
       try {
         const response = await fetch(`${config.baseURL}/v1/api/auth/getUserById/${id}`, {
           method: "GET",
@@ -63,7 +63,8 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
         });
         if (!response.ok) throw new Error("Failed to fetch user");
         const data = await response.json();
-        const userName = data.items?.name || id;
+        console.log(`User data for ${id}:`, data);
+        const userName = data.data?.name || id;
         setUserCache((prev) => ({ ...prev, [id]: userName }));
         return userName;
       } catch (error) {
@@ -77,12 +78,14 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   // Fetch billing details from API
   const checkBillingDetails = useCallback(async () => {
     if (!userId || !token) {
+      console.log("No userId or token available:", { userId, token });
       setHasBillingDetails(false);
       return;
     }
 
+    console.log(`Checking billing details for userId: ${userId}`);
     try {
-      const response = await fetch(`http://bid.nyelizabeth.com/v1/api/auth/getUserByBillingAddress/${userId}`, {
+      const response = await fetch(`${config.baseURL}/v1/api/auth/getUserByBillingAddress/${userId}`, {
         method: "GET",
         headers: {
           Authorization: `${token}`,
@@ -90,9 +93,13 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
       });
 
       const data = await response.json();
+      console.log("Billing details response:", data);
+
       if (response.ok && data.status && data.items?.BillingDetails?.length > 0) {
+        console.log("Billing details found, setting hasBillingDetails to true");
         setHasBillingDetails(true);
       } else {
+        console.log("No billing details found, setting hasBillingDetails to false");
         setHasBillingDetails(false);
       }
     } catch (error) {
@@ -102,6 +109,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
   }, [userId, token]);
 
   useEffect(() => {
+    console.log("User ID from Redux:", userId);
     if (userId) {
       checkBillingDetails();
     }
@@ -138,7 +146,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
         message: msg.message || msg.actionType,
         bidTime: msg.timestamp || new Date(),
         sender: typeof msg.sender === "object" ? msg.sender.name || "Admin" : msg.sender || "Admin",
-        type: msg.type || "message"
+        type: msg.type || "message",
       }));
       console.log("Formatted messages:", formattedMessages);
       setAdminMessages(formattedMessages);
@@ -204,22 +212,17 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
 
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
-    const minBid = currentBid + bidIncrement;
-    const bidValue = parseFloat(bidAmount);
+    const nextBid = currentBid + bidIncrement;
 
-    if (isNaN(bidValue)) {
-      toast.error("Please enter a valid bid amount");
-      return;
+    try {
+      // Attempt to place the bid
+      onBidNowClick(nextBid);
+      // If no error is thrown, show success toast
+      toast.success(`Bid of $${nextBid.toLocaleString()} placed successfully!`);
+    } catch (error) {
+      console.error("Error placing bid:", error);
+      toast.error("Failed to place bid.");
     }
-
-    if (bidValue < minBid) {
-      toast.error(`Bid must be at least $${minBid.toLocaleString()}`);
-      return;
-    }
-
-    const roundedBid = Math.round(bidValue * 100) / 100;
-    onBidNowClick(roundedBid);
-    setBidAmount("");
   };
 
   const handleBillingUpdate = (normalizedDetails) => {
@@ -311,7 +314,7 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Minimum Bid</span>
+                    <span className="text-gray-600">Next Bid</span>
                     <span className="text-lg font-semibold text-gray-900">
                       ${(auction.currentBid + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
                     </span>
@@ -349,15 +352,12 @@ export default function CatalogDetails({ product, auction, loading, onBidNowClic
                     </div>
                   ) : auction.status !== "ENDED" ? (
                     <form onSubmit={handleBidSubmit} className="space-y-4">
-                      <Input
-                        type="number"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                        placeholder={`Enter at least $${(auction.currentBid + getBidIncrement(auction.currentBid || 0)).toLocaleString()}`}
-                        min={auction.currentBid + getBidIncrement(auction.currentBid || 0)}
-                        className="w-full border-gray-300 focus:border-blue-500"
-                        disabled={auction.status === "ENDED"}
-                      />
+                      <div className="text-center text-gray-600">
+                        Click below to place a bid of{" "}
+                        <span className="font-semibold text-blue-600">
+                          ${(auction.currentBid + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
+                        </span>
+                      </div>
                       <Button
                         type="submit"
                         className="w-full bg-blue-500 text-white hover:bg-blue-600"

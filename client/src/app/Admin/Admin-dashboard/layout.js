@@ -87,10 +87,10 @@ export default function DashboardLayout({ children }) {
   ];
 
   return (
-    <div className="flex h-screen py-10 px-6  bg-gradient-to-br from-gray-100 to-gray-200">
+    <div className="flex h-screen   bg-gradient-to-br from-gray-100 to-gray-200">
       {/* Sidebar */}
       <motion.aside
-        className="bg-gradient-to-b from-gray-900 rounded-[20px] via-gray-800 to-gray-900 text-white shadow-2xl relative overflow-hidden"
+        className="bg-gradient-to-b from-gray-900  via-gray-800 to-gray-900 text-white shadow-2xl relative overflow-hidden"
         variants={sidebarVariants}
         initial="expanded"
         animate={isCollapsed ? "collapsed" : "expanded"}
