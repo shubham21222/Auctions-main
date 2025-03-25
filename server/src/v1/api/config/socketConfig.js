@@ -110,6 +110,21 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Auction not active." });
         }
 
+
+          // Extract IP Address
+          let ipAddress =
+          socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+
+           // Normalize IP to extract only IPv4 if needed
+    if (ipAddress.includes(",")) {
+      ipAddress = ipAddress.split(",")[0].trim(); // In case of multiple proxies
+    }
+    if (ipAddress.startsWith("::ffff:")) {
+      ipAddress = ipAddress.split(":").pop(); // Convert IPv6-mapped IPv4 to pure IPv4
+    }
+
+    
+
         const getBidIncrement = (currentBid) => {
           if (currentBid >= 1000000) return 50000;
           if (currentBid >= 500000) return 25000;
@@ -153,6 +168,7 @@ export const initializeSocket = (server) => {
           bidder: bidderId,
           bidAmount,
           bidTime: new Date(),
+          ipAddress:ipAddress,
         });
         auction.currentBid = bidAmount;
         auction.currentBidder = bidderId;

@@ -4,6 +4,7 @@ const bidSchema = new mongoose.Schema({
     bidder: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     bidAmount: { type: Number, required: true },
     bidTime: { type: Date, default: Date.now },
+    ipAddress:{type:String, required: false, default:""},
     paid: { type: Boolean, default: false }, // Tracks payment status
 });
 

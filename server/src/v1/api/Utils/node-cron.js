@@ -146,6 +146,7 @@ cron.schedule("*/1 * * * *", async () => {
         const now = new Date();
         console.log("Now:", now);
 
+
         // Find auctions that are either expired or already marked as ended, but haven't sent emails yet
         const expiredAuctions = await Auction.find({
             $or: [
@@ -229,6 +230,94 @@ cron.schedule("*/1 * * * *", async () => {
         console.log(`✅ ${expiredAuctions.length} auctions updated to ENDED, emails sent where needed.`);
     } catch (error) {
         console.error("❌ Error in cron job:", error);
+    }
+});
+
+
+cron.schedule("*/1 * * * *", async () => {  // Runs every minute
+    try {
+        console.log("⏳ Checking auctions that should be ended...");
+
+        const now = new Date();
+
+        // Find auctions that have either expired or haven't started
+        const auctionsToEnd = await Auction.find({
+            $or: [
+                { startDate: { $gt: now } }, // Auction not started yet
+                { endDate: { $lte: now } }  // Auction time is over
+            ],
+            status: "ACTIVE", // Only update active auctions
+            Emailsend: "false", // Ensure email is not already sent
+        });
+
+        if (auctionsToEnd.length === 0) {
+            console.log("✅ No auctions need to be ended.");
+            return;
+        }
+
+        for (const auction of auctionsToEnd) {
+            auction.status = "ENDED";
+            auction.winner = auction.currentBidder || null;
+            auction.winnerBidTime = new Date();
+
+            await auction.save();
+
+            if (auction.winner) {
+                const findUser = await User.findById(auction.winner);
+                if (!findUser) {
+                    console.error(`❌ User not found for winner ID: ${auction.winner}`);
+                    continue;
+                }
+
+                   // Get product details (title and first image)
+                   const productTitle = auction.product?.title || "Auction Product";
+                   const productImage = auction.product?.image?.[0] || "";
+
+                const paymentLink = await createPaymentLink(
+                    auction.currentBid,
+                    "usd",
+                    productTitle, // Send the title as product name,
+                    {
+                        auctionId: auction._id.toString(),
+                        userId: findUser._id.toString(),
+                        email: findUser.email || "",
+                        name: findUser.name || "",
+                        phone: findUser.mobile || "",
+                        image: productImage, // Send product image in metadata
+                    }
+                );
+
+                if (!paymentLink) {
+                    console.error("❌ Failed to create payment link.");
+                    continue;
+                }
+
+                const emailSent = await sendPaymentEmail(
+                    findUser.email,
+                    paymentLink,
+                    auction.lotNumber,
+                    auction.currentBid,
+                    productTitle,
+                    findUser.name
+                );
+
+                if (emailSent) {
+                    console.log(`✅ Payment email sent to ${findUser.email}`);
+                    
+                    // ✅ Mark the auction as Emailsend: true to prevent duplicate emails
+                    auction.Emailsend = true;
+                    await auction.save();
+                } else {
+                    console.error(`❌ Failed to send email to ${findUser.email}`);
+                }
+            }
+
+            await auction.save(); // Save auction changes
+        }
+
+        console.log(`✅ ${auctionsToEnd.length} auctions updated and emails sent.`);
+    } catch (error) {
+        console.error("❌ Error in auction status cron job:", error);
     }
 });
 
