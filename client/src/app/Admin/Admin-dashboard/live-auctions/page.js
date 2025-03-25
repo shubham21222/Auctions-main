@@ -272,7 +272,7 @@ const AdminLiveAuctionPage = () => {
               message={message}
               setMessage={setMessage}
               watchers={watchers}
-              socket={socket} // Pass socket to AuctionControls
+              socket={socket}
             />
           </div>
         </div>
