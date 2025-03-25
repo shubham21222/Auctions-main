@@ -112,7 +112,18 @@ export const initializeSocket = (server) => {
 
 
           // Extract IP Address
-    const ipAddress = socket.handshake.address;
+          let ipAddress =
+          socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+
+           // Normalize IP to extract only IPv4 if needed
+    if (ipAddress.includes(",")) {
+      ipAddress = ipAddress.split(",")[0].trim(); // In case of multiple proxies
+    }
+    if (ipAddress.startsWith("::ffff:")) {
+      ipAddress = ipAddress.split(":").pop(); // Convert IPv6-mapped IPv4 to pure IPv4
+    }
+
+    
 
         const getBidIncrement = (currentBid) => {
           if (currentBid >= 1000000) return 50000;
