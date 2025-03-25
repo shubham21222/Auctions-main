@@ -14,20 +14,24 @@ const AuctionControls = ({
   message,
   setMessage,
   watchers,
+  socket, // Add socket as a prop
 }) => {
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [competitorBidAmount, setCompetitorBidAmount] = useState("");
 
   if (!currentAuction) return null;
 
-  const visibleBidHistory = showFullHistory ? bidHistory : bidHistory.slice(-5); // Limit to last 5 bids initially
+  const visibleBidHistory = showFullHistory ? bidHistory : bidHistory.slice(-5);
 
   const handleAddCompetitorBid = () => {
     if (!competitorBidAmount || !currentAuction) {
       toast.error("Please enter a competitor bid amount.");
       return;
     }
-    // Assuming socket is available via props or context; adjust as needed
+    if (!socket) {
+      toast.error("Socket connection not available.");
+      return;
+    }
     socket.emit("placeBid", {
       auctionId: currentAuction._id,
       bidAmount: parseFloat(competitorBidAmount),
@@ -39,7 +43,6 @@ const AuctionControls = ({
 
   return (
     <div className="space-y-6">
-      {/* Competitor Bids - Compact */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Competitor Bids</h3>
@@ -58,7 +61,6 @@ const AuctionControls = ({
         </div>
       </div>
 
-      {/* Bid History - Collapsible */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-4">
           <div className="flex justify-between items-center mb-2">
@@ -104,7 +106,6 @@ const AuctionControls = ({
         </div>
       </div>
 
-      {/* Sticky Admin Controls */}
       <div className="sticky bottom-0 bg-white rounded-xl shadow-md p-4 border-t z-10">
         <h3 className="text-lg font-semibold text-gray-900 mb-3">Admin Controls</h3>
         <div className="space-y-3">
