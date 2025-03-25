@@ -110,6 +110,10 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Auction not active." });
         }
 
+
+          // Extract IP Address
+    const ipAddress = socket.handshake.address;
+
         const getBidIncrement = (currentBid) => {
           if (currentBid >= 1000000) return 50000;
           if (currentBid >= 500000) return 25000;
@@ -153,6 +157,7 @@ export const initializeSocket = (server) => {
           bidder: bidderId,
           bidAmount,
           bidTime: new Date(),
+          ipAddress:ipAddress,
         });
         auction.currentBid = bidAmount;
         auction.currentBidder = bidderId;
