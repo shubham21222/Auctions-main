@@ -34,7 +34,7 @@ const AuctionSelector = ({ auctions, onAuctionSelect, selectedAuction }) => {
               </SelectItem>
             ))
           ) : (
-            <SelectItem value="" disabled>
+            <SelectItem value="no-auctions" disabled>
               No live auctions available
             </SelectItem>
           )}
