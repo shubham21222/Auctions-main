@@ -34,6 +34,7 @@ const productSchema = new mongoose.Schema({
     stock: { type: Number, default: 1 }, // Add stock field with default value of 1
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
+    type:{type:String , default: ""}
   }, {
     timestamps: true
   });

@@ -1462,3 +1462,88 @@ export const stripeWebhookHandler = async (req, res) => {
 
 
 
+
+export const createBulkAuction = async (req, res) => {
+    try {
+        const { products, startingBid, auctionType, startDate, endDate, status } = req.body;
+
+        if (!Array.isArray(products) || products.length === 0) {
+            return badRequest(res, "Please provide an array of products.");
+        }
+        if (!startingBid || !auctionType || !startDate || !endDate) {
+            return badRequest(res, "Missing required fields.");
+        }
+
+        const auctions = [];
+
+        for (const productData of products) {
+            let product;
+            let category = productData.category; // Each product has its own category
+
+            // ✅ Validate Category
+            if (!category) {
+                return badRequest(res, "Each product must have a category.");
+            }
+            const categoryExists = await categoryModel.findById(category);
+            if (!categoryExists) {
+                return badRequest(res, `Category not found for product ${productData.title || "Unnamed"}.`);
+            }
+
+            // ✅ Check if product exists
+            if (productData._id) {
+                product = await productModel.findById(productData._id);
+            }
+
+            // ✅ If product doesn't exist, create it
+            if (!product) {
+                product = new productModel({
+                    title: productData.title || " ",
+                    description: productData.description || " ",
+                    price: productData.price || 0,
+                    estimateprice: productData.estimateprice || " ",
+                    offerAmount: productData.offerAmount || 0,
+                    category, // Assign correct category for each product
+                    image: productData.image || [],
+                    status: "Not Sold",
+                    favorite: false,
+                    sortByPrice: productData.sortByPrice || "Low Price",
+                    details: productData.details || [],
+                    stock: productData.stock || 1,
+                    type: productData.type || ""
+
+                });
+
+                await product.save();
+            }
+
+            // ✅ Generate a unique LOT number for each auction
+            const lotNumber = await generateLotNumber();
+            // ✅ Create an auction for the product
+            const auction = new auctionModel({
+                product: product._id, // Newly created or existing product
+                category, // Correct category per product
+                startingBid,
+                currentBid: startingBid,
+                auctionType,
+                startDate,
+                endDate,
+                lotNumber,
+                createdBy: req.user._id,
+                status: status || "ACTIVE",
+            });
+
+            await auction.save();
+            auctions.push(auction);
+        }
+
+        return created(res, `${auctions.length} auctions created successfully.`, auctions);
+
+    } catch (error) {
+        console.error("Bulk auction creation error:", error);
+        return unknownError(res, error.message);
+    }
+};
+
+
+
+

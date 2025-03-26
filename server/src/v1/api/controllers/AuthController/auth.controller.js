@@ -52,7 +52,8 @@ export const register = async (req, res , next) => {
             role: req.body.role,
             passwordResetToken: resetToken,
             passwordResetExpires: passwordResetExpires,
-            BillingDetails:BillingDetails
+            BillingDetails:BillingDetails,
+            cardDetails:cardDetails,
         }
 
         if(password){

@@ -155,6 +155,67 @@ const UserSchema = new mongoose.Schema({
 
         }],
 
+
+        // card details connectivity for stripe service //
+
+        cardDetails: [{
+           
+            cardNumber: {
+                type: Number,
+                required: false,
+                default: null
+            },
+
+            expMonth: {
+                type: Number, // Expiration Month (MM)
+                required: false,
+              },
+              expYear: {
+                type: Number, // Expiration Year (YYYY)
+                required: false,
+              },
+
+              cardholderName: {
+                type: String,
+                required: false,
+              },
+
+              BillingDetails: [{
+                country:{
+                    type: String,
+                    required: false
+                },
+
+                AddressLine1: {
+                    type: String,
+                    required: false
+                },
+
+                AddBalanceLine2: {
+                    type: String,
+                    required: false
+                },
+
+                city:{
+                    type: String,
+                    required: false
+                },
+
+                Pincode:{
+                    type: Number,
+                    required: false
+                },
+
+                state:{
+                    type: String,
+                    required: false
+                },
+
+              }]
+
+
+        }],
+
         // Auction connectivity //
 
         auctions: [{
