@@ -1,22 +1,44 @@
-"use client";
+'use client'
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useSelector } from 'react-redux';
+import axios from 'axios';
 import Image from "next/image";
-import artistData from "../../../../public/scraped_artists_data.json"; // Adjust path as needed
 import Footer from "@/app/components/Footer";
 import Header from "@/app/components/Header";
 
 const ArtistDetail = () => {
   const params = useParams();
-  const [artistname, setArtistname] = useState(null);
+  const [artist, setArtist] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const auth = useSelector((state) => state.auth);
+  const token = auth?.token;
 
   useEffect(() => {
     if (params && params.slug) {
-      setArtistname(params.slug);
+      fetchArtist(params.slug);
     }
   }, [params]);
 
-  if (!artistname) {
+  const fetchArtist = async (id) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`https://bid.nyelizabeth.com/v1/api/artist/${id}`, {
+        headers: { Authorization: token } // Add token to headers
+      });
+      // Extract artist from 'items' object
+      const artistData = response.data.items;
+      setArtist(artistData);
+    } catch (err) {
+      console.error('Error fetching artist:', err);
+      setError('Failed to load artist details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-100 to-blue-100">
         <div className="text-center animate-pulse">
@@ -31,11 +53,7 @@ const ArtistDetail = () => {
     );
   }
 
-  const artist = artistData.find(
-    (a) => a.artist_name.toLowerCase() === artistname.toLowerCase()
-  );
-
-  if (!artist) {
+  if (error || !artist) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-100 to-red-100">
         <div className="text-center">
@@ -43,18 +61,24 @@ const ArtistDetail = () => {
             Artist Not Found
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            The artist you are looking for does not exist. Requested artist: "{artistname}"
+            {error || `The artist with ID "${params?.slug}" does not exist.`}
           </p>
         </div>
       </div>
     );
   }
 
-  // Split detailed content into paragraphs at em dash (–) or periods for natural breaks
-  const paragraphs = artist.artist_details.detailed_content
-    .split(/[.–]/) // Split on em dash (–) or period (.) followed by optional space
-    .filter((para) => para.trim() !== "")
-    .map((para) => para.trim());
+  // Split biography into paragraphs
+  const paragraphs = artist.Biography
+    ? artist.Biography.split(/[.–]/)
+      .filter((para) => para.trim() !== "")
+      .map((para) => para.trim())
+    : [];
+
+  // Handle images safely
+  const artistImage = Array.isArray(artist.images) && artist.images.length > 0 
+    ? artist.images[0] 
+    : "https://via.placeholder.com/600";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800">
@@ -65,20 +89,15 @@ const ArtistDetail = () => {
           {/* Left: Full Image */}
           <div className="relative w-full h-[400px] md:h-[600px]">
             <Image
-              src={
-                artist.artist_details.main_image_url !== "N/A" &&
-                !artist.artist_details.main_image_url.startsWith("data:image/svg")
-                  ? artist.artist_details.main_image_url
-                  : artist.initial_image_url
-              }
-              alt={artist.artist_details.main_image_alt || artist.artist_name}
+              src={artistImage}
+              alt={artist.artistName}
               layout="fill"
               objectFit="cover"
               className="rounded-xl shadow-2xl transition-transform duration-500 hover:scale-105"
             />
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
               <h1 className="text-3xl md:text-5xl font-extrabold text-white capitalize drop-shadow-lg">
-                {artist.artist_name.replace("-", " ")}
+                {artist.artistName}
               </h1>
             </div>
           </div>
@@ -89,7 +108,7 @@ const ArtistDetail = () => {
               Summary
             </h2>
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              {artist.artist_details.summary_text}
+              {artist.summary || "No summary available"}
             </p>
           </div>
         </section>
@@ -100,14 +119,20 @@ const ArtistDetail = () => {
             Detailed Biography
           </h2>
           <div className="space-y-6">
-            {paragraphs.map((para, index) => (
-              <p
-                key={index}
-                className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 p-4 rounded-lg"
-              >
-                {para}
+            {paragraphs.length > 0 ? (
+              paragraphs.map((para, index) => (
+                <p
+                  key={index}
+                  className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 p-4 rounded-lg"
+                >
+                  {para}
+                </p>
+              ))
+            ) : (
+              <p className="text-lg text-gray-700 dark:text-gray-300">
+                No detailed biography available.
               </p>
-            ))}
+            )}
           </div>
         </section>
       </main>
