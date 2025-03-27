@@ -43,6 +43,7 @@ const productSchema = new mongoose.Schema({
     updated_at: { type: Date, default: Date.now },
     type:{type:String , default: ""},
     count: { type: Number, default: 1 },
+    auctionType:{type:String , default: ""},
   }, {
     timestamps: true
   });

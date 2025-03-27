@@ -1891,7 +1891,7 @@ export const createBulkAuction = async (req, res) => {
         if (!Array.isArray(products) || products.length === 0) {
             return badRequest(res, "Please provide an array of products.");
         }
-        if (!auctionType  || !category) {
+        if ( !category) {
             return badRequest(res, "Missing required fields.");
         }
 
@@ -1930,6 +1930,7 @@ export const createBulkAuction = async (req, res) => {
                     details: productData.details || [],
                     stock: productData.stock || 1,
                     type: productData.type || "",
+                    auctionType: productData.auctionType || " ",
                     count: 1
                 });
             }
@@ -1941,7 +1942,7 @@ export const createBulkAuction = async (req, res) => {
                 auctioncategory: categoryExists._id, // ✅ Assign category ID
                 startingBid: product.sellPrice,
                 currentBid: product.sellPrice,
-                auctionType,
+                auctionType: product.auctionType,
                 startDate:product.startDate,
                 endDate:product.endDate,
                 lotNumber: product.lotNumber,
