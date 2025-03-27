@@ -20,6 +20,9 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
+  Palette,
+  Store,
+  ChevronDown,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -75,29 +78,36 @@ export default function DashboardLayout({ children }) {
 
   const navItems = [
     { href: "/Admin/Admin-dashboard", icon: Home, label: "Dashboard" },
-    { href: "/Admin/Admin-dashboard/auctions", icon: Package, label: "Auctions" },
+    // "Auctions" will be handled separately as a dropdown
     { href: "/Admin/Admin-dashboard/buy-now", icon: ShoppingCart, label: "Buy Now" },
     { href: "/Admin/Admin-dashboard/private-sales", icon: DollarSign, label: "Private Sales" },
     { href: "/Admin/Admin-dashboard/category", icon: Tag, label: "Category" },
     { href: "/Admin/Admin-dashboard/orders", icon: Truck, label: "Orders" },
     { href: "/Admin/Admin-dashboard/users", icon: Users, label: "Users" },
     { href: "/Admin/Admin-dashboard/Sellers", icon: UserCheck, label: "Sellers" },
-    { href: "/Admin/Admin-dashboard/live-auctions", icon: UserCheck, label: "Live Auctions" },
+    // { href: "/Admin/Admin-dashboard/live-auctions", icon: UserCheck, label: "Live Auctions" },
+    { href: "/Admin/Admin-dashboard/brands", icon: Store, label: "Brands" },
+    { href: "/Admin/Admin-dashboard/artists", icon: Palette, label: "Artists" },
+  ];
 
+  const auctionSubItems = [
+    { href: "/Admin/Admin-dashboard/auctions", label: "Auctions" },
+    { href: "/Admin/Admin-dashboard/live-auctions", label: "Live Auctions" },
+    { href: "/Admin/Admin-dashboard/ended", label: "Ended Auctions" },
   ];
 
   return (
-    <div className="flex h-screen   bg-gradient-to-br from-gray-100 to-gray-200">
+    <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-200">
       {/* Sidebar */}
       <motion.aside
-        className="bg-gradient-to-b from-gray-900  via-gray-800 to-gray-900 text-white shadow-2xl relative overflow-hidden"
+        className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white shadow-2xl relative overflow-hidden"
         variants={sidebarVariants}
         initial="expanded"
         animate={isCollapsed ? "collapsed" : "expanded"}
         transition={{ duration: 0.3, ease: "easeInOut" }}
       >
         {/* Glassmorphism Header */}
-        <div className="p-6 flex items-center  justify-between bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-lg border-b border-gray-700/50">
+        <div className="p-6 flex items-center justify-between bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-lg border-b border-gray-700/50">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
               <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -132,6 +142,43 @@ export default function DashboardLayout({ children }) {
               </motion.div>
             </Link>
           ))}
+
+          {/* Auctions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <motion.div
+                whileHover={{ scale: 1.05, x: 5 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center w-full p-3 rounded-xl text-gray-200 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
+              >
+                <Package className="h-5 w-5 mr-3 text-indigo-300" />
+                {!isCollapsed && (
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-sm font-medium">Auctions</span>
+                    <ChevronDown className="h-4 w-4 text-indigo-300" />
+                  </div>
+                )}
+              </motion.div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-56 bg-gray-800 text-white shadow-lg rounded-lg p-2 border border-gray-700"
+              align="end"
+              side={isCollapsed ? "right" : "right"}
+              sideOffset={10}
+            >
+              {auctionSubItems.map((subItem) => (
+                <DropdownMenuItem
+                  key={subItem.href}
+                  asChild
+                  className="p-2 hover:bg-indigo-600 rounded-md transition-all duration-200"
+                >
+                  <Link href={subItem.href}>
+                    <span className="text-sm">{subItem.label}</span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* Decorative Gradient Overlay */}

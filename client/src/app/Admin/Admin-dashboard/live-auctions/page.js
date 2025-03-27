@@ -12,12 +12,11 @@ import AuctionControls from "./AuctionControls";
 
 const AdminLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
-  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction } = useSocket();
+  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes } = useSocket();
   const [currentAuction, setCurrentAuction] = useState(null);
   const [auctions, setAuctions] = useState([]);
   const [upcomingLots, setUpcomingLots] = useState([]);
   const [bidHistory, setBidHistory] = useState([]);
-  const [competingBids, setCompetingBids] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [totalLots, setTotalLots] = useState(0);
@@ -68,29 +67,38 @@ const AdminLiveAuctionPage = () => {
   }, [token, currentAuction]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return; // Skip on server
+    if (typeof window === "undefined") return;
     fetchAuctionData();
   }, [fetchAuctionData]);
 
+  // Ensure the client joins the auction room as soon as socket and currentAuction are ready
   useEffect(() => {
-    if (!socket || !currentAuction || currentAuction.auctionType !== "LIVE") return;
+    if (!socket) {
+      console.log("Socket not ready yet");
+      return;
+    }
+    if (!currentAuction || currentAuction.auctionType !== "LIVE") {
+      console.log("No current auction or not a LIVE auction:", { currentAuction });
+      return;
+    }
 
+    console.log("Joining auction room for auction:", currentAuction._id);
     joinAuction(currentAuction._id);
     getAuctionData(currentAuction._id);
+  }, [socket, currentAuction, joinAuction, getAuctionData]);
+
+  // Handle socket events
+  useEffect(() => {
+    if (!socket || !currentAuction || currentAuction.auctionType !== "LIVE") return;
 
     const handleAuctionData = (data) => {
       if (data.auctionId === currentAuction._id) {
         setCurrentAuction((prev) => ({ ...prev, ...data }));
         setBidHistory(data.bids || []);
-        setCompetingBids(
-          data.bids
-            ? data.bids.slice(-7).map((bid) => ({ amount: bid.bidAmount, label: "Competing Bid" }))
-            : []
-        );
       }
     };
 
-    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bids }) => {
+    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bids, bidType }) => {
       if (auctionId === currentAuction._id) {
         setCurrentAuction((prev) => ({
           ...prev,
@@ -99,11 +107,7 @@ const AdminLiveAuctionPage = () => {
           bids: bids || prev.bids,
         }));
         setBidHistory((prev) => {
-          const newHistory = [...prev, { bidder: bidderId, bidAmount, bidTime: new Date() }];
-          setCompetingBids(newHistory.slice(-7).map((bid) => ({
-            amount: bid.bidAmount,
-            label: "Competing Bid",
-          })));
+          const newHistory = [...prev, { bidder: bidderId, bidAmount, bidTime: new Date(), bidType }];
           return newHistory;
         });
       }
@@ -122,11 +126,11 @@ const AdminLiveAuctionPage = () => {
       fetchAuctionData();
     };
 
-    const handleAuctionMessage = ({ auctionId, actionType }) => {
+    const handleAuctionMessage = ({ auctionId, actionType, message }) => {
       if (auctionId === currentAuction._id) {
         setBidHistory((prev) => [
           ...prev,
-          { message: `Admin: ${actionType}`, bidTime: new Date() },
+          { message: message || actionType, bidTime: new Date() },
         ]);
       }
     };
@@ -144,7 +148,7 @@ const AdminLiveAuctionPage = () => {
       socket.off("auctionEnded", handleAuctionEnded);
       socket.off("auctionMessage", handleAuctionMessage);
     };
-  }, [socket, currentAuction?._id, joinAuction, getAuctionData, fetchAuctionData]);
+  }, [socket, currentAuction, fetchAuctionData]);
 
   const handleAdminAction = async (actionType) => {
     if (!currentAuction) {
@@ -194,7 +198,7 @@ const AdminLiveAuctionPage = () => {
       sendMessage(currentAuction._id, message);
       setBidHistory((prev) => [
         ...prev,
-        { message: `Admin: ${message}`, bidTime: new Date() },
+        { message: message, bidTime: new Date() },
       ]);
       setMessage("");
       toast.success("Message sent successfully!");
@@ -208,17 +212,11 @@ const AdminLiveAuctionPage = () => {
     if (!auction) {
       setCurrentAuction(null);
       setBidHistory([]);
-      setCompetingBids([]);
       setCurrentLotIndex(0);
       return;
     }
     setCurrentAuction(auction);
     setBidHistory(auction.bids || []);
-    setCompetingBids(
-      auction.bids
-        ? auction.bids.slice(-7).map((bid) => ({ amount: bid.bidAmount, label: "Competing Bid" }))
-        : []
-    );
     setCurrentLotIndex(
       auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").findIndex(
         (a) => a._id === auction._id
@@ -231,48 +229,61 @@ const AdminLiveAuctionPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b shadow-sm sticky top-0 z-20">
-        <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">LIVE AUCTIONEERS</h1>
-            <p className="text-gray-600 text-sm">NY ELIZABETH</p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-            <div className="text-right">
-              <p className="text-xs text-gray-600">
-                Lot {currentLotIndex} of {totalLots} |{" "}
-                {totalLots > 0 ? Math.round(((totalLots - currentLotIndex) / totalLots) * 100) : 0}% Remaining
-              </p>
-              <p className="text-xs text-gray-600">Online: {watchers}</p>
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <div className="bg-black text-white border-b">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">NY Elizabeth</h1>
+              <div className="flex items-center gap-2 text-sm">
+                <span>NY Elizabeth</span>
+                {/* <span className="text-blue-400">25TR</span>
+                <span>Georg Jensen & More! Day 1</span> */}
+              </div>
             </div>
-            <Button
-              onClick={fetchAuctionData}
-              className="bg-blue-600 text-white hover:bg-blue-700 text-sm py-1 px-3"
-            >
-              Refresh
-            </Button>
+            <div className="text-right">
+              <div className="text-sm">
+                {currentLotIndex} of {totalLots} Lots Remaining
+              </div>
+              <div className="text-sm">
+                {totalLots > 0 ? Math.round(((totalLots - currentLotIndex) / totalLots) * 100) : 0}%
+              </div>
+              <div className="text-sm">Online: {watchers}</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <AuctionSelector auctions={auctions} onAuctionSelect={handleAuctionSelect} selectedAuction={currentAuction} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-5">
-            <AuctionDetails currentAuction={currentAuction} upcomingLots={upcomingLots} />
+      <div className="container mx-auto px-4 py-4">
+        <AuctionSelector 
+          auctions={auctions} 
+          onAuctionSelect={handleAuctionSelect} 
+          selectedAuction={currentAuction} 
+        />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          {/* Left Column - Auction Details */}
+          <div>
+            <AuctionDetails 
+              currentAuction={currentAuction} 
+              upcomingLots={upcomingLots} 
+            />
           </div>
-          <div className="lg:col-span-7">
+          
+          {/* Right Column - Auction Controls */}
+          <div>
             <AuctionControls
               currentAuction={currentAuction}
               bidHistory={bidHistory}
-              competingBids={competingBids}
               handleAdminAction={handleAdminAction}
               handleSendMessage={handleSendMessage}
               message={message}
               setMessage={setMessage}
               watchers={watchers}
               socket={socket}
+              setAuctionMode={updateAuctionMode}
+              auctionMode={currentAuction ? auctionModes[currentAuction._id] || "online" : "online"}
             />
           </div>
         </div>

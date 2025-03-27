@@ -40,14 +40,14 @@ export default function LatestProducts() {
                 <div className="w-24 h-1 text-start bg-yellow-500 mt-4 rounded-full"></div>
             </div>
             <div className="container mx-auto px-6">
-                <motion.h2
+                {/* <motion.h2
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                     className="text-4xl font-bold text-center text-gray-800 mb-6"
                 >
                     Latest Luxury Arrivals
-                </motion.h2>
+                </motion.h2> */}
 
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -101,7 +101,7 @@ export default function LatestProducts() {
                     className="text-center mt-12"
                 >
                     <a
-                        href="/buy-now"
+                        href="/Buy-now"
                         className="inline-block px-8 py-3 bg-blue-900 text-white rounded-full hover:shadow-lg transition-all duration-300"
                     >
                         Explore All Products

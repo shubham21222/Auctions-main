@@ -8,7 +8,7 @@ export const useSocket = () => {
   const [socket, setSocket] = useState(null);
   const [liveAuctions, setLiveAuctions] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const [auctionModes, setAuctionModes] = useState({});
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
 
@@ -21,7 +21,6 @@ export const useSocket = () => {
   }, []);
 
   useEffect(() => {
-    console.log("useSocket - userId:", userId, "token:", token);
     if (!userId || !token) {
       console.log("Missing userId or token, skipping socket connection");
       return;
@@ -33,6 +32,8 @@ export const useSocket = () => {
       transports: ["websocket"],
     });
 
+    setSocket(socketIo);
+
     socketIo.on("connect", () => {
       console.log("Connected to Socket.IO server:", socketIo.id);
       addNotification("success", "Connected to auction server!");
@@ -43,32 +44,10 @@ export const useSocket = () => {
       addNotification("error", `Connection failed: ${err.message}`);
     });
 
-    setSocket(socketIo);
-    setIsMounted(true);
-
-    return () => {
-      socketIo.disconnect();
-      console.log("Disconnected from Socket.IO server");
-    };
-  }, [userId, token]);
-
-  useEffect(() => {
-    if (!socket || !isMounted) return;
-
-    socket.on("connect", () => {
-      console.log("Connected to Socket.IO server:", socket.id);
-      addNotification("success", "Connected to auction server!");
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Socket connection error:", err.message);
-      addNotification("error", `Connection failed: ${err.message}`);
-    });
-
-    socket.on("auctionData", (data) => {
+    socketIo.on("auctionData", (data) => {
       console.log("Received auctionData:", data);
       setLiveAuctions((prev) => {
-        const auctionId = data._id || data.auctionId; // Use _id from the auction data
+        const auctionId = data._id || data.auctionId;
         if (!auctionId) {
           console.error("Auction ID missing in auctionData:", data);
           return prev;
@@ -83,12 +62,12 @@ export const useSocket = () => {
       });
     });
 
-    socket.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids }) => {
-      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids });
+    socketIo.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType }) => {
+      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType });
       setLiveAuctions((prev) => {
         const updatedAuctions = prev.map((auction) => {
           if (auction.id === auctionId) {
-            console.log(`Updating auction ${auctionId} with new bid: ${bidAmount}`);
+            console.log(`Updating auction ${auctionId} with new bid: ${bidAmount} (Type: ${bidType})`);
             return {
               ...auction,
               currentBid: bidAmount,
@@ -103,11 +82,11 @@ export const useSocket = () => {
         return updatedAuctions;
       });
       if (bidderId !== userId) {
-        addNotification("success", `New bid on auction ${auctionId}: $${bidAmount}`);
+        addNotification("success", `New ${bidType || "online"} bid on auction ${auctionId}: $${bidAmount}`);
       }
     });
 
-    socket.on("auctionEnded", ({ auctionId, winner, message }) => {
+    socketIo.on("auctionEnded", ({ auctionId, winner, message }) => {
       console.log("Received auctionEnded:", { auctionId, winner });
       setLiveAuctions((prev) =>
         prev.map((auction) =>
@@ -119,50 +98,62 @@ export const useSocket = () => {
       addNotification("info", message);
     });
 
-    socket.on("watcherUpdate", ({ auctionId, watchers }) => {
+    socketIo.on("watcherUpdate", ({ auctionId, watchers }) => {
       console.log("Received watcherUpdate:", { auctionId, watchers });
       setLiveAuctions((prev) =>
         prev.map((auction) => (auction.id === auctionId ? { ...auction, watchers } : auction))
       );
     });
 
-    socket.on("outbidNotification", ({ message, auctionId }) => {
+    socketIo.on("outbidNotification", ({ message, auctionId }) => {
       console.log("Received outbidNotification:", { message, auctionId });
       addNotification("warning", `${message} on auction ${auctionId}`);
     });
 
-    socket.on("winnerNotification", ({ message, auctionId, finalBid }) => {
+    socketIo.on("winnerNotification", ({ message, auctionId, finalBid }) => {
       console.log("Received winnerNotification:", { message, auctionId, finalBid });
       addNotification("success", `${message} - Final Bid: $${finalBid}`);
     });
 
-    socket.on("error", ({ message }) => {
+    socketIo.on("error", ({ message }) => {
       console.error("Socket error:", message);
       addNotification("error", `Error: ${message}`);
     });
 
-    socket.on("auctionMessage", ({ auctionId, message, actionType, sender, timestamp }) => {
+    socketIo.on("auctionMessage", ({ auctionId, message, actionType, sender, timestamp }) => {
       console.log("Received auctionMessage:", { auctionId, message, actionType, sender, timestamp });
       if (message) {
-        addNotification("info", `Admin: ${message}`);
+        addNotification("info", message);
       } else if (actionType) {
-        addNotification("info", `Admin: ${actionType}`);
+        addNotification("info", actionType);
       }
     });
 
+    socketIo.on("auctionModeUpdate", ({ auctionId, mode }) => {
+      console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
+      setAuctionModes((prev) => {
+        const updatedModes = { ...prev, [auctionId]: mode };
+        console.log("Updated auctionModes:", updatedModes); // Debug log
+        return updatedModes;
+      });
+    });
+
     return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("auctionData");
-      socket.off("bidUpdate");
-      socket.off("auctionEnded");
-      socket.off("watcherUpdate");
-      socket.off("outbidNotification");
-      socket.off("winnerNotification");
-      socket.off("error");
-      socket.off("auctionMessage");
+      socketIo.off("connect");
+      socketIo.off("connect_error");
+      socketIo.off("auctionData");
+      socketIo.off("bidUpdate");
+      socketIo.off("auctionEnded");
+      socketIo.off("watcherUpdate");
+      socketIo.off("outbidNotification");
+      socketIo.off("winnerNotification");
+      socketIo.off("error");
+      socketIo.off("auctionMessage");
+      socketIo.off("auctionModeUpdate");
+      socketIo.disconnect();
+      console.log("Disconnected from Socket.IO server");
     };
-  }, [socket, isMounted, userId, addNotification]);
+  }, [userId, token, addNotification]);
 
   const joinAuction = useCallback(
     (auctionId) => {
@@ -177,10 +168,10 @@ export const useSocket = () => {
   );
 
   const placeBid = useCallback(
-    (auctionId, bidAmount) => {
-      if (socket && auctionId && bidAmount) {
-        socket.emit("placeBid", { auctionId, bidAmount, userId });
-        console.log(`Placed bid on auction ${auctionId}: $${bidAmount} by user ${userId}`);
+    (auctionId, bidType = "online") => {
+      if (socket && auctionId) {
+        socket.emit("placeBid", { auctionId, userId, bidType });
+        console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId}`);
       }
     },
     [socket, userId]
@@ -217,6 +208,16 @@ export const useSocket = () => {
     [socket, userId]
   );
 
+  const updateAuctionMode = useCallback(
+    (auctionId, mode) => {
+      if (socket && auctionId && mode) {
+        socket.emit("setAuctionMode", { auctionId, mode, userId });
+        console.log(`Set auction ${auctionId} mode to: ${mode}`);
+      }
+    },
+    [socket, userId]
+  );
+
   return {
     socket,
     liveAuctions,
@@ -226,6 +227,8 @@ export const useSocket = () => {
     getAuctionData,
     sendMessage,
     performAdminAction,
+    updateAuctionMode,
+    auctionModes,
     notifications,
   };
 };
