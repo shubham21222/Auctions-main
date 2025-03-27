@@ -242,13 +242,11 @@ cron.schedule("*/1 * * * *", async () => {  // Runs every minute
 
         // Find auctions that have either expired or haven't started
         const auctionsToEnd = await Auction.find({
-            $or: [
-                { startDate: { $gt: now } }, // Auction not started yet
-                { endDate: { $lte: now } }  // Auction time is over
-            ],
+            endDate: { $lte: now }, // Auction time is over
             status: "ACTIVE", // Only update active auctions
-            Emailsend: "false", // Ensure email is not already sent
+            Emailsend: "false" // Ensure email is not already sent
         });
+        
 
         if (auctionsToEnd.length === 0) {
             console.log("✅ No auctions need to be ended.");

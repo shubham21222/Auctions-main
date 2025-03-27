@@ -15,7 +15,10 @@ import {
     getUserAuctions,
     getDashboardStats,
     setBidIncrement,
-    getBidIncrement
+    getBidIncrement,
+    createBulkAuction,
+    getbulkAuctions,
+    getbulkAuctionById
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
@@ -24,11 +27,19 @@ router.post("/create", IsAuthenticated ,  authorizeRoles(
     'ADMIN'
 ) , createAuction);
 
+router.post("/bulkCreate", IsAuthenticated , authorizeRoles("ADMIN") , createBulkAuction)
+
 router.get("/all", getAuctions);
+
+router.get("/bulk" , getbulkAuctions)
 
 // get actions by id //
 
 router.get("/getbyId/:id" , getAuctionById)
+
+// get auction by builk //
+
+router.get("/bulkgetbyId/:id" , getbulkAuctionById)
 
 // Join Auction //
 

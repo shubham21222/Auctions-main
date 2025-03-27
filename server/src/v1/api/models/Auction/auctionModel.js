@@ -10,24 +10,27 @@ const bidSchema = new mongoose.Schema({
 
 const auctionSchema = new mongoose.Schema(
     {
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-        category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: false , default: null },
+        auctionProduct:{type: mongoose.Schema.Types.ObjectId, ref: "AuctionProduct", required:false, default: null},
+        category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: false, default: null},
+        auctioncategory:{type: mongoose.Schema.Types.ObjectId , ref: "AunctionCategory", required:false, default: null},
         startingBid: { type: Number, required: true },
         currentBid: { type: Number, required: true },
         currentBidder: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Track paid users
         startDate: { type: Date, default: Date.now, required: true },
-        endDate: { type: Date, required: true, index: true },
+        endDate: { type: Date, required: false , default:null },
         bids: [bidSchema],
         winner: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         winnerBidTime: { type: Date },
         minBidIncrement: { type: Number, default: 0 }, // Optional
-        lotNumber: { type: String, unique: true }, // Ensure unique LOT numbers
+        lotNumber: { type: String }, // Ensure unique LOT numbers
         status: { type: String, enum: ["ACTIVE", "ENDED"], default: "ACTIVE" },
         auctionType: { type: String, enum: ["LIVE", "TIMED"], default: "TIMED" },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         Emailsend:{type:String , enum:['true' , 'false'] , default:'false'},
         payment_status: { type: String, enum:['PAID' , 'UNPAID' , 'PENDING' , 'FAILED'] , default:'UNPAID'},
+        catalog: { type: String , required: false },
     },
     {
         timestamps: true,
@@ -43,12 +46,12 @@ auctionSchema.pre("save", function (next) {
 });
 
 // Ensure `endDate` is greater than `startDate`
-auctionSchema.pre("validate", function (next) {
-    if (this.endDate <= this.startDate) {
-        return next(new Error("End date must be later than start date."));
-    }
-    next();
-});
+// auctionSchema.pre("validate", function (next) {
+//     if (this.endDate <= this.startDate) {
+//         return next(new Error("End date must be later than start date."));
+//     }
+//     next();
+// });
 
 // Set winner when auction ends
 // auctionSchema.methods.setWinner = async function () {

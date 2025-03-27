@@ -17,7 +17,9 @@ import {
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
 import { validateMongoDbId } from "../../Utils/validateMongodbId.js"
 import productModel from "../../models/Products/product.model.js"
+import AuctionProduct from "../../models/Auction/auctionProductModel.js"
 import categoryModel from "../../models/Category/category.model.js"
+import AuctionCategoryModel from "../../models/Category/Aunctioncat.model.js"
 import UserModel from "../../models/Auth/User.js"
 import OrderModel from "../../models/Order/order.js"
 import stripe from "../../config/stripeConfig.js"
@@ -425,6 +427,266 @@ export const getAuctions = async (req, res) => {
 };
 
 
+// get bulk auctions //
+
+export const getbulkAuctions = async (req, res) => {
+    try {
+        const {
+            category,
+            status,
+            sortByPrice,
+            sortField,
+            sortOrder,
+            searchQuery,
+            page,
+            limit,
+            priceRange,
+            auctionType,
+            catalog // New catalog query parameter
+        } = req.query;
+
+        // Handle pagination
+        const pageNumber = parseInt(page) || 1;
+        const pageSize = parseInt(limit) || 10;
+        const skip = (pageNumber - 1) * pageSize;
+
+        let matchStage = {};
+
+        // Filter by category
+        if (category) {
+            matchStage.category = new mongoose.Types.ObjectId(category);
+        }
+
+        // Filter by auctionType
+        if (auctionType) {
+            matchStage.auctionType = { $in: auctionType.split(",").map(type => type.trim()) };
+        }
+
+        // Filter by status
+        if (status) {
+            matchStage.status = status;
+        }
+
+        // Filter by catalog
+        if (catalog) {
+            matchStage.catalog = catalog; // Assuming catalog is a string field
+        }
+
+        // Search by product title, description, or lot number
+        if (searchQuery) {
+            matchStage.$or = [
+                { 'product.title': { $regex: searchQuery, $options: 'i' } },
+                { 'product.description': { $regex: searchQuery, $options: 'i' } },
+                { 'lotNumber': { $regex: searchQuery, $options: 'i' } }
+            ];
+        }
+
+        // Filter by price range
+        if (priceRange) {
+            const priceValue = parseFloat(priceRange);
+            if (!isNaN(priceValue)) {
+                matchStage["product.price"] = { $lte: priceValue };
+            }
+        }
+
+        // Sorting logic
+        let sortStage = {};
+        if (sortByPrice) {
+            sortStage['product.price'] = sortByPrice === 'High Price' ? -1 : 1;
+        } else if (sortField && sortOrder) {
+            const order = sortOrder === 'asc' ? 1 : -1;
+            if (sortField === 'startDate') {
+                sortStage.startDate = order;
+            } else if (sortField === 'currentBid') {
+                sortStage.currentBid = order;
+            } else if (sortField === 'product.price') {
+                sortStage['product.price'] = order;
+            }
+        } else {
+            sortStage.startDate = -1;
+        }
+
+        // Aggregation pipeline
+        const auctions = await auctionModel.aggregate([
+            { $match: matchStage }, // Filter auctions
+            {
+                $lookup: {
+                    from: 'auctionproducts',
+                    localField: 'auctionProduct',
+                    foreignField: '_id',
+                    as: 'product',
+                },
+            },
+            { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'aunctioncategories',
+                    localField: 'auctioncategory',
+                    foreignField: '_id',
+                    as: 'category'
+                }
+            },
+            { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'bids.bidder',
+                    foreignField: '_id',
+                    as: 'bidderDetails'
+                }
+            },
+            {
+                $addFields: {
+                    bids: {
+                        $map: {
+                            input: "$bids",
+                            as: "bid",
+                            in: {
+                                bidder: "$$bid.bidder",
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                paid: "$$bid.paid",
+                                bidderDetails: {
+                                    $arrayElemAt: [
+                                        {
+                                            $filter: {
+                                                input: "$bidderDetails",
+                                                as: "bidder",
+                                                cond: { $eq: ["$$bidder._id", "$$bid.bidder"] }
+                                            }
+                                        },
+                                        0
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'participants',
+                    foreignField: '_id',
+                    as: 'participants'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'winner',
+                    foreignField: '_id',
+                    as: 'winner'
+                }
+            },
+            { $unwind: { path: '$winner', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'bidincrements',
+                    let: { currentBid: "$currentBid" },
+                    pipeline: [
+                        { $match: { $expr: { $lte: ["$price", "$$currentBid"] } } },
+                        { $sort: { price: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'bidIncrementRule'
+                }
+            },
+            {
+                $addFields: {
+                    minBidIncrement: {
+                        $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0]
+                    }
+                }
+            },
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: pageSize },
+            {
+                $project: {
+                    catalog: 1, // Include catalog in final data
+                    product: {
+                        title: { $ifNull: ["$product.title", ""] },
+                        price: { $ifNull: ["$product.price", ""] },
+                        _id: { $ifNull: ["$product._id", ""] }
+                    },
+                    category: { _id: 1, name: 1 },
+                    startingBid: 1,
+                    currentBid: 1,
+                    currentBidder: 1,
+                    payment_status: 1,
+                    status: 1,
+                    startDate: 1,
+                    endDate: 1,
+                    createdBy: 1,
+                    winner: {
+                        _id: 1,
+                        name: 1,
+                        email: 1
+                    },
+                    minBidIncrement: 1,
+                    lotNumber: 1,
+                    bids: {
+                        $map: {
+                            input: "$bids",
+                            as: "bid",
+                            in: {
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                paid: "$$bid.paid",
+                                bidder: {
+                                    _id: "$$bid.bidderDetails._id",
+                                    name: "$$bid.bidderDetails.name",
+                                    email: "$$bid.bidderDetails.email"
+                                }
+                            }
+                        }
+                    },
+                    winnerBidTime: 1,
+                    auctionType: 1,
+                    participants: {
+                        $map: {
+                            input: "$participants",
+                            as: "participant",
+                            in: {
+                                _id: { $ifNull: ["$$participant._id", ""] },
+                                name: { $ifNull: ["$$participant.name", ""] },
+                                email: { $ifNull: ["$$participant.email", ""] }
+                            }
+                        }
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: "$catalog",
+                    auctions: { $push: "$$ROOT" } // Group auctions under their respective catalog
+                }
+            }
+        ]);
+
+        // Check if auctions array is empty
+        if (auctions.length === 0) {
+            return success(res, 'No auctions found.', []);
+        }
+
+        return success(res, 'Auctions retrieved successfully.', {
+            catalogs: auctions.map(catalog => ({
+                catalogName: catalog._id || "Uncategorized",
+                auctions: catalog.auctions
+            })),
+            totalAuction: auctions.reduce((acc, catalog) => acc + catalog.auctions.length, 0),
+            page: pageNumber,
+            limit: pageSize,
+        });
+    } catch (error) {
+        console.error('Error fetching auctions:', error);
+        return unknownError(res, error.message);
+    }
+};
+
+
+
 // get auction by id //
 
 export const getAuctionById = async (req, res) => {
@@ -545,6 +807,165 @@ export const getAuctionById = async (req, res) => {
         return unknownError(res, error.message);
     }
 };
+
+
+// get auction buik //
+
+export const getbulkAuctionById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return badRequest(res, 'Invalid auction ID.');
+        }
+
+        const auction = await auctionModel.aggregate([
+            { $match: { _id: new mongoose.Types.ObjectId(id) } },
+            {
+                $lookup: {
+                    from: 'auctionproducts',
+                    localField: 'auctionProduct',
+                    foreignField: '_id',
+                    as: 'product'
+                }
+            },
+            { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'aunctioncategories',
+                    localField: 'auctioncategory',
+                    foreignField: '_id',
+                    as: 'category'
+                }
+            },
+            { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'participants',
+                    foreignField: '_id',
+                    as: 'participants'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'winner',
+                    foreignField: '_id',
+                    as: 'winner'
+                }
+            },
+            { $unwind: { path: '$winner', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'bids.bidder',
+                    foreignField: '_id',
+                    as: 'bidderDetails'
+                }
+            },
+            {
+                $addFields: {
+                    bids: {
+                        $map: {
+                            input: "$bids",
+                            as: "bid",
+                            in: {
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                paid: "$$bid.paid",
+                                bidder: {
+                                    _id: "$$bid.bidder",
+                                    name: {
+                                        $arrayElemAt: [
+                                            {
+                                                $filter: {
+                                                    input: "$bidderDetails",
+                                                    as: "bidder",
+                                                    cond: { $eq: ["$$bidder._id", "$$bid.bidder"] }
+                                                }
+                                            },
+                                            0
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'bidincrements',
+                    let: { currentBid: "$currentBid" },
+                    pipeline: [
+                        { $match: { $expr: { $lte: ["$price", "$$currentBid"] } } },
+                        { $sort: { price: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'bidIncrementRule'
+                }
+            },
+            {
+                $addFields: {
+                    minBidIncrement: {
+                        $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0]
+                    }
+                }
+            },
+            {
+                $project: {
+                    catalog: 1,
+                    product: {
+                        title: { $ifNull: ["$product.title", ""] },
+                        price: { $ifNull: ["$product.price", ""] },
+                        _id: { $ifNull: ["$product._id", ""] }
+                    },
+                    category: { _id: 1, name: 1 },
+                    startingBid: 1,
+                    currentBid: 1,
+                    currentBidder: 1,
+                    payment_status: 1,
+                    status: 1,
+                    startDate: 1,
+                    endDate: 1,
+                    createdBy: 1,
+                    winner: {
+                        _id: 1,
+                        name: 1,
+                        email: 1
+                    },
+                    minBidIncrement: 1,
+                    lotNumber: 1,
+                    bids: 1,
+                    winnerBidTime: 1,
+                    auctionType: 1,
+                    participants: {
+                        $map: {
+                            input: "$participants",
+                            as: "participant",
+                            in: {
+                                _id: { $ifNull: ["$$participant._id", ""] },
+                                name: { $ifNull: ["$$participant.name", ""] },
+                                email: { $ifNull: ["$$participant.email", ""] }
+                            }
+                        }
+                    },
+                }
+            }
+        ]);
+
+        if (!auction.length) {
+            return success(res, 'Auction not found.', null);
+        }
+
+        return success(res, 'Auction retrieved successfully.', auction[0]);
+    } catch (error) {
+        console.error('Error fetching auction:', error);
+        return unknownError(res, error.message);
+    }
+};
+
 
 
 // Update the auction //
@@ -1465,84 +1886,83 @@ export const stripeWebhookHandler = async (req, res) => {
 
 export const createBulkAuction = async (req, res) => {
     try {
-        const { products, startingBid, auctionType, startDate, endDate, status } = req.body;
+        const { products, auctionType,  status, category } = req.body;
 
         if (!Array.isArray(products) || products.length === 0) {
             return badRequest(res, "Please provide an array of products.");
         }
-        if (!startingBid || !auctionType || !startDate || !endDate) {
+        if (!auctionType  || !category) {
             return badRequest(res, "Missing required fields.");
         }
 
+        // ✅ Check if category exists by name, create if not found
+        let categoryExists = await AuctionCategoryModel.findOne({ name: category });
+        if (!categoryExists) {
+            categoryExists = await AuctionCategoryModel.create({ name: category });
+        }
         const auctions = [];
 
-        for (const productData of products) {
-            let product;
-            let category = productData.category; // Each product has its own category
-
-            // ✅ Validate Category
-            if (!category) {
-                return badRequest(res, "Each product must have a category.");
-            }
-            const categoryExists = await categoryModel.findById(category);
-            if (!categoryExists) {
-                return badRequest(res, `Category not found for product ${productData.title || "Unnamed"}.`);
-            }
-
+        // ✅ Process all products in parallel
+        await Promise.all(products.map(async (productData) => {
             // ✅ Check if product exists
-            if (productData._id) {
-                product = await productModel.findById(productData._id);
-            }
+            let product = await AuctionProduct.findOne({ title: productData.title });
 
-            // ✅ If product doesn't exist, create it
+            // ✅ Create product if not found
             if (!product) {
-                product = new productModel({
-                    title: productData.title || " ",
-                    description: productData.description || " ",
+                product = await AuctionProduct.create({
+                    title: productData.title || "Untitled Product",
+                    description: productData.description || "No description",
                     price: productData.price || 0,
-                    estimateprice: productData.estimateprice || " ",
+                    estimateprice: productData.estimateprice || "N/A",
                     offerAmount: productData.offerAmount || 0,
-                    category, // Assign correct category for each product
+                    onlinePrice: productData.onlinePrice || 0,
+                    sellPrice: productData.sellPrice || 0,
+                    startDate: productData.startDate,
+                    endDate:productData.endDate,
+                    ReservePrice: productData.ReservePrice || 0,
+                    category: categoryExists._id, // ✅ Assign category ID
                     image: productData.image || [],
+                    skuNumber: productData.skuNumber || "N/A",
+                    lotNumber: productData.lotNumber || await generateLotNumber(),
                     status: "Not Sold",
                     favorite: false,
                     sortByPrice: productData.sortByPrice || "Low Price",
                     details: productData.details || [],
                     stock: productData.stock || 1,
-                    type: productData.type || ""
-
+                    type: productData.type || "",
+                    count: 1
                 });
-
-                await product.save();
             }
 
-            // ✅ Generate a unique LOT number for each auction
-            const lotNumber = await generateLotNumber();
-            // ✅ Create an auction for the product
-            const auction = new auctionModel({
-                product: product._id, // Newly created or existing product
-                category, // Correct category per product
-                startingBid,
-                currentBid: startingBid,
+
+            // ✅ Push auction data to array (No DB calls inside loop)
+            auctions.push({
+                auctionProduct: product._id,
+                auctioncategory: categoryExists._id, // ✅ Assign category ID
+                startingBid: product.sellPrice,
+                currentBid: product.sellPrice,
                 auctionType,
-                startDate,
-                endDate,
-                lotNumber,
+                startDate:product.startDate,
+                endDate:product.endDate,
+                lotNumber: product.lotNumber,
                 createdBy: req.user._id,
                 status: status || "ACTIVE",
+                catalog:category
             });
+        }));
 
-            await auction.save();
-            auctions.push(auction);
-        }
+        // ✅ Bulk insert auctions (Better Performance)
+        const createdAuctions = await auctionModel.insertMany(auctions);
 
-        return created(res, `${auctions.length} auctions created successfully.`, auctions);
-
+        return created(res, `${createdAuctions.length} auctions created successfully.`, createdAuctions);
     } catch (error) {
         console.error("Bulk auction creation error:", error);
         return unknownError(res, error.message);
     }
 };
+
+
+
 
 
 
