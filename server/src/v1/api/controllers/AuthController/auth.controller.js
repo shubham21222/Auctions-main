@@ -1,4 +1,6 @@
 import User from  "../../models/Auth/User.js"
+import RolePermission from  "../../models/RolePermission/role-permissions.model.js"
+import   {PERMISSIONS}  from '../../constants/common.constants.js';
 import {
     success,
     created,
@@ -21,7 +23,7 @@ import mongoose from 'mongoose'
 import {sendToken}  from  "../../Utils/genToken.js"
 import {sendEmail} from "../../Utils/sendEmail.js"
 import crypto from 'crypto'
-
+import { stripeService } from '../../services/Stripe/stripe.service.js';
 
 
 const generateResetPasswordToken = () => {
@@ -30,7 +32,7 @@ const generateResetPasswordToken = () => {
 
 // Register User //
 export const register = async (req, res , next) => {
-    const { email, password , BillingDetails} = req.body;
+    const { email, password , BillingDetails, paymentMethodId} = req.body;
     try {
 
         const existingUser = await User.findOne({ email });
@@ -53,13 +55,19 @@ export const register = async (req, res , next) => {
             passwordResetToken: resetToken,
             passwordResetExpires: passwordResetExpires,
             BillingDetails:BillingDetails,
-            cardDetails:cardDetails,
+            // cardDetails:cardDetails,
         }
 
         if(password){
             userData.password = password;
         }
-
+        
+        if(paymentMethodId){
+            const customer = await stripeService.findOrCreateCustomer(email,req.body.name);
+            await stripeService.attachCardToCustomer(paymentMethodId, customer.id);
+            userData.stripeCustomerId = customer.id;
+            userData.paymentMethodId = paymentMethodId;
+        }
         // create a new User //
 
             // Create the new user
@@ -101,7 +109,13 @@ export const login = async (req, res, next) => {
                 { activeToken: token },
                 { new: true }
             );
-
+            let permissions = [];
+            if(findUser.role.toLowerCase() == 'admin'){
+                permissions = Object.values(PERMISSIONS).flat();;
+            }else{
+                permissions = await  RolePermission.findOne({name:findUser.role}).select('permissions');
+                permissions = permissions?.permissions ? permissions?.permissions  : [];
+            }
             return success(res, "Login Successful", {
                 success: true,
                 user: {
@@ -110,6 +124,7 @@ export const login = async (req, res, next) => {
                     email: findUser.email,
                     role: findUser.role,
                     passwordResetToken: findUser.passwordResetToken,
+                    permissions,
                 },
                 token: token,
             });
@@ -129,7 +144,13 @@ export const login = async (req, res, next) => {
             { activeToken: token },
             { new: true }
         );
-
+        let permissions = [];
+        if(findUser.role.toLowerCase() == 'admin'){
+            permissions = Object.values(PERMISSIONS).flat();;
+        }else{
+            permissions = await  RolePermission.findOne({name:findUser.role}).select('permissions');
+            permissions = permissions?.permissions ? permissions?.permissions  : [];
+        }
         return success(res, "Login Successful", {
             success: true,
             user: {
@@ -138,6 +159,7 @@ export const login = async (req, res, next) => {
                 email: findUser.email,
                 role: findUser.role,
                 passwordResetToken: findUser.passwordResetToken,
+                permissions
             },
             token: token,
         });
@@ -207,7 +229,7 @@ export const verifyUser = async (req, res, next) => {
         }
 
         const {id} = decoded;
-        const loggedInUser = await User.findOne({
+        let loggedInUser = await User.findOne({
             _id: id,
             activeToken: token
         }).select("-password -activeToken");
@@ -215,7 +237,15 @@ export const verifyUser = async (req, res, next) => {
         if(!loggedInUser){
             return badRequest(res, "Invalid token");
         }
-
+        let permissions = [];
+        if(loggedInUser.role.toLowerCase() == 'admin'){
+            permissions = Object.values(PERMISSIONS).flat();;
+        }else{
+            permissions = await  RolePermission.findOne({name:loggedInUser.role}).select('permissions');
+            permissions = permissions?.permissions ? permissions?.permissions  : [];
+        }
+        loggedInUser = loggedInUser.toObject(); // If it's a Mongoose document
+        loggedInUser.permissions = permissions; // Now assign permissions
         return success(res, "User verified successfully", loggedInUser);
 
     }
@@ -658,6 +688,38 @@ export const getUserByBillingAddress = async (req, res, next) => {
         }
 
         return success(res, "User found", user);
+        
+    } catch (error) {
+        return unknownError(res, error);  
+    }
+}
+
+export const addCard = async (req, res, next) => {
+    try {
+        
+        const { _id } = req.user._id; // Correct destructuring
+        validateMongoDbId(_id);
+
+        let user = await User.findById(_id)
+        if(!user){
+            return notFound(res, "User not found");
+        }
+
+        if(user.paymentMethodId){
+            return badRequest(res, "Card already attached!");
+        }
+        const {paymentMethodId} = req.body;
+        if(!paymentMethodId){
+            return badRequest(res, "Please provide required fields");
+        }
+        const customer = await stripeService.findOrCreateCustomer(user.email,user.name);
+        const attached =  await stripeService.attachCardToCustomer(paymentMethodId, customer.id);
+        // console.log(attached);
+        user =  await User.findByIdAndUpdate(_id,{
+            paymentMethodId,
+            stripeCustomerId:customer.id,
+        });
+        return success(res, "Card added successfully!", user);
         
     } catch (error) {
         return unknownError(res, error);  

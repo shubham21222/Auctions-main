@@ -1,11 +1,12 @@
 import express from "express";
-import  {register, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress}  from  "../../controllers/AuthController/auth.controller.js";
+import  {register, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard}  from  "../../controllers/AuthController/auth.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
 
 
 const router = express.Router();
 
 router.post("/register", register);
+router.post("/add-card",IsAuthenticated , authorizeRoles('USER'), addCard);
 router.post("/login", login);
 router.post("/logout", logout);
 router.post("/verify/:token", verifyUser);

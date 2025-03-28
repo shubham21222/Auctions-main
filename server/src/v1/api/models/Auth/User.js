@@ -39,7 +39,6 @@ const UserSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        enum: ["USER", "ADMIN"],
         default: "USER",
     },
 
@@ -157,7 +156,6 @@ const UserSchema = new mongoose.Schema({
 
 
         // card details connectivity for stripe service //
-
         cardDetails: [{
            
             cardNumber: {
@@ -215,7 +213,16 @@ const UserSchema = new mongoose.Schema({
 
 
         }],
-
+        paymentMethodId:{
+            type: String,
+            required: false,
+            default:null
+        },
+        stripeCustomerId:{
+            type: String,
+            required: false,
+            default:null
+        },
         // Auction connectivity //
 
         auctions: [{
