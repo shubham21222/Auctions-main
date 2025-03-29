@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/create", IsAuthenticated , authorizeRoles('ADMIN') , createRole);
 router.get("/all",IsAuthenticated , authorizeRoles('ADMIN'), getAllRoles);
 router.get("/all-permissions",IsAuthenticated , authorizeRoles('ADMIN'), getAllPermissions);
-router.get("/:id",IsAuthenticated , authorizeRoles('ADMIN'), getSingleRole);
+router.get("/:id",IsAuthenticated , getSingleRole);
 router.put("/update/:id", IsAuthenticated , authorizeRoles('ADMIN') , updateRole);
 router.delete("/delete/:id", IsAuthenticated , authorizeRoles('ADMIN') , deleteRole);
 
