@@ -192,6 +192,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
+          Role:user.role
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
@@ -208,6 +209,7 @@ export const initializeSocket = (server) => {
           minBidIncrement: auction.minBidIncrement,
           bids: auction.bids,
           bidType: bidType || "online",
+          Role: user.role
         });
 
         const lastBidderId =
