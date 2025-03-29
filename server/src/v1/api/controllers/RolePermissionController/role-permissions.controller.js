@@ -35,7 +35,7 @@ export const createRole = async (req, res) => {
         }
 
         if(!permissions?.length){
-            return badRequest(res, "Please select at least  on permission!");
+            return badRequest(res, "Please select at least  one permission!");
         }
 
         const existingRole = await rolePermissionModel.findOne({ name });
@@ -112,7 +112,7 @@ export const updateRole = async (req, res) => {
         }
 
         if(!permissions?.length){
-            return badRequest(res, "Please select at least  on permission!");
+            return badRequest(res, "Please select at least  one permission!");
         }
 
         const role = await rolePermissionModel.findById(req.params.id);
