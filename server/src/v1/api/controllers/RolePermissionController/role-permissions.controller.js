@@ -144,7 +144,7 @@ export const updateRole = async (req, res) => {
         return success(res, "Role updated successfully", Role);
 
     } catch (error) {
-
+        return unknownError(res, error.message);
     }
 }
 
