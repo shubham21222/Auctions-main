@@ -69,6 +69,7 @@ export const updateUser = async (req, res) => {
         if(existingUser && existingUser._id != req.params.id){
             return badRequest(res, "User with the same email exists! Please try different email");
         }
+        
         if(password){
             user.password = password;
         }
