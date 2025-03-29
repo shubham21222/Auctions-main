@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 class StripeService {
     
   constructor() {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    this.stripe = new Stripe("sk_test_51PAs60SB7WwtOtybywUDUG9MdtdWGlWHMww0HcmcYxKH1Odx4US1PhizF5mrg5ihlNbE85KwgVv51SYYCXQU1NRU00zSlwYANZ");
   }
 
   async findOrCreateCustomer(email, name) {

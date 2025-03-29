@@ -447,7 +447,7 @@ export const getbulkAuctions = async (req, res) => {
 
         // Handle pagination
         const pageNumber = parseInt(page) || 1;
-        const pageSize = parseInt(limit) || 10;
+        const pageSize = parseInt(limit) || 10000;
         const skip = (pageNumber - 1) * pageSize;
 
         let matchStage = {};
@@ -1886,13 +1886,18 @@ export const stripeWebhookHandler = async (req, res) => {
 
 export const createBulkAuction = async (req, res) => {
     try {
-        const { products, auctionType,  status, category } = req.body;
+        const { products, auctionType,  status, category , desciptions , stateDate ,  endDate } = req.body;
+
 
         if (!Array.isArray(products) || products.length === 0) {
             return badRequest(res, "Please provide an array of products.");
         }
         if ( !category) {
-            return badRequest(res, "Missing required fields.");
+            return badRequest(res, "Missing catalog fields.");
+        }
+
+        if(!stateDate){
+            return badRequest(res, "Missing startDate fields.");
         }
 
         // ✅ Check if category exists by name, create if not found
@@ -1911,14 +1916,14 @@ export const createBulkAuction = async (req, res) => {
             if (!product) {
                 product = await AuctionProduct.create({
                     title: productData.title || "Untitled Product",
-                    description: productData.description || "No description",
-                    price: productData.price || 0,
+                    description: req.body.desciptions || "No description",
+                    price: product.price || 0,
                     estimateprice: productData.estimateprice || "N/A",
                     offerAmount: productData.offerAmount || 0,
                     onlinePrice: productData.onlinePrice || 0,
                     sellPrice: productData.sellPrice || 0,
-                    startDate: productData.startDate,
-                    endDate:productData.endDate,
+                    startDate: stateDate,
+                    endDate:endDate,
                     ReservePrice: productData.ReservePrice || 0,
                     category: categoryExists._id, // ✅ Assign category ID
                     image: productData.image || [],
@@ -1943,12 +1948,14 @@ export const createBulkAuction = async (req, res) => {
                 startingBid: product.sellPrice,
                 currentBid: product.sellPrice,
                 auctionType: product.auctionType,
-                startDate:product.startDate,
-                endDate:product.endDate,
+                startDate:stateDate,
+                endDate:endDate,
                 lotNumber: product.lotNumber,
+                description:desciptions ,
                 createdBy: req.user._id,
                 status: status || "ACTIVE",
-                catalog:category
+                catalog:category || "",
+                description:desciptions || "No description",
             });
         }));
 
@@ -1962,6 +1969,15 @@ export const createBulkAuction = async (req, res) => {
     }
 };
 
+
+// (async () => {
+//     try {
+//         await auctionModel.collection.dropIndex("lotNumber_1");
+//         console.log("✅ Dropped unique index on lotNumber.");
+//     } catch (err) {
+//         console.log("ℹ️ Index not found or already removed:", err);
+//     }
+// })();
 
 
 

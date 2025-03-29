@@ -14,6 +14,7 @@ const auctionSchema = new mongoose.Schema(
         auctionProduct:{type: mongoose.Schema.Types.ObjectId, ref: "AuctionProduct", required:false, default: null},
         category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: false, default: null},
         auctioncategory:{type: mongoose.Schema.Types.ObjectId , ref: "AunctionCategory", required:false, default: null},
+        description: { type: String, required: false },
         startingBid: { type: Number, required: true },
         currentBid: { type: Number, required: true },
         currentBidder: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
