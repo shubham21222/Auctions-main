@@ -10,6 +10,7 @@ import seller from "./routes/Seller/seller.routes.js"
 import artist from "./routes/Artist/artist.routes.js"
 import brands from "./routes/brands/brands.routes.js";
 import rolePermissions from "./routes/RolePermission/role-permissions.route.js";
+import userRoute from "./routes/User/user.route.js";
 
 const router = Router();
 
@@ -58,6 +59,8 @@ router.use("/artist", artist);
 router.use("/brands", brands);
 
 router.use("/role", rolePermissions);
+
+router.use("/user", userRoute);
 
 
 
