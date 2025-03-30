@@ -1596,10 +1596,10 @@ export const getUserAuctions = async (req, res) => {
             { $match: matchStage },
             {
                 $lookup: {
-                    from: "products",
-                    localField: "product",
-                    foreignField: "_id",
-                    as: "product",
+                    from: 'auctionproducts',
+                    localField: 'auctionProduct',
+                    foreignField: '_id',
+                    as: 'product',
                 },
             },
             { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
@@ -2001,6 +2001,127 @@ export const createBulkAuction = async (req, res) => {
         return unknownError(res, error.message);
     }
 };
+
+
+ export const winner = async (req, res) => {
+    try{
+
+    }catch(error){
+
+    }
+ }
+
+
+
+ export const getWinners = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const skip = (page - 1) * limit;
+        const search = req.query.search || ""; // Get search query from request
+
+        const winners = await auctionModel.aggregate([
+            {
+                $match: { winner: { $ne: null } }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'winner',
+                    foreignField: '_id',
+                    as: 'winnerDetails'
+                }
+            },
+            {
+                $unwind: '$winnerDetails'
+            },
+            {
+                $lookup: {
+                    from: 'auctionproducts',
+                    localField: 'auctionProduct',
+                    foreignField: '_id',
+                    as: 'product',
+                },
+            },
+            { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+            {
+                $addFields: {
+                    winningBid: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: "$bids",
+                                    as: "bid",
+                                    cond: { $eq: ["$$bid.bidder", "$winner"] }
+                                }
+                            },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                $match: {
+                    $or: [
+                        { 'product.title': { $regex: search, $options: 'i' } },
+                        { 'winnerDetails.name': { $regex: search, $options: 'i' } },
+                        { 'winnerDetails.email': { $regex: search, $options: 'i' } }
+                    ]
+                }
+            },
+            {
+                $project: {
+                    product: {
+                        title: 1,
+                        price: 1,
+                        image: 1
+                    },
+                    auctionDetails: {
+                        startingBid: 1,
+                        currentBid: 1,
+                        description: 1,
+                        lotNumber: 1,
+                        auctionType: 1,
+                        startDate: 1,
+                        endDate: 1,
+                        status: 1
+                    },
+                    winner: {
+                        _id: "$winnerDetails._id",
+                        name: "$winnerDetails.name",
+                        email: "$winnerDetails.email"
+                    },
+                    winningBid: {
+                        bidAmount: "$winningBid.bidAmount",
+                        bidTime: "$winningBid.bidTime",
+                        ipAddress: "$winningBid.ipAddress" // Include IP address
+                    }
+                }
+            },
+            { $skip: skip },
+            { $limit: limit }
+        ]);
+
+        const total = await auctionModel.countDocuments({ winner: { $ne: null } });
+
+        res.json({
+            success: true,
+            message: 'Winners retrieved successfully',
+            winners,
+            total,
+            page,
+            limit
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+
 
 
 // (async () => {

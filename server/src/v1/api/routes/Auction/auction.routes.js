@@ -18,7 +18,8 @@ import {
     getBidIncrement,
     createBulkAuction,
     getbulkAuctions,
-    getbulkAuctionById
+    getbulkAuctionById,
+    getWinners
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
@@ -84,5 +85,7 @@ router.get("/getDashboardStats" , IsAuthenticated , authorizeRoles("ADMIN") , ge
 router.post("/setBidIncrement"  , setBidIncrement)
 
 router.get("/getBidIncrement" , getBidIncrement)
+
+router.get("/getWinners" , getWinners)
 
 export default router;
