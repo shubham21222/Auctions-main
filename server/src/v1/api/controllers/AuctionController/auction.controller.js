@@ -357,6 +357,7 @@ export const getAuctions = async (req, res) => {
                     currentBid: 1,
                     currentBidder: 1,
                     payment_status:1,
+                    shipping_status:1,
                     status: 1,
                     startDate: 1,
                     endDate: 1,
@@ -442,7 +443,9 @@ export const getbulkAuctions = async (req, res) => {
             limit,
             priceRange,
             auctionType,
-            catalog // New catalog query parameter
+            catalog,
+            payment_status,
+            shipping_status// New catalog query parameter
         } = req.query;
 
         // Handle pagination
@@ -470,6 +473,14 @@ export const getbulkAuctions = async (req, res) => {
         // Filter by catalog
         if (catalog) {
             matchStage.catalog = catalog; // Assuming catalog is a string field
+        }
+
+        if(payment_status){
+            matchStage.payment_status = shipping_status
+        }
+
+        if (shipping_status){
+            matchStage.shipping_status = shipping_status
         }
 
         // Search by product title, description, or lot number
@@ -623,6 +634,7 @@ export const getbulkAuctions = async (req, res) => {
                     currentBid: 1,
                     currentBidder: 1,
                     payment_status: 1,
+                    shipping_status:1,
                     status: 1,
                     startDate: 1,
                     endDate: 1,
@@ -990,7 +1002,7 @@ export const getbulkAuctionById = async (req, res) => {
 export const updateAuction = async (req, res) => {
     try {
         const { id } = req.params;
-        const { product, startingBid, auctionType, endDate, startDate, category, status } = req.body;
+        const { product, startingBid, auctionType, endDate, startDate, category, status , shipping_status } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return validation(res, 'Invalid auction ID.');
@@ -1027,6 +1039,10 @@ export const updateAuction = async (req, res) => {
 
         if (status) {
             findAuction.status = status;
+        }
+
+        if(shipping_status){
+            findAuction.shipping_status = shipping_status
         }
 
         await findAuction.save();

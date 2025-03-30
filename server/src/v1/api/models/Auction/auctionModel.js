@@ -32,6 +32,7 @@ const auctionSchema = new mongoose.Schema(
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         Emailsend:{type:String , enum:['true' , 'false'] , default:'false'},
         payment_status: { type: String, enum:['PAID' , 'UNPAID' , 'PENDING' , 'FAILED'] , default:'UNPAID'},
+        shipping_status:{type:String , enum:['SHIPPED' , 'DELIVERED' , 'CANCELED' , 'RETURNED' , 'FAILED' , 'PENDING'] , default:'PENDING'},
         catalog: { type: String , required: false },
     },
     {
