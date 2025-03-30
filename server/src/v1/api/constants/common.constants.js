@@ -49,5 +49,14 @@ export const PERMISSIONS = {
     "actions": [
         "view actions",
         "update actions"
+    ],
+    "auctions": [
+        "view auctions",
+        "create auctions",
+        "edit auctions",
+        "delete auctions"
+    ],
+    "live_auctions": [
+        "manage live auctions"
     ]
 };

@@ -89,7 +89,10 @@ export default function ProductDetails({
         {isLoading ? (
           <Skeleton className="w-full h-20" />
         ) : (
-          <p className="text-gray-600 text-base leading-relaxed">{product.description}</p>
+          <p
+            className="text-gray-600 text-base leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: product.description }}
+          />
         )}
 
         <div className="space-y-2 bg-gray-50 p-4 rounded-xl">
@@ -102,7 +105,8 @@ export default function ProductDetails({
             <Skeleton className="w-48 h-8" />
           ) : (
             <p className="text-2xl font-bold text-luxury-gold">
-              ${product.price.min.toLocaleString()} - ${product.price.max.toLocaleString()}
+              ${product.price.min.toLocaleString()} - $
+              {product.price.max.toLocaleString()}
             </p>
           )}
         </div>
@@ -143,12 +147,16 @@ export default function ProductDetails({
             {isLoading ? (
               <Skeleton className="w-32 h-6" />
             ) : (
-              <h3 className="font-semibold text-lg text-gray-800 mb-2">Shipping Details</h3>
+              <h3 className="font-semibold text-lg text-gray-800 mb-2">
+                Shipping Details
+              </h3>
             )}
             {isLoading ? (
               <Skeleton className="w-48 h-4" />
             ) : (
-              <p className="text-gray-600">Item located in: {product.location}</p>
+              <p className="text-gray-600">
+                Item located in: {product.location}
+              </p>
             )}
           </div>
 
@@ -156,13 +164,15 @@ export default function ProductDetails({
             {isLoading ? (
               <Skeleton className="w-24 h-6" />
             ) : (
-              <h3 className="font-semibold text-lg text-gray-800 mb-2">Payment</h3>
+              <h3 className="font-semibold text-lg text-gray-800 mb-2">
+                Payment
+              </h3>
             )}
             {isLoading ? (
               <Skeleton className="w-32 h-4" />
             ) : (
               <Link
-                href="#"
+                href="/privacy-policy"
                 className="text-blue-600 hover:text-blue-700 hover:underline transition-colors"
               >
                 View Policy for Payment

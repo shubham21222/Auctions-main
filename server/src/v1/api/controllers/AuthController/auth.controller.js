@@ -696,35 +696,65 @@ export const getUserByBillingAddress = async (req, res, next) => {
 
 export const addCard = async (req, res, next) => {
     try {
-        
-        const { _id } = req.user._id; // Correct destructuring
-        validateMongoDbId(_id);
-
-        let user = await User.findById(_id)
-        if(!user){
-            return notFound(res, "User not found");
-        }
-
-        if(user.paymentMethodId){
-            return badRequest(res, "Card already attached!");
-        }
-        const {paymentMethodId} = req.body;
-        if(!paymentMethodId){
-            return badRequest(res, "Please provide required fields");
-        }
-        const customer = await stripeService.findOrCreateCustomer(user.email,user.name);
-        const attached =  await stripeService.attachCardToCustomer(paymentMethodId, customer.id);
-        // console.log(attached);
-        user =  await User.findByIdAndUpdate(_id,{
-            paymentMethodId,
-            stripeCustomerId:customer.id,
-        });
-        return success(res, "Card added successfully!", user);
-        
+      const { _id } = req.user; // Correct destructuring from req.user (not req.user._id)
+      validateMongoDbId(_id);
+  
+      // Find the user
+      let user = await User.findById(_id);
+      if (!user) {
+        return notFound(res, "User not found");
+      }
+  
+      // Check if a card is already attached
+      if (user.paymentMethodId) {
+        return badRequest(res, "Card already attached!");
+      }
+  
+      const { paymentMethodId } = req.body;
+      if (!paymentMethodId) {
+        return badRequest(res, "Please provide paymentMethodId");
+      }
+  
+      // Find or create Stripe Customer
+      const customer = await stripeService.findOrCreateCustomer(user.email, user.name);
+  
+      // Attach the card to the customer and get payment method details
+      const paymentMethod = await stripeService.attachCardToCustomer(paymentMethodId, customer.id);
+  
+      // Prepare card details to save (align with your schema)
+      const cardDetails = {
+        cardNumber: null, // Not provided by Stripe for security reasons; use last4 instead
+        expMonth: paymentMethod.card.exp_month,
+        expYear: paymentMethod.card.exp_year,
+        cardholderName: paymentMethod.billing_details.name || user.name,
+        BillingDetails: [{
+          country: paymentMethod.card.country || null,
+          AddressLine1: paymentMethod.billing_details.address?.line1 || null,
+          AddBalanceLine2: paymentMethod.billing_details.address?.line2 || null,
+          city: paymentMethod.billing_details.address?.city || null,
+          Pincode: paymentMethod.billing_details.address?.postal_code || null,
+          state: paymentMethod.billing_details.address?.state || null,
+        }],
+      };
+  
+      // Update user with payment details
+      user.paymentMethodId = paymentMethodId;
+      user.stripeCustomerId = customer.id;
+      user.cardDetails = user.cardDetails || [];
+      if (!user.cardDetails.some(card => card.paymentMethodId === paymentMethodId)) {
+        user.cardDetails.push(cardDetails);
+      }
+  
+      // Save the updated user
+      await user.save();
+  
+      // Return success response with updated user
+      return success(res, "Card added successfully!", user.toObject());
     } catch (error) {
-        return unknownError(res, error);  
+      console.error("Error in addCard:", error.message);
+      return unknownError(res, error);
     }
-}
+  };
 
 
 

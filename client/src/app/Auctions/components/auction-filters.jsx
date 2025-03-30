@@ -7,44 +7,40 @@ import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
 
 export function AuctionFilters({ onFilterChange }) {
-  const [date, setDate] = useState(""); // Store as YYYY-MM-DD string
+  const [date, setDate] = useState("");
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const [auctionTypes, setAuctionTypes] = useState({
     "Live Auction": false,
     "Timed Auction": false,
   });
-  const [categories, setCategories] = useState({}); // Checkbox states
-  const [categoryData, setCategoryData] = useState([]); // Raw API data
+  const [catalogs, setCatalogs] = useState({}); // Checkbox states for catalogs
+  const [catalogData, setCatalogData] = useState([]); // Raw catalog data
   const [status, setStatus] = useState({
-    Active: true, // Default to Active
+    Active: true,
     Ended: false,
   });
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch categories on mount
+  // Fetch catalogs on mount
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchCatalogs() {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
-        if (!response.ok) throw new Error("Failed to fetch categories");
+        const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/bulk");
+        if (!response.ok) throw new Error("Failed to fetch catalogs");
         const data = await response.json();
-        setCategoryData(data.items); // Store raw data
-        const categoryObj = data.items.reduce((acc, category) => {
-          acc[category.name] = false; // Initialize all as unchecked
+        const catalogNames = data.items?.catalogs?.map((catalog) => catalog.catalogName) || [];
+        setCatalogData(catalogNames);
+        const catalogObj = catalogNames.reduce((acc, catalog) => {
+          acc[catalog] = false;
           return acc;
         }, {});
-        setCategories(categoryObj);
+        setCatalogs(catalogObj);
       } catch (error) {
-        console.error("Error fetching categories:", error.message);
+        console.error("Error fetching catalogs:", error.message);
       }
     }
-    fetchCategories();
+    fetchCatalogs();
   }, []);
-
-  const categoryMap = categoryData.reduce((acc, category) => {
-    acc[category.name] = category._id;
-    return acc;
-  }, {});
 
   const auctionTypeMap = {
     "Live Auction": "LIVE",
@@ -52,9 +48,9 @@ export function AuctionFilters({ onFilterChange }) {
   };
 
   const applyFilters = () => {
-    const selectedCategories = Object.entries(categories)
+    const selectedCatalogs = Object.entries(catalogs)
       .filter(([_, checked]) => checked)
-      .map(([category]) => categoryMap[category])
+      .map(([catalog]) => catalog)
       .join(",");
     const selectedAuctionType = Object.entries(auctionTypes)
       .filter(([_, checked]) => checked)
@@ -66,7 +62,7 @@ export function AuctionFilters({ onFilterChange }) {
       .join(",");
 
     onFilterChange({
-      category: selectedCategories || "",
+      category: selectedCatalogs || "", // Map to 'category' which will be used as 'catalog' in the API
       priceRange: priceRange,
       searchQuery: searchQuery.trim(),
       auctionType: selectedAuctionType || "",
@@ -77,7 +73,7 @@ export function AuctionFilters({ onFilterChange }) {
 
   useEffect(() => {
     applyFilters();
-  }, [date, priceRange, auctionTypes, categories, status, searchQuery]);
+  }, [date, priceRange, auctionTypes, catalogs, status, searchQuery]);
 
   const handleStatusChange = (statusOption) => (checked) => {
     if (checked) {
@@ -97,7 +93,7 @@ export function AuctionFilters({ onFilterChange }) {
     setDate("");
     setPriceRange([0, 100000]);
     setAuctionTypes({ "Live Auction": false, "Timed Auction": false });
-    setCategories((prev) =>
+    setCatalogs((prev) =>
       Object.keys(prev).reduce((acc, key) => {
         acc[key] = false;
         return acc;
@@ -124,7 +120,7 @@ export function AuctionFilters({ onFilterChange }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by title or lot number"
-          className="w-full border border-luxury-gold/20 p-2 rounded-md"
+          className="w-full border border-luxury-gold/20 p-2 rounded-md text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40"
         />
       </div>
 
@@ -174,23 +170,23 @@ export function AuctionFilters({ onFilterChange }) {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-luxury-charcoal">Categories</h3>
+        <h3 className="text-sm font-medium text-luxury-charcoal">Catalogs</h3>
         <div className="space-y-3">
-          {Object.keys(categories).length > 0 ? (
-            Object.keys(categories).map((category) => (
-              <div key={category} className="flex items-center space-x-2">
+          {Object.keys(catalogs).length > 0 ? (
+            Object.keys(catalogs).map((catalog) => (
+              <div key={catalog} className="flex items-center space-x-2">
                 <Checkbox
-                  id={category.toLowerCase()}
-                  checked={categories[category]}
+                  id={catalog.toLowerCase()}
+                  checked={catalogs[catalog]}
                   onCheckedChange={(checked) =>
-                    setCategories((prev) => ({ ...prev, [category]: checked }))
+                    setCatalogs((prev) => ({ ...prev, [catalog]: checked }))
                   }
                 />
-                <Label htmlFor={category.toLowerCase()}>{category}</Label>
+                <Label htmlFor={catalog.toLowerCase()}>{catalog}</Label>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">Loading categories...</p>
+            <p className="text-sm text-muted-foreground">Loading catalogs...</p>
           )}
         </div>
       </div>

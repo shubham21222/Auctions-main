@@ -27,10 +27,13 @@ export default function CatalogFooter() {
             <div className="font-medium text-gray-700">Price</div>
             <div className="font-medium text-gray-700">Bid Increment</div>
             {bidIncrements.map((bid, index) => (
-              <>
-                <div key={`price-${index}`} className="text-gray-600">{bid.price}</div>
-                <div key={`increment-${index}`} className="text-gray-600">{bid.increment}</div>
-              </>
+              <div
+                key={index} // Single key at the top level
+                className="contents" // Allows children to inherit grid layout
+              >
+                <div className="text-gray-600">{bid.price}</div>
+                <div className="text-gray-600">{bid.increment}</div>
+              </div>
             ))}
           </div>
         </div>
@@ -50,7 +53,7 @@ export default function CatalogFooter() {
             <p className="text-gray-600">
               TERMS AND CONDITIONS This website is operated by NY Elizabeth Holdings, Inc., a Wyoming corporation...
             </p>
-            <Link href="#" className="text-luxury-gold hover:underline mt-2 inline-block">
+            <Link href="/terms" className="text-luxury-gold hover:underline mt-2 inline-block">
               Read More
             </Link>
           </div>

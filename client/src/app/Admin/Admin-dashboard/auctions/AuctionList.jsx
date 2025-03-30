@@ -28,18 +28,22 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
   const [editAuction, setEditAuction] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
 
-  const activeAuctions = auctions.filter((auction) => auction.status === "ACTIVE");
+  // Log the auctions prop for debugging
+  console.log("Auctions in AuctionList:", auctions);
+
+  // Ensure auctions is an array, default to empty array if undefined or null
+  const activeAuctions = (auctions || []).filter((auction) => auction.status === "ACTIVE");
 
   const handleEditClick = (auction) => {
     setEditAuction({
       _id: auction._id,
-      product: auction.product._id,
-      startingBid: auction.startingBid,
-      auctionType: auction.auctionType,
-      startDate: new Date(auction.startDate).toISOString().split("T")[0],
-      endDate: new Date(auction.endDate).toISOString().split("T")[0],
-      category: auction.category._id,
-      status: auction.status,
+      product: auction.product?._id || "",
+      startingBid: auction.startingBid || 0,
+      auctionType: auction.auctionType || "",
+      startDate: auction.startDate ? new Date(auction.startDate).toISOString().split("T")[0] : "",
+      endDate: auction.endDate ? new Date(auction.endDate).toISOString().split("T")[0] : "",
+      category: auction.category?._id || "",
+      status: auction.status || "",
     });
     setOpenEditDialog(true);
   };
@@ -52,13 +56,13 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
       startingBid: Number(editAuction.startingBid),
       auctionType: editAuction.auctionType,
       startDate: `${editAuction.startDate}T10:00:00Z`,
-      endDate: `${editAuction.endDate}T15:00:00Z`,
+      endDate: editAuction.endDate ? `${editAuction.endDate}T15:00:00Z` : null,
       category: editAuction.category,
       status: editAuction.status,
     };
 
     try {
-      const response = await fetch(`https://bid.nyelizabeth.com/v1/api/auction/update/${editAuction._id}`, {
+      const response = await fetch(`${config.baseURL}/v1/api/auction/update/${editAuction._id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,18 +100,21 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Lot Number</TableHead>
                   <TableHead>Auction Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Starting Bid</TableHead>
                   <TableHead>Current Bid</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>End Date</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>Catalog</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeAuctions.map((auction) => (
                   <TableRow key={auction._id}>
+                    <TableCell>{auction.product?.lotNumber || "N/A"}</TableCell>
                     <TableCell>{auction.product?.title || "N/A"}</TableCell>
                     <TableCell>{auction.auctionType || "N/A"}</TableCell>
                     <TableCell>${auction.startingBid?.toLocaleString() || "N/A"}</TableCell>
@@ -117,7 +124,8 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
                         {auction.status || "N/A"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(auction.endDate).toLocaleDateString() || "N/A"}</TableCell>
+                    <TableCell>{auction.startDate ? new Date(auction.startDate).toLocaleDateString() : "N/A"}</TableCell>
+                    <TableCell>{auction.catalog || "N/A"}</TableCell>
                     <TableCell>
                       <Button variant="ghost" onClick={() => handleEditClick(auction)}>
                         Edit

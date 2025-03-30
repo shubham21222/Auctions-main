@@ -8,7 +8,123 @@ import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 import { useDispatch } from "react-redux";
-import { setToken, setUser, setUserId, setEmail, updateBillingDetails } from "@/redux/authSlice";
+import { registerUser } from "@/redux/authSlice";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+const stripePromise = loadStripe('pk_test_51QvrYjAyvNAmOwKWxkE96ErZaYGx3LcIivgG0OUWeUowZUupEuM7ir6fLdxhtssPtNQnruXmKMfjB9CDbA8KjG1u00thCR8WnJ');
+
+const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [cardholderName, setCardholderName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setLoading(true);
+    setError(null);
+
+    const cardElement = elements.getElement(CardElement);
+
+    try {
+      const { paymentMethod, error: stripeError } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: cardholderName,
+          email: email,
+          phone: billingDetails.phone,
+          address: {
+            line1: billingDetails.streetAddress,
+            city: billingDetails.city,
+            state: billingDetails.state,
+            postal_code: billingDetails.zipcode,
+            country: 'US'
+          }
+        },
+      });
+
+      if (stripeError) {
+        setError(stripeError.message);
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.post(
+        `${config.baseURL}/v1/api/auth/add-card`,
+        { 
+          paymentMethodId: paymentMethod.id,
+          billingDetails: {
+            ...billingDetails,
+            name: cardholderName,
+            email: email
+          }
+        },
+        { headers: { Authorization: `${token}` } }
+      );
+
+      if (response.data.status) {
+        toast.success("Payment method added successfully!");
+        onSuccess();
+      } else {
+        setError(response.data.error || "Failed to add payment method");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to connect to server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label className="label">
+          <span className="label-text text-sm font-medium text-gray-700">Name on Card</span>
+        </label>
+        <input
+          type="text"
+          value={cardholderName}
+          onChange={(e) => setCardholderName(e.target.value)}
+          placeholder="John Doe"
+          className="input input-bordered w-full"
+          required
+        />
+      </div>
+      <div>
+        <label className="label">
+          <span className="label-text text-sm font-medium text-gray-700">Card Details</span>
+        </label>
+        <div className="border border-gray-300 rounded-lg p-3">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: '16px',
+                  color: '#424770',
+                  '::placeholder': { color: '#aab7c4' },
+                },
+                invalid: { color: '#9e2146' },
+              },
+            }}
+          />
+        </div>
+      </div>
+      {error && <div className="text-red-500 text-sm">{error}</div>}
+      <button
+        type="submit"
+        className="btn btn-primary w-full"
+        disabled={!stripe || loading}
+      >
+        {loading ? "Processing..." : "Add Card"}
+      </button>
+    </form>
+  );
+};
 
 const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const [step, setStep] = useState(1);
@@ -18,6 +134,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [token, setLocalToken] = useState(null);
   const [billingDetails, setBillingDetails] = useState({
     firstName: "",
     lastName: "",
@@ -28,7 +145,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
     zipcode: "",
     phone: "",
     email: "",
-    orderNotes: ""
+    orderNotes: "",
   });
   const dispatch = useDispatch();
 
@@ -46,112 +163,53 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const passwordStrength = getPasswordStrength(password);
 
   const getProgress = () => {
-    return (step / 3) * 100;
+    return (step / 4) * 100;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipBilling = false) => {
     setLoading(true);
     try {
-      // Step 1: Register the user
-      const signupResponse = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
+      const userData = {
         email,
         password,
         name,
-        BillingDetails: Object.values(billingDetails).some(value => value) ? [billingDetails] : []
-      });
+        ...(!skipBilling && { billingDetails })
+      };
 
-      if (!signupResponse.data.success) {
-        throw new Error(signupResponse.data.message || "Registration failed.");
-      }
-
-      // Step 2: Login to get the token
-      const loginResponse = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
-        email,
-        password,
-      });
-
-      if (!loginResponse.data.status || !loginResponse.data.items.success) {
-        throw new Error(loginResponse.data.message || "Login failed after registration.");
-      }
-
-      // Extract token and user data from login response
-      const token = loginResponse.data.items.token;
-      const userData = loginResponse.data.items.user;
-
-      if (!token || !userData) {
-        throw new Error("No token or user data received from login response.");
-      }
-
-      if (!userData._id) {
-        throw new Error("User data missing _id field.");
-      }
-      if (!userData.email) {
-        throw new Error("User data missing email field.");
-      }
-
-      // Step 3: Store token and user data in Redux for auto-login
-      try {
-        dispatch(setToken(token));
-        dispatch(setUser(userData));
-        dispatch(setUserId(userData._id));
-        dispatch(setEmail(userData.email));
-      } catch (dispatchErr) {
-        console.error("Dispatch error:", dispatchErr);
-      }
-
-      // Step 4: Verify the token and update billing details
-      try {
-        const verifyResponse = await axios.post(
-          `${config.baseURL}/v1/api/auth/verify/${token}`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (verifyResponse.data?.items && typeof verifyResponse.data.items === "object") {
-          const verifiedUserData = verifyResponse.data.items;
-          // Update user with verified data
-          dispatch(setUser(verifiedUserData));
-          // Dispatch billing details (even if empty)
-          const billingDetails = verifiedUserData.BillingDetails && verifiedUserData.BillingDetails.length > 0
-            ? verifiedUserData.BillingDetails[0] // Assuming single billing detail object
-            : {};
-          dispatch(updateBillingDetails(billingDetails));
-        }
-      } catch (verifyErr) {
-        console.error("Verification error:", verifyErr.message);
-        // Proceed even if verification fails, as it's optional
-      }
-
-      // Success: Show toast and close modal
-      toast.success("Sign up successful! You are now logged in.", {
-        style: { background: "#32CD32", color: "#fff" },
-        icon: "✅",
-      });
-      setLoading(false);
-      onClose();
+      const result = await dispatch(
+        registerUser(userData)
+      ).unwrap();
+      
+      setLocalToken(result.token);
+      toast.success("Registration successful! Please add a payment method.");
+      setStep(4);
     } catch (err) {
-      toast.error(err.message, {
-        style: { background: "#FF4500", color: "#fff" },
-        icon: "❌",
-      });
+      toast.error(err || "An error occurred during registration.");
+    } finally {
       setLoading(false);
     }
   };
 
   const handleLoginClick = () => {
-    onClose(); // Close SignupModal
-    onOpenLogin(); // Open LoginModal via parent callback
+    onClose();
+    onOpenLogin();
   };
 
   const handleBillingChange = (e) => {
     const { name, value } = e.target;
-    setBillingDetails(prev => ({
+    setBillingDetails((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
+  const handlePaymentSuccess = () => {
+    toast.success("Sign up completed successfully!");
+    onClose();
+  };
+
   return (
-    <>
+    <> 
       <Toaster position="top-right" reverseOrder={false} />
       <AnimatePresence>
         {isOpen && (
@@ -174,7 +232,6 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                 ✕
               </button>
 
-              {/* Progress Bar */}
               <div className="absolute top-0 left-0 w-full h-1 bg-gray-200">
                 <div
                   className="h-full bg-blue-600 transition-all duration-300 ease-in-out"
@@ -194,34 +251,26 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
               <h2 className="text-2xl font-bold text-center text-gray-900">Create an account</h2>
               <p className="text-sm text-center text-gray-600 mt-3">
                 Already have an account?{" "}
-                <button
-                  onClick={handleLoginClick}
-                  className="text-blue-600 hover:underline focus:outline-none"
-                >
+                <button onClick={handleLoginClick} className="text-blue-600 hover:underline">
                   Login
                 </button>
               </p>
 
-              {/* Step Indicators */}
               <div className="flex justify-between mt-8 mb-6">
-                <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step >= 1 ? 'border-blue-600' : 'border-gray-300'}`}>
-                    1
+                {[1, 2, 3, 4].map((num) => (
+                  <div
+                    key={num}
+                    className={`flex items-center ${step >= num ? "text-blue-600" : "text-gray-400"}`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                        step >= num ? "border-blue-600" : "border-gray-300"
+                      }`}
+                    >
+                      {num}
+                    </div>
                   </div>
-                  {/* <span className="ml-2">Basic Info</span> */}
-                </div>
-                <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step >= 2 ? 'border-blue-600' : 'border-gray-300'}`}>
-                    2
-                  </div>
-                  {/* <span className="ml-2">Password</span> */}
-                </div>
-                <div className={`flex items-center ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step >= 3 ? 'border-blue-600' : 'border-gray-300'}`}>
-                    3
-                  </div>
-                  {/* <span className="ml-2">Billing (Optional)</span> */}
-                </div>
+                ))}
               </div>
 
               {step === 1 && (
@@ -360,7 +409,6 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
                   className="mt-8"
                 >
                   <div className="space-y-6">
@@ -368,7 +416,6 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       Add your billing details (optional)
                     </p>
                     <div className="grid grid-cols-2 gap-6">
-                      {/* Left Column */}
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -379,7 +426,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                               type="text"
                               name="firstName"
                               placeholder="First Name"
-                              className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              className="input input-bordered w-full"
                               value={billingDetails.firstName}
                               onChange={handleBillingChange}
                             />
@@ -392,7 +439,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                               type="text"
                               name="lastName"
                               placeholder="Last Name"
-                              className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              className="input input-bordered w-full"
                               value={billingDetails.lastName}
                               onChange={handleBillingChange}
                             />
@@ -406,7 +453,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                             type="text"
                             name="company_name"
                             placeholder="Company Name"
-                            className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="input input-bordered w-full"
                             value={billingDetails.company_name}
                             onChange={handleBillingChange}
                           />
@@ -419,14 +466,12 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                             type="text"
                             name="streetAddress"
                             placeholder="Street Address"
-                            className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="input input-bordered w-full"
                             value={billingDetails.streetAddress}
                             onChange={handleBillingChange}
                           />
                         </div>
                       </div>
-
-                      {/* Right Column */}
                       <div className="space-y-4">
                         <div className="grid grid-cols-3 gap-4">
                           <div>
@@ -437,7 +482,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                               type="text"
                               name="city"
                               placeholder="City"
-                              className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              className="input input-bordered w-full"
                               value={billingDetails.city}
                               onChange={handleBillingChange}
                             />
@@ -450,7 +495,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                               type="text"
                               name="state"
                               placeholder="State"
-                              className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              className="input input-bordered w-full"
                               value={billingDetails.state}
                               onChange={handleBillingChange}
                             />
@@ -463,7 +508,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                               type="text"
                               name="zipcode"
                               placeholder="ZIP Code"
-                              className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              className="input input-bordered w-full"
                               value={billingDetails.zipcode}
                               onChange={handleBillingChange}
                             />
@@ -477,7 +522,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                             type="tel"
                             name="phone"
                             placeholder="Phone Number"
-                            className="input input-bordered w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="input input-bordered w-full"
                             value={billingDetails.phone}
                             onChange={handleBillingChange}
                           />
@@ -489,7 +534,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                           <textarea
                             name="orderNotes"
                             placeholder="Any special instructions?"
-                            className="textarea textarea-bordered w-full h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="textarea textarea-bordered w-full h-24"
                             value={billingDetails.orderNotes}
                             onChange={handleBillingChange}
                           />
@@ -503,19 +548,50 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       <div className="flex gap-4">
                         <button
                           className="btn btn-outline"
-                          onClick={handleSubmit}
+                          onClick={() => handleSubmit(true)}
                           disabled={loading}
                         >
                           Skip Billing
                         </button>
                         <button
-                          className="btn btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all"
-                          onClick={handleSubmit}
+                          className="btn btn-primary"
+                          onClick={() => handleSubmit(false)}
                           disabled={loading}
                         >
-                          {loading ? "Signing up..." : "Sign up"}
+                          {loading ? "Processing..." : "Next"}
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 4 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="mt-8"
+                >
+                  <div className="space-y-6">
+                    <p className="text-sm text-center text-gray-600">
+                      Add a payment method (optional)
+                    </p>
+                    <Elements stripe={stripePromise}>
+                      <PaymentForm 
+                        token={token} 
+                        onSuccess={handlePaymentSuccess}
+                        billingDetails={billingDetails}
+                        email={email}
+                      />
+                    </Elements>
+                    <div className="flex justify-between mt-8">
+                      <button className="btn btn-secondary" onClick={() => setStep(3)}>
+                        Previous
+                      </button>
+                      <button className="btn btn-outline" onClick={onClose}>
+                        Skip Payment
+                      </button>
                     </div>
                   </div>
                 </motion.div>
