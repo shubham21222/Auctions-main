@@ -609,6 +609,12 @@ export const getbulkAuctions = async (req, res) => {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
                         image:{$ifNull: ["$product.image", ""]},
+                        estimateprice:{$ifNull: ["$product.estimateprice", ""]},
+                        offerAmount:{$ifNull: ["$product.offerAmount", ""]},
+                        sellPrice:{$ifNull: ["$product.sellPrice", ""]},
+                        ReservePrice:{$ifNull: ["$product.ReservePrice", ""]},
+                        skuNumber:{$ifNull: ["$product.skuNumber", ""]},
+                        stock:{$ifNull: ["$product.stock", ""]},
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
@@ -920,6 +926,13 @@ export const getbulkAuctionById = async (req, res) => {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
+                        image:{$ifNull: ["$product.image", ""]},
+                        estimateprice:{$ifNull: ["$product.estimateprice", ""]},
+                        offerAmount:{$ifNull: ["$product.offerAmount", ""]},
+                        sellPrice:{$ifNull: ["$product.sellPrice", ""]},
+                        ReservePrice:{$ifNull: ["$product.ReservePrice", ""]},
+                        skuNumber:{$ifNull: ["$product.skuNumber", ""]},
+                        stock:{$ifNull: ["$product.stock", ""]},
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
