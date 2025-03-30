@@ -21,26 +21,27 @@ import {
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-import ProductTable from "./ProductTable";
-import moment from "moment-timezone"; // Import moment-timezone
+import moment from "moment-timezone";
+import * as XLSX from "xlsx";
 
 export default function AuctionForm({ categories, auctions, setAuctions, fetchAuctions, token }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [timeZone, setTimeZone] = useState("Asia/Kolkata"); // Default time zone
+  const [timeZone, setTimeZone] = useState("Asia/Kolkata");
   const [newAuction, setNewAuction] = useState({
     product: "",
     category: "",
     auctionType: "TIMED",
     startingBid: "",
-    startDate: moment().tz(timeZone).format("YYYY-MM-DD"),
-    startTime: moment().tz(timeZone).format("HH:mm"),
-    endDate: moment().tz(timeZone).format("YYYY-MM-DD"),
-    endTime: moment().tz(timeZone).add(5, "minutes").format("HH:mm"),
+    startDate: moment().tz(timeZone).format("DD-MM-YYYY"), // Date only
+    startTime: "12:00", // Default start time
+    endDate: moment().tz(timeZone).add(5, "days").format("DD-MM-YYYY"), // Date only
+    endTime: "12:00", // Default end time
     status: "ACTIVE",
   });
   const [loading, setLoading] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [openAuctionDialog, setOpenAuctionDialog] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
 
   const handleAddToAuction = (product) => {
     setSelectedProduct(product);
@@ -61,39 +62,25 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
     e.preventDefault();
     setLoading(true);
 
-    // Validate all fields are filled
-    if (
-      !newAuction.startDate ||
-      !newAuction.startTime ||
-      !newAuction.endDate ||
-      !newAuction.endTime ||
-      !newAuction.startingBid ||
-      !newAuction.category
-    ) {
+    if (!newAuction.startDate || !newAuction.startTime || !newAuction.endDate || !newAuction.endTime || !newAuction.startingBid || !newAuction.category) {
       toast.error("Please fill in all required fields.");
       setLoading(false);
       return;
     }
 
-    // Combine date and time into local date strings
-    const startDateTimeLocal = `${newAuction.startDate}T${newAuction.startTime}`;
-    const endDateTimeLocal = `${newAuction.endDate}T${newAuction.endTime}`;
+    // Convert DD-MM-YYYY and HH:mm to ISO 8601 format
+    const startDateTimeLocal = `${newAuction.startDate} ${newAuction.startTime}`;
+    const endDateTimeLocal = `${newAuction.endDate} ${newAuction.endTime}`;
 
-    // Convert local date/time to UTC
-    const startDateTimeUTC = moment.tz(startDateTimeLocal, timeZone).utc().format();
-    const endDateTimeUTC = moment.tz(endDateTimeLocal, timeZone).utc().format();
+    const startDateTimeUTC = moment(startDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
+    const endDateTimeUTC = moment(endDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
 
-    // Validate endDate is in the future
     const nowUTC = moment().utc();
     if (moment(endDateTimeUTC).isSameOrBefore(nowUTC)) {
       toast.error("End date and time must be in the future.");
       setLoading(false);
       return;
     }
-
-    // Log for debugging
-    console.log("Entered Local Start:", startDateTimeLocal, "Converted UTC Start:", startDateTimeUTC);
-    console.log("Entered Local End:", endDateTimeLocal, "Converted UTC End:", endDateTimeUTC);
 
     const payload = {
       product: newAuction.product,
@@ -134,10 +121,10 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
           category: "",
           auctionType: "TIMED",
           startingBid: "",
-          startDate: moment().tz(timeZone).format("YYYY-MM-DD"),
-          startTime: moment().tz(timeZone).format("HH:mm"),
-          endDate: moment().tz(timeZone).format("YYYY-MM-DD"),
-          endTime: moment().tz(timeZone).add(5, "minutes").format("HH:mm"),
+          startDate: moment().tz(timeZone).format("DD-MM-YYYY"),
+          startTime: "12:00",
+          endDate: moment().tz(timeZone).add(5, "days").format("DD-MM-YYYY"),
+          endTime: "12:00",
           status: "ACTIVE",
         });
         setOpenAuctionDialog(false);
@@ -154,11 +141,129 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
     }
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setBulkUploadFile(file);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      const products = jsonData.map((row) => ({
+        title: row.Title || "N/A",
+        description: row.Description || "",
+        price: Number(row.StartPrice) || 0,
+        estimateprice: `${row.LowEst || 0}-${row.HighEst || 0}`,
+        offerAmount: 0,
+        onlinePrice: Number(row.Online_Price) || 0,
+        sellPrice: Number(row.Sell_Price) || 0,
+        ReservePrice: Number(row["Reserve Price"] || 0),
+        image: [
+          row["ImageFile.1"] || "",
+          row["ImageFile.2"] || "",
+          row["ImageFile.3"] || "",
+          row["ImageFile.4"] || "",
+          row["ImageFile.5"] || "",
+          row["ImageFile.6"] || "",
+          row["ImageFile.7"] || "",
+          row["ImageFile.8"] || "",
+          row["ImageFile.9"] || "",
+          row["ImageFile.10"] || "",
+          row["ImageFile.11"] || "",
+          row["ImageFile.12"] || "",
+        ].filter(Boolean),
+        skuNumber: row["SKU No"] || "N/A",
+        lotNumber: String(row.LotNum || "N/A"),
+        sortByPrice: row.SortByPrice || "Low Price",
+        stock: 1,
+        type: "Painting",
+        auctionType: row.auction_type || "TIMED",
+      }));
+
+      const categoryName = jsonData[0]?.Category || "Painting";
+      const category = (categories || []).find((cat) => cat.name === categoryName);
+      if (!category) {
+        toast.error("Category not found. Please ensure the category exists.");
+        return;
+      }
+
+      const batchSize = 2;
+      const batches = [];
+      for (let i = 0; i < products.length; i += batchSize) {
+        batches.push(products.slice(i, i + batchSize));
+      }
+
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const payload = {
+          category: category._id,
+          startDate: "2025-04-01T12:00:00.000+00:00", // Fixed start date and time
+          endDate: "2025-04-12T12:00:00.000+00:00",   // Fixed end date and time
+          description: "new file",
+          products: batch,
+        };
+
+        try {
+          await handleBulkCreate(payload);
+          toast.success(`Batch ${batchIndex + 1} of ${batches.length} uploaded successfully!`);
+        } catch (error) {
+          toast.error(`Failed to upload batch ${batchIndex + 1}: ${error.message}`);
+          break;
+        }
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleBulkCreate = async (payload) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${config.baseURL}/v1/api/auction/bulkCreate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (data.status) {
+        fetchAuctions();
+        return true;
+      } else {
+        throw new Error(data.message || "Failed to create bulk auctions");
+      }
+    } catch (error) {
+      console.error("Error creating bulk auctions:", error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+      setBulkUploadFile(null);
+    }
+  };
+
   return (
     <>
-      <ProductTable token={token} onAddToAuction={handleAddToAuction} />
+      <div className="mb-4">
+        <Label htmlFor="bulkUpload">Bulk Upload Auctions (Excel/CSV)</Label>
+        <Input
+          id="bulkUpload"
+          type="file"
+          accept=".xlsx, .xls, .csv"
+          onChange={handleFileUpload}
+          className="mt-2"
+        />
+      </div>
 
-      {/* Confirmation Dialog */}
       <Dialog open={openConfirmDialog} onOpenChange={setOpenConfirmDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -176,12 +281,11 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
         </DialogContent>
       </Dialog>
 
-      {/* Auction Creation Dialog */}
       <Dialog open={openAuctionDialog} onOpenChange={setOpenAuctionDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Create Auction for {selectedProduct?.title}</DialogTitle>
-            <DialogDescription>Fill in the details to start the auction (times in {timeZone}).</DialogDescription>
+            <DialogDescription>Fill in the details to start the auction (dates in DD-MM-YYYY and times in HH:mm format).</DialogDescription>
           </DialogHeader>
           <form onSubmit={addAuction}>
             <div className="grid gap-4 py-4">
@@ -215,7 +319,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {categories.map((category) => (
+                    {(categories || []).map((category) => (
                       <SelectItem key={category._id} value={category._id}>
                         {category.name}
                       </SelectItem>
@@ -245,11 +349,14 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
                 </Label>
                 <Input
                   id="startDate"
-                  type="date"
+                  type="text"
                   value={newAuction.startDate}
                   onChange={(e) => setNewAuction({ ...newAuction, startDate: e.target.value })}
                   className="col-span-2 bg-white border-luxury-gold/20"
+                  placeholder="DD-MM-YYYY"
                   required
+                  pattern="\d{2}-\d{2}-\d{4}"
+                  title="Please enter date in DD-MM-YYYY format"
                 />
                 <Input
                   id="startTime"
@@ -267,11 +374,14 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
                 </Label>
                 <Input
                   id="endDate"
-                  type="date"
+                  type="text"
                   value={newAuction.endDate}
                   onChange={(e) => setNewAuction({ ...newAuction, endDate: e.target.value })}
                   className="col-span-2 bg-white border-luxury-gold/20"
+                  placeholder="DD-MM-YYYY"
                   required
+                  pattern="\d{2}-\d{2}-\d{4}"
+                  title="Please enter date in DD-MM-YYYY format"
                 />
                 <Input
                   id="endTime"

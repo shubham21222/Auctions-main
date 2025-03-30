@@ -15,27 +15,32 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState("");
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // State for LoginModal
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
-  const endDate = new Date(auction.endDateRaw);
+  const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
   const startDate = new Date(auction.startDateRaw);
-  const isEnded = auction.status === "ENDED" || endDate < currentTime;
+  const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
   const isLive =
     auction.status === "ACTIVE" &&
     startDate <= currentTime &&
-    endDate > currentTime &&
+    (!endDate || endDate > currentTime) &&
     auction.auctionType === "LIVE";
   const isTimed =
     auction.status === "ACTIVE" &&
     startDate <= currentTime &&
-    endDate > currentTime &&
+    (!endDate || endDate > currentTime) &&
     auction.auctionType === "TIMED";
 
   // Calculate time remaining
   useEffect(() => {
     const updateTimer = () => {
+      if (!endDate) {
+        setTimeRemaining("N/A");
+        return;
+      }
+
       const now = new Date();
       const timeDiff = endDate - now;
 
@@ -52,26 +57,12 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 60000); // Update every minute
+    const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [endDate]);
 
-  const timeDiffInDays = (endDate - new Date()) / (1000 * 60 * 60 * 24);
+  const timeDiffInDays = endDate ? (endDate - new Date()) / (1000 * 60 * 60 * 24) : Infinity;
   const timerColor = timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
-
-  console.log(`Auction ${auction.id}:`, {
-    startDateRaw: auction.startDateRaw,
-    endDateRaw: auction.endDateRaw,
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-    currentTime: currentTime.toISOString(),
-    isLive,
-    isTimed,
-    isEnded,
-    status: auction.status,
-    auctionType: auction.auctionType,
-    timeRemaining,
-  });
 
   const handleBidNowClick = () => {
     if (isEnded) {
@@ -81,7 +72,6 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     }
 
     if (!isLoggedIn) {
-      // Open the login modal instead of showing a toast with an action
       setIsLoginModalOpen(true);
       return;
     }
@@ -96,10 +86,8 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     router.push(`/catalog/${auction.id}`);
   };
 
-  // Placeholder for opening signup modal (you'll need to implement this separately)
   const handleOpenSignup = () => {
     setIsLoginModalOpen(false);
-    // Add logic to open signup modal if you have one, e.g., setIsSignupModalOpen(true)
     toast.info("Please implement the signup modal logic.");
   };
 
@@ -167,7 +155,10 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           <h3 className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold">
             {auction.title}
           </h3>
-          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mt-2 text-sm text-muted-foreground">
+            <span className="font-medium text-luxury-charcoal">Catalog:</span> {auction.catalogName}
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4 text-luxury-gold" />
             <span>Ends: {auction.endDateTime}</span>
           </div>
@@ -204,7 +195,6 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         </CardFooter>
       </Card>
 
-      {/* Render the LoginModal */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}

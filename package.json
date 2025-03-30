@@ -1,6 +1,9 @@
 {
   "dependencies": {
+    "@stripe/react-stripe-js": "^3.5.1",
+    "@stripe/stripe-js": "^6.1.0",
     "redux-persist": "^6.0.0",
+    "redux-thunk": "^3.1.0",
     "sharp": "^0.33.5"
   }
 }
