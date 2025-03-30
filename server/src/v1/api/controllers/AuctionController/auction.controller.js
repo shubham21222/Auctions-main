@@ -926,6 +926,7 @@ export const getbulkAuctionById = async (req, res) => {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
+                        description: { $ifNull: ["$product.description", ""] },
                         image:{$ifNull: ["$product.image", ""]},
                         estimateprice:{$ifNull: ["$product.estimateprice", ""]},
                         offerAmount:{$ifNull: ["$product.offerAmount", ""]},
@@ -936,6 +937,7 @@ export const getbulkAuctionById = async (req, res) => {
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
+                    description:1,
                     startingBid: 1,
                     currentBid: 1,
                     currentBidder: 1,
