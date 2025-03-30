@@ -619,6 +619,7 @@ export const getbulkAuctions = async (req, res) => {
                     },
                     category: { _id: 1, name: 1 },
                     startingBid: 1,
+                    description:1,
                     currentBid: 1,
                     currentBidder: 1,
                     payment_status: 1,
