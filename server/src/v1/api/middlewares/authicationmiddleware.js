@@ -17,6 +17,8 @@ import {
 } from "../formatters/globalResponse.js"
 
 import ErrorResponse from "../Utils/errorRes.js"
+import   {PERMISSIONS}  from '../constants/common.constants.js';
+import RolePermission from  "../models/RolePermission/role-permissions.model.js"
 
 
 // Make a middleware function to check if the user is logged in
@@ -33,7 +35,7 @@ export const IsAuthenticated = async (req, res, next) => {
         const token = authenticationHeader.trim(); // Trim any extra spaces
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        const user = await User.findById(decoded.id);
+        let user = await User.findById(decoded.id);
         if (!user) {
             return sendResponse(res, notFound, "No user found with this ID");
         }
@@ -42,7 +44,15 @@ export const IsAuthenticated = async (req, res, next) => {
         if (!user.activeToken || user.activeToken !== token) {
             return badRequest(res, "Token is not valid");
         }
-
+        user = user.toObject();
+        // let permissions = [];
+        // if(user.role.toLowerCase() == 'admin'){
+        //     permissions = Object.values(PERMISSIONS).flat();
+        // }else{
+        //     permissions = await  RolePermission.findOne({name:findUser.role}).select('permissions');
+        //     permissions = permissions?.permissions ? permissions?.permissions  : [];
+        // }
+        // user.permissions = permissions;
         req.user = user;
         next();
 
@@ -65,9 +75,17 @@ export const authorizeRoles = (...roles) => {
     };
 };
 
-export const authorizePermission = (...roles) => {
+export const authorizeBackendRole = async (req, res, next) => {
+    console.log(req.user.role)
+    if (req.user.role.toLowerCase() == 'user') {
+        return unauthorized(res, `Role (${req.user.role}) is not allowed to access this resource`);
+    }
+    next();
+};
+
+export const authorizePermission = (permission) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
+        if (!req.user.permissions.includes(permission)) {
 
             return unauthorized(res, `Role (${req.user.role}) is not allowed to access this resource`);
 

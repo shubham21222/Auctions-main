@@ -8,17 +8,17 @@ import {
     deleteSeller,
     getSellersByCreatedBy
 } from "../../controllers/SellerController/seller.controller.js";
-import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
+import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 
 const router = express.Router();
 
 router.post("/create", IsAuthenticated ,createSeller);
-router.get("/all", IsAuthenticated , authorizeRoles('ADMIN') , getAllSellers);
+router.get("/all", IsAuthenticated , authorizeBackendRole , getAllSellers);
 router.get("/getbyid/:id", IsAuthenticated , getSellerById);
-router.post("/approve", IsAuthenticated , authorizeRoles('ADMIN') ,approveSeller);
+router.post("/approve", IsAuthenticated , authorizeBackendRole ,approveSeller);
 router.post("/update/:id", updateSeller);
-router.post("/delete/:id", IsAuthenticated , authorizeRoles('ADMIN') , deleteSeller);
+router.post("/delete/:id", IsAuthenticated , authorizeBackendRole , deleteSeller);
 router.get("/getByCreatedBy", IsAuthenticated , getSellersByCreatedBy);
 
 export default router;

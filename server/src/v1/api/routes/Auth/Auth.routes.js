@@ -1,6 +1,6 @@
 import express from "express";
 import  {register, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard}  from  "../../controllers/AuthController/auth.controller.js";
-import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
+import { IsAuthenticated ,  authorizeRoles, authorizePermission, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 
 const router = express.Router();
@@ -15,7 +15,7 @@ router.post("/resetPassword/:resetToken", resetPassword);
 router.post("/updateProfile",  IsAuthenticated , authorizeRoles('USER') ,updateProfile);
 router.post("/updatePassword",  IsAuthenticated , authorizeRoles('USER') ,updatePassword);
 router.post("/UpdateBillingAddress" , IsAuthenticated , updateBillingAddress)
-router.get("/getAllUsers", IsAuthenticated , authorizeRoles('ADMIN') , getAllUsers);
+router.get("/getAllUsers", IsAuthenticated , authorizeBackendRole , getAllUsers);
 router.get("/getUserById/:id", IsAuthenticated  , getUserById);
 router.get("/getUserByBillingAddress/:id" , getUserByBillingAddress);
 

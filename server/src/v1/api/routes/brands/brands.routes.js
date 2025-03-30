@@ -1,13 +1,13 @@
 import express from 'express';
 const router = express.Router();
 
-import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
+import { IsAuthenticated ,  authorizeRoles, authorizePermission, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 import {createBrand , getAllBrands , getBrandById , updateBrandById , deleteBrandById} from '../../controllers/brandController/brand.controller.js';
 
 // Create a brand
 
-router.post('/',  IsAuthenticated , authorizeRoles("ADMIN") , createBrand);
+router.post('/',  IsAuthenticated , authorizeBackendRole , createBrand);
 
 // Get all brands
 
@@ -19,11 +19,11 @@ router.get('/:id',  getBrandById);
 
 // Update a brand
 
-router.post('/:id',  IsAuthenticated , authorizeRoles("ADMIN") , updateBrandById);
+router.post('/:id',  IsAuthenticated , authorizeBackendRole , updateBrandById);
 
 // Delete a brand
 
-router.delete('/:id', IsAuthenticated , authorizeRoles("ADMIN") ,  deleteBrandById);
+router.delete('/:id', IsAuthenticated , authorizeBackendRole ,  deleteBrandById);
 
 export default router;
 

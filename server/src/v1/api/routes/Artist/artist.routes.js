@@ -2,11 +2,11 @@ import express from 'express';
 const router = express.Router();
 
 import {createArtist , getAllArtists , getArtistById , updateArtistById , deleteArtistById } from '../../controllers/ArtistController/artist.controller.js';
-import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
+import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 // POST /api/artists
 
-router.post('/', IsAuthenticated , authorizeRoles("ADMIN") , createArtist);
+router.post('/', IsAuthenticated ,authorizeBackendRole , createArtist);
 
 // GET /api/artists
 
@@ -19,11 +19,11 @@ router.get('/:id', getArtistById);
 
 // PUT /api/artists/:id
 
-router.post('/:id',  IsAuthenticated , authorizeRoles("ADMIN") ,  updateArtistById);
+router.post('/:id',  IsAuthenticated , authorizeBackendRole ,  updateArtistById);
 
 // DELETE /api/artists/:id
 
-router.delete('/:id', IsAuthenticated , authorizeRoles("ADMIN") ,  deleteArtistById);
+router.delete('/:id', IsAuthenticated ,authorizeBackendRole ,  deleteArtistById);
 
 export default router;
 

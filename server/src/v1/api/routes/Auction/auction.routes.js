@@ -22,13 +22,13 @@ import {
     getWinners
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
-import { IsAuthenticated ,  authorizeRoles} from  "../../middlewares/authicationmiddleware.js"
+import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 router.post("/create", IsAuthenticated ,  authorizeRoles(
     'ADMIN'
 ) , createAuction);
 
-router.post("/bulkCreate", IsAuthenticated , authorizeRoles("ADMIN") , createBulkAuction)
+router.post("/bulkCreate", IsAuthenticated , authorizeBackendRole , createBulkAuction)
 
 router.get("/all", getAuctions);
 
@@ -61,21 +61,21 @@ router.post("/updatePaymentStatus"  , updatePaymentStatus)
 
 // update auction //
 
-router.post("/update/:id" , IsAuthenticated , authorizeRoles("ADMIN") , updateAuction)
+router.post("/update/:id" , IsAuthenticated , authorizeBackendRole , updateAuction)
 
 // delete auction //
 
-router.post("/delete" , IsAuthenticated , authorizeRoles("ADMIN") , deleteAuction)
+router.post("/delete" , IsAuthenticated , authorizeBackendRole , deleteAuction)
 
 // place bid //
 
 router.post("/placeBid" , IsAuthenticated , placeBid)
 
-router.get("/getAuctionDetails/:auctionId" , IsAuthenticated , authorizeRoles("ADMIN") ,  getAuctionDetails)
+router.get("/getAuctionDetails/:auctionId" , IsAuthenticated , authorizeBackendRole ,  getAuctionDetails)
 
 router.get("/getUserAuctions" , IsAuthenticated , getUserAuctions)
 
-router.get("/getDashboardStats" , IsAuthenticated , authorizeRoles("ADMIN") , getDashboardStats)
+router.get("/getDashboardStats" , IsAuthenticated , authorizeBackendRole , getDashboardStats)
 
 // router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
 
