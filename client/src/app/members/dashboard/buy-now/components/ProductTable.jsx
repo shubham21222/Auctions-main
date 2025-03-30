@@ -6,6 +6,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import EditProductDialog from "./EditProductDialog";
 import { useState } from "react";
 import config from "@/app/config_BASE_URL";
+import { toast } from "react-hot-toast";
 
 export default function ProductTable({ 
   products, 
@@ -15,7 +16,9 @@ export default function ProductTable({
   totalPages, 
   totalItems, 
   productsPerPage, 
-  handlePageChange 
+  handlePageChange,
+  canEdit,
+  canDelete
 }) {
   // Ensure products is an array
   if (!Array.isArray(products)) {
@@ -30,10 +33,14 @@ export default function ProductTable({
           Authorization: `Bearer ${token}`,
         },
       });
+      
       if (!response.ok) throw new Error("Failed to delete product");
+      
+      toast.success("Product deleted successfully");
       fetchProducts(); // Refresh the product list
     } catch (error) {
       console.error("Error deleting product:", error);
+      toast.error("Failed to delete product");
     }
   };
 
@@ -100,28 +107,36 @@ export default function ProductTable({
               </CardContent>
 
               <CardFooter className="flex justify-between">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <EditProductDialog
-                    product={product}
-                    fetchProducts={fetchProducts}
-                    token={token}
-                    onClose={handleCloseDialog}
-                  />
-                </Dialog>
+                {canEdit && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        Edit
+                      </Button>
+                    </DialogTrigger>
+                    <EditProductDialog
+                      product={product}
+                      fetchProducts={fetchProducts}
+                      token={token}
+                      onClose={handleCloseDialog}
+                    />
+                  </Dialog>
+                )}
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500"
-                  onClick={() => handleDelete(product._id)}
-                >
-                  Delete
-                </Button>
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500"
+                    onClick={() => handleDelete(product._id)}
+                  >
+                    Delete
+                  </Button>
+                )}
+
+                {!canEdit && !canDelete && (
+                  <span className="text-sm text-gray-500">No actions available</span>
+                )}
               </CardFooter>
             </Card>
           ))

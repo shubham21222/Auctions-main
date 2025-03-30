@@ -173,8 +173,12 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
         email,
         password,
         name,
-        ...(!skipBilling && { billingDetails })
       };
+
+      // Only include billingDetails if skipBilling is false
+      if (!skipBilling) {
+        userData.billingDetails = billingDetails;
+      }
 
       const result = await dispatch(
         registerUser(userData)

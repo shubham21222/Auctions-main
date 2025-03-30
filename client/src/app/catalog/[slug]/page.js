@@ -10,6 +10,8 @@ import CatalogFooter from "./CatalogFooter";
 import Footer from "@/app/components/Footer";
 import Header from "@/app/components/Header";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import config from "@/app/config_BASE_URL";
 
 const Notification = ({ type, message }) => {
   const bgColor =
@@ -20,14 +22,18 @@ const Notification = ({ type, message }) => {
       : type === "warning"
       ? "bg-yellow-600"
       : "bg-blue-600";
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`${bgColor} text-white p-3 rounded-lg mb-3 shadow-lg border border-opacity-20 border-white`}
+      className={`${bgColor} text-white p-3 rounded-lg mb-3 shadow-lg border border-opacity-20 border-white max-w-md`}
     >
-      {message}
+      <div className="font-medium">{message}</div>
+      <div className="text-xs opacity-80 mt-1">
+        {new Date().toLocaleTimeString()}
+      </div>
     </motion.div>
   );
 };
@@ -38,6 +44,7 @@ export default function CatalogPage() {
   const [auction, setAuction] = useState(null);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isJoined, setIsJoined] = useState(false);
   const [headerData, setHeaderData] = useState({
     productName: "Loading...",
     lotNumber: "N/A",
@@ -61,7 +68,7 @@ export default function CatalogPage() {
     setLoading(true);
     try {
       const auctionResponse = await fetch(
-        `https://bid.nyelizabeth.com/v1/api/auction/bulkgetbyId/${auctionId}`,
+        `${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`,
         {
           method: "GET",
           headers: { Authorization: `${token}` },
@@ -72,7 +79,7 @@ export default function CatalogPage() {
       if (auctionData.status && auctionData.items) {
         const auctionResult = {
           ...auctionData.items,
-          messages: auctionData.items.messages || [],
+          messages: Array.isArray(auctionData.items.messages) ? auctionData.items.messages : [],
           catalog: auctionData.items.category?.name || auctionData.items.catalog || "Uncategorized",
         };
         
@@ -85,14 +92,41 @@ export default function CatalogPage() {
           status: auctionResult.status || "Loading"
         });
 
+        // Check if user is already joined
+        if (Array.isArray(auctionResult.participants) && 
+            auctionResult.participants.includes(userId)) {
+          setIsJoined(true);
+        } else {
+          // If not in participants array, check if user is joined via API
+          try {
+            const joinCheckResponse = await fetch(`${config.baseURL}/v1/api/auction/join`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `${token}`,
+              },
+              body: JSON.stringify({ 
+                auctionId: auctionResult._id,
+                userId: userId 
+              }),
+            });
+            const joinCheckData = await joinCheckResponse.json();
+            if (joinCheckData.message === "User already joined the auction") {
+              setIsJoined(true);
+            }
+          } catch (error) {
+            console.error("Error checking join status:", error);
+          }
+        }
+
         setProduct({
-          id: auctionResult.product._id,
-          name: auctionResult.product.title,
-          images: Array.isArray(auctionResult.product.image) ? auctionResult.product.image : [],
-          description: auctionResult.product.description || "No additional description available.",
+          id: auctionResult.product?._id || "",
+          name: auctionResult.product?.title || "Unnamed Item",
+          images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
+          description: auctionResult.product?.description || "No additional description available.",
           price: {
-            min: auctionResult.product.price || 0,
-            max: auctionResult.product.price ? auctionResult.product.price + 1000 : 1000,
+            min: auctionResult.product?.price || 0,
+            max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
           },
         });
 
@@ -102,14 +136,17 @@ export default function CatalogPage() {
             ? prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a))
             : [...prev, { ...auctionResult, id: auctionId }];
         });
+      } else {
+        throw new Error("Invalid auction data received");
       }
     } catch (error) {
       console.error("Error fetching auction data:", error);
+      toast.error("Failed to load auction data");
       router.push("/auction-calendar");
     } finally {
       setLoading(false);
     }
-  }, [auctionId, token, setLiveAuctions, router]);
+  }, [auctionId, token, setLiveAuctions, router, userId]);
 
   // Initial data fetch and socket join
   useEffect(() => {
@@ -128,10 +165,14 @@ export default function CatalogPage() {
       if (msgAuctionId === auctionId) {
         setAuction((prev) => {
           if (!prev) return prev;
+          const senderName = typeof sender === "object" ? 
+            (sender.name || "Admin") : 
+            (typeof sender === "string" ? sender : "Admin");
+          
           const newMessage = {
             message: message || actionType,
             timestamp: timestamp || new Date(),
-            sender: typeof sender === "object" ? sender.name || "Admin" : sender || "Admin",
+            sender: senderName,
             type: "message",
           };
           return {
@@ -151,6 +192,12 @@ export default function CatalogPage() {
           participants: updatedAuction.participants
         }));
         
+        // Update joined state based on participants
+        if (Array.isArray(updatedAuction.participants) && 
+            updatedAuction.participants.includes(userId)) {
+          setIsJoined(true);
+        }
+        
         setHeaderData(prev => ({
           ...prev,
           status: updatedAuction.status || prev.status
@@ -158,22 +205,112 @@ export default function CatalogPage() {
       }
     };
 
+    const handleBidConfirmation = (data) => {
+      console.log("Bid confirmation received:", data);
+      if (data.success) {
+        toast.success(data.message || `Bid of $${data.bidAmount.toLocaleString()} accepted!`);
+      } else {
+        toast.error(data.message || "Bid was not accepted");
+      }
+    };
+
+    const handleBidUpdate = (data) => {
+      console.log("Bid update received:", data);
+      if (data.bidder !== userId) {
+        toast.info(`${data.bidderName || "Someone"} placed a bid of $${data.bidAmount.toLocaleString()}`);
+      }
+    };
+
+    const handleAuctionStatusUpdate = (data) => {
+      console.log("Auction status update:", data);
+      toast.info(`Auction status: ${data.status}`);
+    };
+
+    // Register all socket event listeners
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("auctionUpdate", handleAuctionUpdate);
-    socket.on("connect", () => {
-      console.log("Connected to auction server!");
-    });
+    socket.on("bidConfirmation", handleBidConfirmation);
+    socket.on("bidUpdate", handleBidUpdate);
+    socket.on("auctionStatusUpdate", handleAuctionStatusUpdate);
 
+    // Cleanup function to remove all event listeners
     return () => {
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("auctionUpdate", handleAuctionUpdate);
-      socket.off("connect");
+      socket.off("bidConfirmation", handleBidConfirmation);
+      socket.off("bidUpdate", handleBidUpdate);
+      socket.off("auctionStatusUpdate", handleAuctionStatusUpdate);
     };
-  }, [socket, auctionId]);
+  }, [socket, auctionId, userId]);
 
   const handlePlaceBid = async (bidAmount) => {
-    if (!auction) return;
-    placeBid(auctionId, bidAmount);
+    if (!auction || !auction._id) {
+      toast.error("No active auction available");
+      console.log("Bid placement failed: No auction or auction ID");
+      return;
+    }
+  
+    if (!userId) {
+      toast.error("Please log in to place a bid");
+      console.log("Bid placement failed: No user ID");
+      return;
+    }
+  
+    if (!isJoined) {
+      toast.error("You must join the auction before placing a bid");
+      console.log("Bid placement failed: User not joined");
+      return;
+    }
+  
+    console.log(`Attempting to place bid of $${bidAmount} on auction: ${auction._id}`);
+    
+    try {
+      // Make direct API call to place bid
+      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify({
+          auctionId: auction._id,
+          bidAmount: bidAmount.toString()
+        }),
+      });
+  
+      const data = await response.json();
+      console.log("Place bid API response:", data);
+  
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to place bid");
+      }
+      
+      // Update local state with new bid
+      setAuction(prev => ({
+        ...prev,
+        currentBid: bidAmount,
+        bids: [...(prev.bids || []), {
+          bidder: userId,
+          bidAmount: bidAmount,
+          bidTime: new Date()
+        }]
+      }));
+      
+      toast.success(`Bid of $${bidAmount.toLocaleString()} placed successfully!`);
+      
+      // Also emit socket event for real-time updates
+      if (socket && socket.connected) {
+        socket.emit("placeBid", {
+          auctionId: auction._id,
+          bidAmount: bidAmount,
+          userId: userId
+        });
+        console.log("Socket place bid event emitted");
+      }
+    } catch (error) {
+      console.error("Place Bid Error:", error);
+      toast.error(error.message || "Failed to place bid");
+    }
   };
 
   return (
@@ -224,6 +361,9 @@ export default function CatalogPage() {
                 notifications={notifications}
                 socket={socket}
                 messages={auction?.messages || []}
+                isJoined={isJoined}
+                setIsJoined={setIsJoined}
+                userId={userId}
               />
             </div>
             <CatalogFooter />
@@ -233,4 +373,5 @@ export default function CatalogPage() {
       <Footer />
     </>
   );
+  
 }

@@ -17,11 +17,11 @@ export default function ProductsPage() {
   const token = auth?.token || null;
   const permissions = auth?.user?.permissions || [];
   
-  // Permission checks
+  // Permission checks - using the actual permissions from Redux
   const canView = permissions.includes("view products");
   const canCreate = permissions.includes("create products");
   const canEdit = permissions.includes("edit products");
-  const canDelete = permissions.includes("delete products");
+  const canDelete = permissions.includes("delete products"); // Note: This permission isn't in your Redux state
 
   const fetchProducts = async () => {
     if (!canView) return;
@@ -47,6 +47,7 @@ export default function ProductsPage() {
       setTotalPages(data.items?.totalPages || 1);
     } catch (error) {
       console.error("Error fetching products:", error);
+      toast.error("Failed to fetch products");
     }
   };
 
@@ -77,6 +78,7 @@ export default function ProductsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-8">
+      {/* Only show create button if user has create permission */}
       <HeaderSection 
         fetchProducts={fetchProducts} 
         token={token}
@@ -88,7 +90,7 @@ export default function ProductsPage() {
         fetchProducts={fetchProducts}
         token={token}
         canEdit={canEdit}
-        canDelete={canDelete}
+        canDelete={canDelete} // Will be false since this permission isn't in Redux
         currentPage={currentPage}
         totalPages={totalPages}
         totalItems={totalItems}

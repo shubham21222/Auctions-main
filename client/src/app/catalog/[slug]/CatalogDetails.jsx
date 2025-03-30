@@ -172,70 +172,122 @@ export default function CatalogDetails({
   }, [messages]);
 
   const handleJoinAuction = async () => {
-    if (!userId) return toast.error("Please log in to join the auction");
-    if (!auction) return toast.error("No active auction available");
-    if (!termsAccepted) return toast.error("You must accept the terms and conditions to join the auction.");
-
-    if (hasBillingDetails === null || hasPaymentMethod === null) {
-      return toast.error("Checking account details, please wait...");
+    if (!userId) {
+      toast.error("Please log in to join the auction");
+      console.log("Join auction failed: No user ID");
+      return;
     }
-
+    
+    if (!auction || !auction._id) {
+      toast.error("No active auction available");
+      console.log("Join auction failed: No auction or auction ID", auction);
+      return;
+    }
+    
+    if (!termsAccepted) {
+      toast.error("You must accept the terms and conditions to join the auction.");
+      console.log("Join auction failed: Terms not accepted");
+      return;
+    }
+  
+    if (hasBillingDetails === null || hasPaymentMethod === null) {
+      toast.error("Checking account details, please wait...");
+      console.log("Join auction delayed: Still checking user details");
+      return;
+    }
+  
     if (!hasBillingDetails) {
       setIsBillingModalOpen(true);
-      return toast.error("Please provide your billing details to join the auction.");
+      toast.error("Please provide your billing details to join the auction.");
+      console.log("Join auction failed: No billing details");
+      return;
     }
-
+  
     if (!hasPaymentMethod) {
       setIsPaymentModalOpen(true);
-      return toast.error("Please add a payment method to join the auction.");
+      toast.error("Please add a payment method to join the auction.");
+      console.log("Join auction failed: No payment method");
+      return;
     }
-
+  
+    console.log("Attempting to join auction:", auction._id, "for user:", userId);
+    
     try {
-      const response = await fetch(`${config.baseURL}/v1/api/auction/join?userId=${userId}`, {
+      // First, check if socket is connected
+      if (!socket || !socket.connected) {
+        console.error("Socket not connected");
+        toast.error("Connection to auction server lost. Please refresh the page.");
+        return;
+      }
+      
+      // Emit socket event to join auction room
+      socket.emit("joinAuction", { auctionId: auction._id, userId });
+      console.log("Socket join auction event emitted");
+      
+      // Make API call to join auction
+      const response = await fetch(`${config.baseURL}/v1/api/auction/join`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `${token}`,
         },
-        body: JSON.stringify({ auctionId: auction._id }),
+        body: JSON.stringify({ 
+          auctionId: auction._id,
+          userId: userId 
+        }),
       });
-
-      if (!response.ok) throw new Error("Failed to join auction");
+  
+      const data = await response.json();
+      console.log("Join auction API response:", data);
+  
+      if (!response.ok) {
+        // If user is already joined, we can still consider this a success
+        if (data.message === "User already joined the auction") {
+          setIsJoined(true);
+          toast.success("You are already joined to this auction!");
+          return;
+        }
+        throw new Error(data.message || "Failed to join auction");
+      }
+      
       setIsJoined(true);
       toast.success("Successfully joined the auction!");
+      
+      // Force refresh auction data to reflect participation
+      if (socket) {
+        socket.emit("getAuctionData", { auctionId: auction._id });
+      }
     } catch (error) {
       console.error("Join Auction Error:", error);
-      toast.error("Failed to join auction.");
+      toast.error(error.message || "Failed to join auction.");
     }
   };
 
   const handleBidSubmit = (e) => {
     e.preventDefault();
+    
     if (hasBillingDetails === null || hasPaymentMethod === null) {
-      return toast.error("Checking account details, please wait...");
+      toast.error("Checking account details, please wait...");
+      return;
     }
-
+  
     if (!hasBillingDetails) {
       setIsBillingModalOpen(true);
-      return toast.error("Please provide your billing details to place a bid.");
+      toast.error("Please provide your billing details to place a bid.");
+      return;
     }
-
+  
     if (!hasPaymentMethod) {
       setIsPaymentModalOpen(true);
-      return toast.error("Please add a payment method to place a bid.");
+      toast.error("Please add a payment method to place a bid.");
+      return;
     }
-
+  
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
     const nextBid = currentBid + bidIncrement;
-
-    try {
-      onBidNowClick(nextBid);
-      toast.success(`Bid of $${nextBid.toLocaleString()} placed successfully!`);
-    } catch (error) {
-      console.error("Error placing bid:", error);
-      toast.error("Failed to place bid.");
-    }
+  
+    onBidNowClick(nextBid);
   };
 
   const handleBillingUpdate = (normalizedDetails) => {
@@ -526,7 +578,7 @@ export default function CatalogDetails({
           {combinedHistory.length > 0 ? (
             combinedHistory.map((entry, index) => (
               <motion.div
-                key={index}
+                key={`${entry.type}-${index}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -536,21 +588,21 @@ export default function CatalogDetails({
                   {entry.type === "bid" ? (
                     <div>
                       <span className="font-semibold text-gray-900">
-                        {entry.bidderName || "Anonymous"}
+                        {typeof entry.bidderName === 'string' ? entry.bidderName : 'Anonymous'}
                       </span>
                       <span className="text-gray-600"> placed a bid of </span>
                       <span className="font-semibold text-luxury-gold">
-                        ${(entry.bidAmount || 0).toLocaleString()}
+                        ${(typeof entry.bidAmount === 'number' ? entry.bidAmount : 0).toLocaleString()}
                       </span>
                     </div>
                   ) : (
                     <div>
                       <span className="font-semibold text-blue-600">
-                        {entry.sender || "Admin"}
+                        {typeof entry.sender === 'string' ? entry.sender : 'Admin'}
                       </span>
                       <span className="text-gray-600">: </span>
                       <span className="text-gray-800">
-                        {entry.message || "N/A"}
+                        {typeof entry.message === 'string' ? entry.message : 'N/A'}
                       </span>
                     </div>
                   )}
