@@ -608,6 +608,7 @@ export const getbulkAuctions = async (req, res) => {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
+                        image:{$ifNull: ["$product.image", ""]},
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
