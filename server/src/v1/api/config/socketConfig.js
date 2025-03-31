@@ -9,7 +9,6 @@ const userSocketMap = {};
 const auctionWatchers = {};
 const auctionModes = {};
 
-
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
