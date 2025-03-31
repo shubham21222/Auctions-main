@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
+import config from "@/app/config_BASE_URL";
 
 const AuctionControls = ({
   currentAuction,
@@ -15,26 +16,54 @@ const AuctionControls = ({
   socket,
   setAuctionMode,
   auctionMode,
-  onBack, // New prop for back button
+  onBack,
+  placeBid,
+  getBidIncrement,
+  token, // Add token prop
 }) => {
   if (!currentAuction) return null;
 
-  console.log(`AuctionControls - auctionMode for auction ${currentAuction._id}: ${auctionMode}`); // Debug log
+  const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
+  const nextBid = currentBid + getBidIncrement(currentBid);
 
-  const handleAddCompetitorBid = () => {
+  const handleAddCompetitorBid = async () => {
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
     }
-    if (!socket) {
-      toast.error("Socket connection not available.");
+    if (!socket || !token) {
+      toast.error("Socket or token not available.");
       return;
     }
-    socket.emit("placeBid", {
-      auctionId: currentAuction._id,
-      userId: "admin",
-      bidType: "competitor",
-    });
+
+    const bidAmount = nextBid;
+    try {
+      // API call to place bid
+      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify({
+          auctionId: currentAuction._id,
+          bidAmount: bidAmount.toString(),
+          bidType: "competitor",
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to place competitive bid");
+      }
+
+      // Socket emit for real-time update
+      placeBid(currentAuction._id, "competitor", currentBid);
+      toast.success(`Competitive bid placed at $${bidAmount.toLocaleString()}`);
+    } catch (error) {
+      console.error("Error placing competitive bid:", error);
+      toast.error(error.message || "Failed to place competitive bid");
+    }
   };
 
   const handleSetMode = (mode) => {
@@ -63,18 +92,20 @@ const AuctionControls = ({
 
   return (
     <div className="space-y-2">
-      {/* Back Button */}
-      <Button
-        onClick={onBack}
-        className="mb-4 bg-gray-600 text-white hover:bg-gray-700"
-      >
+      <Button onClick={onBack} className="mb-4 bg-gray-600 text-white hover:bg-gray-700">
         Back to Catalogs
       </Button>
 
-      {/* Bid History Section */}
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        <h3 className="text-sm font-semibold mb-2">Bid Information</h3>
+        <div className="space-y-1">
+          <p className="text-sm">Current Bid: ${currentBid.toLocaleString()}</p>
+          <p className="text-sm">Next Competitive Bid: ${nextBid.toLocaleString()}</p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="space-y-2">
-          {/* Competing Bids */}
           <div>
             {competitorBids.map((bid, index) => (
               <div key={index} className="flex justify-between items-center py-1">
@@ -82,8 +113,6 @@ const AuctionControls = ({
               </div>
             ))}
           </div>
-
-          {/* Online Bids */}
           <div>
             <h3 className="text-sm font-semibold mb-1">Online: {watchers}</h3>
             {onlineBids.map((bid, index) => (
@@ -95,7 +124,6 @@ const AuctionControls = ({
         </div>
       </div>
 
-      {/* Bid History */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h3 className="text-sm font-semibold mb-2">Bid History</h3>
         <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -113,7 +141,6 @@ const AuctionControls = ({
         </div>
       </div>
 
-      {/* Control Buttons */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button
@@ -132,14 +159,14 @@ const AuctionControls = ({
 
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button
-            onClick={() => handleSetMode("competitor")}
+            onClick={handleAddCompetitorBid}
             className={`px-4 py-2 rounded ${
               auctionMode === "competitor"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
-            Competing Bid
+            Add Competitive Bid
           </button>
           <button
             onClick={() => handleSetMode("online")}

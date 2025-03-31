@@ -11,7 +11,7 @@ import AuctionControls from "./AuctionControls";
 
 const AdminLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
-  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes } = useSocket();
+  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes, placeBid, getBidIncrement } = useSocket();
   const [catalogs, setCatalogs] = useState([]);
   const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [currentAuction, setCurrentAuction] = useState(null);
@@ -53,7 +53,6 @@ const AdminLiveAuctionPage = () => {
     fetchAuctionData();
   }, [fetchAuctionData]);
 
-  // Socket event handlers
   useEffect(() => {
     if (!socket || !currentAuction) return;
 
@@ -63,7 +62,7 @@ const AdminLiveAuctionPage = () => {
       }
     };
 
-    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp }) => {
+    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
       if (auctionId === currentAuction._id) {
         const senderName = typeof sender === "object" ? (sender.name || "Admin") : "Admin";
         setBidHistory((prev) => [
@@ -72,13 +71,36 @@ const AdminLiveAuctionPage = () => {
             message: message || actionType,
             bidTime: timestamp || new Date(),
             sender: senderName,
+            bidType: bidType || (message ? "message" : actionType),
+            bidAmount: bidAmount || (bidType === "competitor" && prev.length > 0 ? prev[prev.length - 1].bidAmount + getBidIncrement(prev[prev.length - 1].bidAmount || 0) : currentAuction.startingBid),
           },
         ]);
       }
     };
 
+    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bidType, timestamp }) => {
+      if (auctionId === currentAuction._id) {
+        setBidHistory((prev) => [
+          ...prev,
+          {
+            bidAmount,
+            bidType,
+            bidder: bidderId,
+            bidTime: timestamp || new Date(),
+            sender: "Admin",
+          },
+        ]);
+        setCurrentAuction((prev) => ({
+          ...prev,
+          currentBid: bidAmount,
+          bids: [...(prev.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date() }],
+        }));
+      }
+    };
+
     socket.on("watcherUpdate", handleWatcherUpdate);
     socket.on("auctionMessage", handleAuctionMessage);
+    socket.on("bidUpdate", handleBidUpdate);
 
     joinAuction(currentAuction._id);
     getAuctionData(currentAuction._id);
@@ -86,8 +108,9 @@ const AdminLiveAuctionPage = () => {
     return () => {
       socket.off("watcherUpdate", handleWatcherUpdate);
       socket.off("auctionMessage", handleAuctionMessage);
+      socket.off("bidUpdate", handleBidUpdate);
     };
-  }, [socket, currentAuction, joinAuction, getAuctionData]);
+  }, [socket, currentAuction, joinAuction, getAuctionData, getBidIncrement]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -95,7 +118,7 @@ const AdminLiveAuctionPage = () => {
       (a) => a.status === "ACTIVE" && a.auctionType === "LIVE"
     );
     if (liveAuctions.length > 0) {
-      setCurrentAuction(liveAuctions[0]); // Set the first live auction
+      setCurrentAuction(liveAuctions[0]);
       setBidHistory(liveAuctions[0].bids || []);
       setWatchers(0);
     } else {
@@ -129,7 +152,7 @@ const AdminLiveAuctionPage = () => {
           toast.success("No more lots in this catalog.");
         }
       } else if (actionType === "SOLD" || actionType === "PASS") {
-        fetchAuctionData(); // Refresh to update status
+        fetchAuctionData();
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);
@@ -160,7 +183,6 @@ const AdminLiveAuctionPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-black text-white border-b">
         <div className="container mx-auto px-4 py-2">
           <div className="flex justify-between items-center">
@@ -201,7 +223,6 @@ const AdminLiveAuctionPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Left Column - Auction Details */}
             <div>
               <AuctionDetails
                 currentAuction={currentAuction}
@@ -210,8 +231,6 @@ const AdminLiveAuctionPage = () => {
                 )}
               />
             </div>
-
-            {/* Right Column - Auction Controls */}
             <div>
               <AuctionControls
                 currentAuction={currentAuction}
@@ -224,7 +243,10 @@ const AdminLiveAuctionPage = () => {
                 socket={socket}
                 setAuctionMode={(mode) => updateAuctionMode(currentAuction?._id, mode)}
                 auctionMode={currentAuction ? auctionModes[currentAuction._id] || "online" : "online"}
-                onBack={handleBackToCatalogs} // Pass back handler
+                onBack={handleBackToCatalogs}
+                placeBid={placeBid}
+                getBidIncrement={getBidIncrement}
+                token={token} // Pass token for API calls
               />
             </div>
           </div>

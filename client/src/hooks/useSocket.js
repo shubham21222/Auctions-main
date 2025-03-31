@@ -11,7 +11,7 @@ export const useSocket = () => {
   const [auctionModes, setAuctionModes] = useState({});
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
-  const isAdmin = useSelector((state) => state.auth.isAdmin); // Assuming Redux has an isAdmin flag
+  const isAdmin = useSelector((state) => state.auth.isAdmin);
 
   const addNotification = useCallback((type, message) => {
     const id = Date.now();
@@ -27,11 +27,9 @@ export const useSocket = () => {
       return;
     }
 
-    console.log("Initializing socket connection with:", { userId, token, isAdmin });
-
     const socketIo = io("https://bid.nyelizabeth.com", {
       query: { userId },
-      auth: { token, isAdmin: isAdmin || true }, // Pass isAdmin explicitly if available
+      auth: { token, isAdmin: isAdmin || true },
       transports: ["websocket"],
     });
 
@@ -56,12 +54,9 @@ export const useSocket = () => {
           return prev;
         }
         const exists = prev.find((a) => a.id === auctionId);
-        if (!exists) {
-          console.log(`Adding new auction to liveAuctions: ${auctionId}`);
-          return [...prev, { ...data, id: auctionId }];
-        }
-        console.log(`Updating existing auction in liveAuctions: ${auctionId}`);
-        return prev.map((a) => (a.id === auctionId ? { ...a, ...data, id: auctionId } : a));
+        return exists
+          ? prev.map((a) => (a.id === auctionId ? { ...a, ...data, id: auctionId } : a))
+          : [...prev, { ...data, id: auctionId }];
       });
     });
 
@@ -70,7 +65,6 @@ export const useSocket = () => {
       setLiveAuctions((prev) => {
         const updatedAuctions = prev.map((auction) => {
           if (auction.id === auctionId) {
-            console.log(`Updating auction ${auctionId} with new bid: ${bidAmount} (Type: ${bidType})`);
             return {
               ...auction,
               currentBid: bidAmount,
@@ -81,7 +75,6 @@ export const useSocket = () => {
           }
           return auction;
         });
-        console.log("Updated liveAuctions after bidUpdate:", updatedAuctions);
         return updatedAuctions;
       });
       if (bidderId !== userId) {
@@ -134,25 +127,13 @@ export const useSocket = () => {
 
     socketIo.on("auctionModeUpdate", ({ auctionId, mode }) => {
       console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
-      setAuctionModes((prev) => {
-        const updatedModes = { ...prev, [auctionId]: mode };
-        console.log("Updated auctionModes:", updatedModes);
-        return updatedModes;
-      });
+      setAuctionModes((prev) => ({
+        ...prev,
+        [auctionId]: mode,
+      }));
     });
 
     return () => {
-      socketIo.off("connect");
-      socketIo.off("connect_error");
-      socketIo.off("auctionData");
-      socketIo.off("bidUpdate");
-      socketIo.off("auctionEnded");
-      socketIo.off("watcherUpdate");
-      socketIo.off("outbidNotification");
-      socketIo.off("winnerNotification");
-      socketIo.off("error");
-      socketIo.off("auctionMessage");
-      socketIo.off("auctionModeUpdate");
       socketIo.disconnect();
       console.log("Disconnected from Socket.IO server");
     };
@@ -163,18 +144,29 @@ export const useSocket = () => {
       if (socket && auctionId) {
         socket.emit("joinAuction", { auctionId });
         console.log(`Joined auction room: ${auctionId}`);
-      } else {
-        console.log("Failed to join auction room - socket or auctionId missing:", { socket, auctionId });
       }
     },
     [socket]
   );
 
   const placeBid = useCallback(
-    (auctionId, bidType = "online") => {
+    (auctionId, bidType = "online", currentBid = 0) => {
       if (socket && auctionId) {
-        socket.emit("placeBid", { auctionId, userId, bidType });
-        console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId}`);
+        let newBidAmount;
+        if (bidType === "competitor") {
+          const increment = getBidIncrement(currentBid);
+          newBidAmount = currentBid + increment;
+        } else {
+          newBidAmount = currentBid; // For online bids, this should be adjusted
+        }
+
+        socket.emit("placeBid", { 
+          auctionId, 
+          userId, 
+          bidType, 
+          bidAmount: newBidAmount 
+        });
+        console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId} for $${newBidAmount}`);
       }
     },
     [socket, userId]
@@ -193,7 +185,6 @@ export const useSocket = () => {
   const sendMessage = useCallback(
     (auctionId, message) => {
       if (socket && auctionId && message) {
-        console.log(`Sending message with userId: ${userId}, isAdmin: ${isAdmin}`);
         socket.emit("sendMessage", { auctionId, message, userId, isAdmin: isAdmin || true });
         console.log(`Sent message to auction ${auctionId}: ${message}`);
       }
@@ -204,7 +195,6 @@ export const useSocket = () => {
   const performAdminAction = useCallback(
     (auctionId, actionType) => {
       if (socket && auctionId && actionType) {
-        console.log(`Performing admin action with userId: ${userId}, isAdmin: ${isAdmin}`);
         socket.emit("adminAction", { auctionId, actionType, userId, isAdmin: isAdmin || true });
         console.log(`Performed admin action ${actionType} on auction ${auctionId}`);
       }
@@ -222,6 +212,22 @@ export const useSocket = () => {
     [socket, userId, isAdmin]
   );
 
+  const getBidIncrement = (currentBid) => {
+    if (currentBid >= 1000000) return 50000;
+    if (currentBid >= 500000) return 25000;
+    if (currentBid >= 250000) return 10000;
+    if (currentBid >= 100000) return 5000;
+    if (currentBid >= 50000) return 2500;
+    if (currentBid >= 25025) return 1000;
+    if (currentBid >= 10000) return 500;
+    if (currentBid >= 5000) return 250;
+    if (currentBid >= 1000) return 100;
+    if (currentBid >= 100) return 50;
+    if (currentBid >= 50) return 10;
+    if (currentBid >= 25) return 5;
+    return 1;
+  };
+
   return {
     socket,
     liveAuctions,
@@ -234,5 +240,6 @@ export const useSocket = () => {
     updateAuctionMode,
     auctionModes,
     notifications,
+    getBidIncrement,
   };
 };
