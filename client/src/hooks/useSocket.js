@@ -27,7 +27,7 @@ export const useSocket = () => {
       return;
     }
 
-    const socketIo = io("http://bid.nyelizabeth.com", {
+    const socketIo = io("https://bid.nyelizabeth.com", {
       query: { userId },
       auth: { token, isAdmin: isAdmin || true },
       transports: ["websocket"],
