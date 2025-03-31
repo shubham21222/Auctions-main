@@ -70,13 +70,13 @@ const AdminLiveAuctionPage = () => {
 
   useEffect(() => {
     if (!socket || !currentAuction) return;
-
+  
     const handleWatcherUpdate = ({ auctionId, watchers }) => {
       if (auctionId === currentAuction._id) {
         setWatchers(watchers);
       }
     };
-
+  
     const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
       if (auctionId === currentAuction._id) {
         const senderName = typeof sender === "object" ? (sender.name || "Admin") : "Admin";
@@ -92,7 +92,7 @@ const AdminLiveAuctionPage = () => {
         ]);
       }
     };
-
+  
     const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bidType, timestamp }) => {
       if (auctionId === currentAuction._id) {
         setBidHistory((prev) => [
@@ -112,20 +112,23 @@ const AdminLiveAuctionPage = () => {
         }));
       }
     };
-
+  
+    // Initial join and data fetch
+    joinAuction(currentAuction._id);
+    getAuctionData(currentAuction._id);
+  
+    // Set up event listeners
     socket.on("watcherUpdate", handleWatcherUpdate);
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("bidUpdate", handleBidUpdate);
-
-    joinAuction(currentAuction._id);
-    getAuctionData(currentAuction._id);
-
+  
+    // Cleanup
     return () => {
       socket.off("watcherUpdate", handleWatcherUpdate);
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("bidUpdate", handleBidUpdate);
     };
-  }, [socket, currentAuction, joinAuction, getAuctionData, getBidIncrement, liveAuctions]);
+  }, [socket, currentAuction, joinAuction, getAuctionData, getBidIncrement]); // Removed liveAuctions
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);

@@ -203,11 +203,21 @@ export default function CatalogPage() {
 
   useEffect(() => {
     fetchAuctionData();
-    if (auctionId && socket) {
+  }, [fetchAuctionData]); // Only re-fetch when fetchAuctionData changes
+
+  useEffect(() => {
+    if (!auctionId || !socket) return;
+  
+    // Only join and fetch data if not already joined
+    const isAlreadyJoined = Object.keys(socket.rooms || {}).includes(auctionId);
+    if (!isAlreadyJoined) {
+      joinAuction(auctionId);
       getAuctionData(auctionId);
-      socket.emit("joinAuction", { auctionId });
+      console.log(`Joined and requested data for auction: ${auctionId}`);
+    } else {
+      console.log(`Already joined auction: ${auctionId}`);
     }
-  }, [auctionId, socket, fetchAuctionData, getAuctionData]);
+  }, [auctionId, socket, joinAuction, getAuctionData]); // Removed fetchAuctionData
 
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
@@ -223,21 +233,10 @@ export default function CatalogPage() {
 
   useEffect(() => {
     if (!socket) return;
-
-    const handleAuctionMessage = ({
-      auctionId: msgAuctionId,
-      message,
-      actionType,
-      sender,
-      timestamp,
-    }) => {
+  
+    const handleAuctionMessage = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp }) => {
       if (msgAuctionId === auctionId) {
-        const senderName =
-          typeof sender === "object"
-            ? sender.name || "Admin"
-            : typeof sender === "string"
-            ? sender
-            : "Admin";
+        const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
         setAuction((prev) => {
           if (!prev) return prev;
           const newMessage = {
@@ -253,7 +252,7 @@ export default function CatalogPage() {
         });
       }
     };
-
+  
     const handleAuctionUpdate = (updatedAuction) => {
       if (updatedAuction.id === auctionId) {
         setAuction((prev) => ({
@@ -263,10 +262,7 @@ export default function CatalogPage() {
           participants: updatedAuction.participants,
           bids: updatedAuction.bids || prev.bids,
         }));
-        if (
-          Array.isArray(updatedAuction.participants) &&
-          updatedAuction.participants.includes(userId)
-        ) {
+        if (Array.isArray(updatedAuction.participants) && updatedAuction.participants.includes(userId)) {
           setIsJoined(true);
         }
         setHeaderData((prev) => ({
@@ -275,35 +271,21 @@ export default function CatalogPage() {
         }));
       }
     };
-
-    const handleBidUpdate = ({
-      auctionId: bidAuctionId,
-      bidAmount,
-      bidderId,
-      bidType,
-      timestamp,
-    }) => {
+  
+    const handleBidUpdate = ({ auctionId: bidAuctionId, bidAmount, bidderId, bidType, timestamp }) => {
       if (bidAuctionId === auctionId) {
         setAuction((prev) => ({
           ...prev,
           currentBid: bidAmount,
-          bids: [
-            ...(prev.bids || []),
-            {
-              bidder: bidderId,
-              bidAmount,
-              bidTime: timestamp || new Date(),
-              bidType,
-            },
-          ],
+          bids: [...(prev.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
         }));
       }
     };
-
+  
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("auctionUpdate", handleAuctionUpdate);
     socket.on("bidUpdate", handleBidUpdate);
-
+  
     return () => {
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("auctionUpdate", handleAuctionUpdate);
