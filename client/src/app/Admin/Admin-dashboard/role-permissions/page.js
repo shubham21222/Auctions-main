@@ -93,12 +93,14 @@ const RoleManagementPage = () => {
 
       if (response.data.status) {
         toast.success(response.data.message || "Role saved successfully");
-        const updatedRole = response.data.data || response.data.items; // Handle both create and update response
-        setRoles((prev) =>
-          editRoleId
-            ? prev.map((r) => (r._id === editRoleId ? updatedRole : r))
-            : [...prev, updatedRole]
+        // Refresh roles list instead of updating state directly
+        const rolesResponse = await axios.get(
+          "https://bid.nyelizabeth.com/v1/api/role/all",
+          { headers: { Authorization: `${token}` } }
         );
+        if (rolesResponse.data.status) {
+          setRoles(rolesResponse.data.items || []);
+        }
         resetForm();
       } else {
         toast.error(response.data.error || "Failed to save role");
@@ -115,7 +117,7 @@ const RoleManagementPage = () => {
   const handleEdit = (role) => {
     setEditRoleId(role._id);
     setRoleName(role.name);
-    setPermissions(role.permissions);
+    setPermissions(role.permissions || []);
   };
 
   // Handle delete role
@@ -131,7 +133,14 @@ const RoleManagementPage = () => {
 
       if (response.data.status) {
         toast.success(response.data.message || "Role deleted successfully");
-        setRoles((prev) => prev.filter((r) => r._id !== roleId));
+        // Refresh roles list instead of updating state directly
+        const rolesResponse = await axios.get(
+          "https://bid.nyelizabeth.com/v1/api/role/all",
+          { headers: { Authorization: `${token}` } }
+        );
+        if (rolesResponse.data.status) {
+          setRoles(rolesResponse.data.items || []);
+        }
       } else {
         toast.error(response.data.error || "Failed to delete role");
       }
@@ -157,149 +166,164 @@ const RoleManagementPage = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">Role Management</h1>
           <p className="text-gray-600">Manage user roles and permissions for your application</p>
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 font-medium">Important Note:</p>
+            <p className="text-yellow-700">For managing live auctions, use exactly &quot;clerk&quot; as the role name (case-sensitive). Do not use variations like &quot;clerk1&quot; or &quot;Clerk&quot;.</p>
+          </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form Section */}
-          <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
-            <h2 className="text-2xl font-semibold mb-6 text-gray-800">
-              {editRoleId ? "Edit Role" : "Create New Role"}
-            </h2>
-            {!token ? (
-              <p className="text-red-500">Please log in to manage roles.</p>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Role Name */}
-                <div>
-                  <label
-                    htmlFor="roleName"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Role Name
-                  </label>
-                  <input
-                    type="text"
-                    id="roleName"
-                    value={roleName}
-                    onChange={(e) => setRoleName(e.target.value)}
-                    placeholder="e.g., Moderator"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    disabled={loading}
-                  />
-                </div>
-
-                {/* Permissions */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Permissions
-                  </label>
-                  {availablePermissions.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                      {availablePermissions.map((permission) => (
-                        <div
-                          key={permission}
-                          className="flex items-center space-x-3 p-3 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200"
-                        >
-                          <input
-                            type="checkbox"
-                            id={permission}
-                            checked={permissions.includes(permission)}
-                            onChange={() => handlePermissionToggle(permission)}
-                            className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            disabled={loading}
-                          />
-                          <label
-                            htmlFor={permission}
-                            className="text-sm text-gray-700 truncate flex-1"
-                          >
-                            {permission}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Loading permissions...</p>
-                  )}
-                </div>
-
-                {/* Buttons */}
-                <div className="flex space-x-4 pt-4">
-                  <button
-                    type="submit"
-                    className={`flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 ${
-                      loading ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    disabled={loading}
-                  >
-                    {loading ? "Saving..." : editRoleId ? "Update Role" : "Create Role"}
-                  </button>
-                  {editRoleId && (
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="flex-1 bg-gray-100 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
-                      disabled={loading}
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
-                </div>
-              </form>
-            )}
-          </div>
-
-          {/* Roles List */}
-          <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
-            <h2 className="text-2xl font-semibold mb-6 text-gray-800">Existing Roles</h2>
-            {roles.length > 0 ? (
-              <div className="space-y-4">
-                {roles.map((role) => (
-                  <div
-                    key={role._id}
-                    className="p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-200 border border-gray-100"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-medium text-gray-800">{role.name}</h3>
+        {/* Roles Table Section */}
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+          <h2 className="text-2xl font-semibold mb-6 text-gray-800">Existing Roles</h2>
+          {roles.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Permissions
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {roles.map((role) => (
+                    <tr key={role._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{role.name}</div>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
                           {role.permissions.map((permission, index) => (
                             <span
                               key={index}
-                              className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
                             >
                               {permission}
                             </span>
                           ))}
                         </div>
-                      </div>
-                      <div className="flex space-x-3">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(role)}
-                          className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200"
+                          className="text-yellow-600 hover:text-yellow-900 mr-4"
                           disabled={loading}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(role._id)}
-                          className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
+                          className="text-red-600 hover:text-red-900"
                           disabled={loading}
                         >
                           Delete
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No roles found.</p>
+              <p className="text-gray-400 text-sm mt-2">Create a new role to get started</p>
+            </div>
+          )}
+        </div>
+
+        {/* Create/Edit Role Form Section */}
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+          <h2 className="text-2xl font-semibold mb-6 text-gray-800">
+            {editRoleId ? "Edit Role" : "Create New Role"}
+          </h2>
+          {!token ? (
+            <p className="text-red-500">Please log in to manage roles.</p>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Role Name */}
+              <div>
+                <label
+                  htmlFor="roleName"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Role Name
+                </label>
+                <input
+                  type="text"
+                  id="roleName"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  placeholder="e.g., clerk"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Permissions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Permissions
+                </label>
+                {availablePermissions.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                    {availablePermissions.map((permission) => (
+                      <div
+                        key={permission}
+                        className="flex items-center space-x-3 p-3 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <input
+                          type="checkbox"
+                          id={permission}
+                          checked={permissions.includes(permission)}
+                          onChange={() => handlePermissionToggle(permission)}
+                          className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={loading}
+                        />
+                        <label
+                          htmlFor={permission}
+                          className="text-sm text-gray-700 truncate flex-1"
+                        >
+                          {permission}
+                        </label>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-gray-500">Loading permissions...</p>
+                )}
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No roles found.</p>
-                <p className="text-gray-400 text-sm mt-2">Create a new role to get started</p>
+
+              {/* Buttons */}
+              <div className="flex space-x-4 pt-4">
+                <button
+                  type="submit"
+                  className={`flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 ${
+                    loading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  disabled={loading}
+                >
+                  {loading ? "Saving..." : editRoleId ? "Update Role" : "Create Role"}
+                </button>
+                {editRoleId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="flex-1 bg-gray-100 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                    disabled={loading}
+                  >
+                    Cancel Edit
+                  </button>
+                )}
               </div>
-            )}
-          </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

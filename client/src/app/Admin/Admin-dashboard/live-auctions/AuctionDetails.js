@@ -1,8 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 
 const AuctionDetails = ({ currentAuction, upcomingLots }) => {
+  const [imageError, setImageError] = useState(false);
+
   if (!currentAuction) {
     return <p className="text-gray-500 text-sm">Select an auction to view details.</p>;
   }
@@ -23,13 +26,21 @@ const AuctionDetails = ({ currentAuction, upcomingLots }) => {
               </h2>
             </div>
           </div>
-          <div className="relative w-full h-[300px] mb-4">
-            <Image
-              src={currentAuction?.product?.image || "/placeholder.svg"}
-              alt={currentAuction?.product?.title || "Product Image"}
-              fill
-              className="object-contain"
-            />
+          <div className="relative w-full h-[300px] mb-4 bg-gray-100 rounded-lg overflow-hidden">
+            {imageError ? (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                Image not available
+              </div>
+            ) : (
+              <Image
+                src={currentAuction?.product?.image || "/placeholder.svg"}
+                alt={currentAuction?.product?.title || "Product Image"}
+                fill
+                className="object-contain"
+                onError={() => setImageError(true)}
+                priority
+              />
+            )}
           </div>
           <div className="space-y-2">
             <div>

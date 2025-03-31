@@ -160,7 +160,11 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4 text-luxury-gold" />
-            <span>Ends: {auction.endDateTime}</span>
+            <span>Ends: {new Date(auction.endDateRaw).toLocaleDateString('en-US', {
+              month: '2-digit',
+              day: '2-digit',
+              year: 'numeric'
+            })}</span>
           </div>
           <div className={`mt-2 text-sm font-medium ${timerColor}`}>
             <Clock className="h-4 w-4 inline mr-1" />

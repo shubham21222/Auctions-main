@@ -164,10 +164,10 @@ export default function DashboardLayout({ children }) {
               </motion.div>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-56 bg-gray-800 text-white shadow-lg rounded-lg p-2 border border-gray-700"
-              align="end"
-              side={isCollapsed ? "right" : "right"}
-              sideOffset={10}
+              className="w-full bg-gray-800 text-white shadow-lg rounded-lg p-2 border border-gray-700"
+              align="start"
+              side="bottom"
+              sideOffset={5}
             >
               {auctionSubItems.map((subItem) => (
                 <DropdownMenuItem

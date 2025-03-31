@@ -13,6 +13,19 @@ import BillingDetailsModal from "./BillingDetailsModal";
 import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
 
+const SkeletonCard = () => {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+      <div className="space-y-4">
+        <div className="h-48 bg-gray-200 rounded-lg"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+      </div>
+    </div>
+  );
+};
+
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
   if (currentBid >= 500000) return 25000;
@@ -43,8 +56,10 @@ export default function CatalogDetails({
   notifications,
   socket,
   messages,
+  isJoined,
+  setIsJoined,
+  userId,
 }) {
-  const [isJoined, setIsJoined] = useState(false);
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [adminMessages, setAdminMessages] = useState([]);
@@ -54,23 +69,8 @@ export default function CatalogDetails({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
-  const [imageErrors, setImageErrors] = useState({}); // Track which images failed
-
-  const userId = useSelector((state) => state.auth.user?._id);
-
-  const SkeletonCard = () => (
-    <motion.div
-      className="group relative bg-white rounded-lg shadow-md overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
-      <div className="relative aspect-square bg-gray-200 animate-shimmer" />
-      <div className="p-4 space-y-2">
-        <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
-        <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
-      </div>
-    </motion.div>
-  );
+  const [imageErrors, setImageErrors] = useState({});
+  const [auctionMode, setAuctionMode] = useState("online");
 
   const fetchUserName = useCallback(
     async (id) => {
@@ -170,6 +170,22 @@ export default function CatalogDetails({
       setAdminMessages([]);
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleAuctionModeUpdate = ({ auctionId, mode }) => {
+      if (auctionId === auction?._id) {
+        setAuctionMode(mode);
+      }
+    };
+
+    socket.on("auctionModeUpdate", handleAuctionModeUpdate);
+
+    return () => {
+      socket.off("auctionModeUpdate", handleAuctionModeUpdate);
+    };
+  }, [socket, auction?._id]);
 
   const handleJoinAuction = async () => {
     if (!userId) {
@@ -332,10 +348,46 @@ export default function CatalogDetails({
       className="space-y-10"
     >
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="md:w-28 flex md:flex-col gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-24 h-24 md:w-28 md:h-28 bg-gray-200 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+              <div className="flex-1">
+                <div className="aspect-[4/3] bg-gray-200 rounded-xl animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+                <div className="flex justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+                <div className="flex justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : product ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -348,31 +400,29 @@ export default function CatalogDetails({
               <div className="md:w-28 flex md:flex-col gap-3 overflow-x-auto md:overflow-x-visible">
                 {productImages.length > 0 ? (
                   productImages.map((image, index) => (
-                    imageErrors[index] ? (
-                      <div
-                        key={index}
-                        className="relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 rounded-lg shadow-md bg-gray-100 flex items-center justify-center text-gray-500 text-sm text-center"
-                      >
-                        Image not available
-                      </div>
-                    ) : (
-                      <motion.div
-                        key={index}
-                        whileHover={{ scale: 1.05 }}
-                        onClick={() => setSelectedImageIndex(index)}
-                        className={`relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 ${
-                          selectedImageIndex === index ? "border-luxury-gold" : "border-gray-200"
-                        }`}
-                      >
+                    <motion.div
+                      key={index}
+                      whileHover={{ scale: 1.05 }}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 ${
+                        selectedImageIndex === index ? "border-luxury-gold" : "border-gray-200"
+                      }`}
+                    >
+                      {imageErrors[index] ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm text-center p-2">
+                          Image not available
+                        </div>
+                      ) : (
                         <Image
                           src={image}
                           alt={`${product.name || "Product"} image ${index + 1}`}
                           fill
                           className="object-cover"
                           onError={() => handleImageError(index)}
+                          priority={index === 0}
                         />
-                      </motion.div>
-                    )
+                      )}
+                    </motion.div>
                   ))
                 ) : (
                   <div className="relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 rounded-lg shadow-md bg-gray-100 flex items-center justify-center text-gray-500 text-sm text-center">
@@ -381,26 +431,34 @@ export default function CatalogDetails({
                 )}
               </div>
               <div className="flex-1">
-                {productImages.length > 0 && !imageErrors[selectedImageIndex] ? (
+                {productImages.length > 0 ? (
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     className="relative aspect-[4/3] overflow-hidden rounded-xl shadow-lg border border-luxury-gold/20"
                   >
-                    <Image
-                      src={productImages[selectedImageIndex]}
-                      alt={`${product.name || "Product"} main image`}
-                      fill
-                      className="object-cover"
-                      priority
-                      onError={() => handleImageError(selectedImageIndex)}
-                    />
-                    <div className="absolute bottom-4 right-4 bg-luxury-gold/80 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {selectedImageIndex + 1} / {productImages.length}
-                    </div>
+                    {imageErrors[selectedImageIndex] ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-lg">
+                        Image not available
+                      </div>
+                    ) : (
+                      <>
+                        <Image
+                          src={productImages[selectedImageIndex]}
+                          alt={`${product.name || "Product"} main image`}
+                          fill
+                          className="object-cover"
+                          priority
+                          onError={() => handleImageError(selectedImageIndex)}
+                        />
+                        <div className="absolute bottom-4 right-4 bg-luxury-gold/80 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                          {selectedImageIndex + 1} / {productImages.length}
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 ) : (
                   <div className="relative aspect-[4/3] rounded-xl shadow-lg border border-luxury-gold/20 bg-gray-100 flex items-center justify-center text-gray-500 text-lg">
-                    Image not available
+                    No images available
                   </div>
                 )}
               </div>
@@ -430,15 +488,13 @@ export default function CatalogDetails({
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Current Bid</span>
                     <span className="text-2xl font-bold text-luxury-gold">
-                      $
-                      {(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}
+                      ${(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Next Bid</span>
                     <span className="text-lg font-semibold text-gray-900">
-                      $
-                      {(typeof auction.currentBid === "number"
+                      ${(typeof auction.currentBid === "number"
                         ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
                         : 0
                       ).toLocaleString()}
@@ -447,12 +503,16 @@ export default function CatalogDetails({
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Bid Increment</span>
                     <span className="text-lg font-semibold text-gray-900">
-                      $
-                      {getBidIncrement(
+                      ${getBidIncrement(
                         typeof auction.currentBid === "number" ? auction.currentBid : 0
                       ).toLocaleString()}
                     </span>
                   </div>
+                  {auctionMode === "competitor" && (
+                    <div className="text-center text-red-600 font-semibold">
+                      Competitive bidding in progress. Online bidding is temporarily disabled.
+                    </div>
+                  )}
                   {!isJoined ? (
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
@@ -478,13 +538,12 @@ export default function CatalogDetails({
                         Join Auction
                       </Button>
                     </div>
-                  ) : auction.status !== "ENDED" ? (
+                  ) : auction.status !== "ENDED" && auctionMode === "online" ? (
                     <form onSubmit={handleBidSubmit} className="space-y-4">
                       <div className="text-center text-gray-600">
                         Click to place a bid of{" "}
                         <span className="font-semibold text-luxury-gold">
-                          $
-                          {(typeof auction.currentBid === "number"
+                          ${(typeof auction.currentBid === "number"
                             ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
                             : 0
                           ).toLocaleString()}

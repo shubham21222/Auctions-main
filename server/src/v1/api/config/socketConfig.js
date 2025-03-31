@@ -136,19 +136,21 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "User not found." });
         }
 
-        if (bidType === "competitor" && user.role !== "ADMIN") {
-          return socket.emit("error", { message: "Only admins can place competitor bids." });
-        }
-        if (bidType === "online" && user.role === "ADMIN") {
-          return socket.emit("error", { message: "Admins cannot place online bids." });
-        }
-
+        // Check auction mode and bid type compatibility
         const currentMode = auctionModes[auctionId] || "online";
         if (bidType === "competitor" && currentMode !== "competitor") {
           return socket.emit("error", { message: "Auction is not in competitor bid mode." });
         }
         if (bidType === "online" && currentMode !== "online") {
           return socket.emit("error", { message: "Auction is not in online bid mode." });
+        }
+
+        // Check user permissions
+        if (bidType === "competitor" && user.role !== "ADMIN") {
+          return socket.emit("error", { message: "Only admins can place competitor bids." });
+        }
+        if (bidType === "online" && user.role === "ADMIN") {
+          return socket.emit("error", { message: "Admins cannot place online bids." });
         }
 
         let ipAddress = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
@@ -192,7 +194,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role:user.role
+          Role: user.role
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;

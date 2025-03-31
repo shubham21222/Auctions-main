@@ -11,6 +11,7 @@ export const useSocket = () => {
   const [auctionModes, setAuctionModes] = useState({});
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
+  const isAdmin = useSelector((state) => state.auth.isAdmin); // Assuming Redux has an isAdmin flag
 
   const addNotification = useCallback((type, message) => {
     const id = Date.now();
@@ -22,13 +23,15 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!userId || !token) {
-      console.log("Missing userId or token, skipping socket connection");
+      console.log("Missing userId or token, skipping socket connection", { userId, token });
       return;
     }
 
+    console.log("Initializing socket connection with:", { userId, token, isAdmin });
+
     const socketIo = io("https://bid.nyelizabeth.com", {
       query: { userId },
-      auth: { token },
+      auth: { token, isAdmin: isAdmin || true }, // Pass isAdmin explicitly if available
       transports: ["websocket"],
     });
 
@@ -133,7 +136,7 @@ export const useSocket = () => {
       console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
       setAuctionModes((prev) => {
         const updatedModes = { ...prev, [auctionId]: mode };
-        console.log("Updated auctionModes:", updatedModes); // Debug log
+        console.log("Updated auctionModes:", updatedModes);
         return updatedModes;
       });
     });
@@ -153,7 +156,7 @@ export const useSocket = () => {
       socketIo.disconnect();
       console.log("Disconnected from Socket.IO server");
     };
-  }, [userId, token, addNotification]);
+  }, [userId, token, isAdmin, addNotification]);
 
   const joinAuction = useCallback(
     (auctionId) => {
@@ -190,32 +193,33 @@ export const useSocket = () => {
   const sendMessage = useCallback(
     (auctionId, message) => {
       if (socket && auctionId && message) {
-        console.log(`Sending message with userId: ${userId}`);
-        socket.emit("sendMessage", { auctionId, message, userId });
+        console.log(`Sending message with userId: ${userId}, isAdmin: ${isAdmin}`);
+        socket.emit("sendMessage", { auctionId, message, userId, isAdmin: isAdmin || true });
         console.log(`Sent message to auction ${auctionId}: ${message}`);
       }
     },
-    [socket, userId]
+    [socket, userId, isAdmin]
   );
 
   const performAdminAction = useCallback(
     (auctionId, actionType) => {
       if (socket && auctionId && actionType) {
-        socket.emit("adminAction", { auctionId, actionType, userId });
+        console.log(`Performing admin action with userId: ${userId}, isAdmin: ${isAdmin}`);
+        socket.emit("adminAction", { auctionId, actionType, userId, isAdmin: isAdmin || true });
         console.log(`Performed admin action ${actionType} on auction ${auctionId}`);
       }
     },
-    [socket, userId]
+    [socket, userId, isAdmin]
   );
 
   const updateAuctionMode = useCallback(
     (auctionId, mode) => {
       if (socket && auctionId && mode) {
-        socket.emit("setAuctionMode", { auctionId, mode, userId });
+        socket.emit("setAuctionMode", { auctionId, mode, userId, isAdmin: isAdmin || true });
         console.log(`Set auction ${auctionId} mode to: ${mode}`);
       }
     },
-    [socket, userId]
+    [socket, userId, isAdmin]
   );
 
   return {

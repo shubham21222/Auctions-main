@@ -4,6 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 
+const getBidIncrement = (currentBid) => {
+  if (currentBid >= 1000000) return 50000;
+  if (currentBid >= 500000) return 25000;
+  if (currentBid >= 250000) return 10000;
+  if (currentBid >= 100000) return 5000;
+  if (currentBid >= 50000) return 2500;
+  if (currentBid >= 25025) return 1000;
+  if (currentBid >= 10000) return 500;
+  if (currentBid >= 5000) return 250;
+  if (currentBid >= 1000) return 100;
+  if (currentBid >= 100) return 50;
+  if (currentBid >= 50) return 10;
+  if (currentBid >= 25) return 5;
+  return 1;
+};
+
 const AuctionControls = ({
   currentAuction,
   bidHistory,
@@ -15,10 +31,9 @@ const AuctionControls = ({
   socket,
   setAuctionMode,
   auctionMode,
+  onBack,
 }) => {
   if (!currentAuction) return null;
-
-  console.log(`AuctionControls - auctionMode for auction ${currentAuction._id}: ${auctionMode}`); // Debug log
 
   const handleAddCompetitorBid = () => {
     if (!currentAuction) {
@@ -29,10 +44,38 @@ const AuctionControls = ({
       toast.error("Socket connection not available.");
       return;
     }
+
+    const currentBid = currentAuction.currentBid || 0;
+    const bidIncrement = getBidIncrement(currentBid);
+    const nextBid = currentBid + bidIncrement;
+
     socket.emit("placeBid", {
       auctionId: currentAuction._id,
       userId: "admin",
       bidType: "competitor",
+      bidAmount: nextBid,
+    });
+  };
+
+  const handleBidNow = () => {
+    if (!currentAuction) {
+      toast.error("No active auction selected.");
+      return;
+    }
+    if (!socket) {
+      toast.error("Socket connection not available.");
+      return;
+    }
+
+    const currentBid = currentAuction.currentBid || 0;
+    const bidIncrement = getBidIncrement(currentBid);
+    const nextBid = currentBid + bidIncrement;
+
+    socket.emit("placeBid", {
+      auctionId: currentAuction._id,
+      userId: "admin",
+      bidType: "competitor",
+      bidAmount: nextBid,
     });
   };
 
@@ -42,6 +85,7 @@ const AuctionControls = ({
       return;
     }
     setAuctionMode(currentAuction._id, mode);
+    toast.success(`Auction mode set to ${mode}`);
   };
 
   const competitorBids = bidHistory
@@ -60,26 +104,63 @@ const AuctionControls = ({
       label: "Online Bid",
     }));
 
+  const currentBid = currentAuction.currentBid || 0;
+  const bidIncrement = getBidIncrement(currentBid);
+  const nextBid = currentBid + bidIncrement;
+
   return (
     <div className="space-y-2">
+      {/* Back Button */}
+      <Button
+        onClick={onBack}
+        className="mb-4 bg-gray-600 text-white hover:bg-gray-700"
+      >
+        Back to Catalogs
+      </Button>
+
+      {/* Current Bid Info */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Current Bid</span>
+            <span className="text-2xl font-bold text-luxury-gold">
+              ${currentBid.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Next Bid</span>
+            <span className="text-lg font-semibold text-gray-900">
+              ${nextBid.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Bid Increment</span>
+            <span className="text-lg font-semibold text-gray-900">
+              ${bidIncrement.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Bid History Section */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="space-y-2">
           {/* Competing Bids */}
           <div>
+            <h3 className="text-sm font-semibold mb-1">Competing Bids</h3>
             {competitorBids.map((bid, index) => (
               <div key={index} className="flex justify-between items-center py-1">
-                <span className="text-sm">${bid.amount} (Competing Bid)</span>
+                <span className="text-sm">${bid.amount.toLocaleString()} (Competing Bid)</span>
               </div>
             ))}
           </div>
-          
+
           {/* Online Bids */}
           <div>
             <h3 className="text-sm font-semibold mb-1">Online: {watchers}</h3>
             {onlineBids.map((bid, index) => (
               <div key={index} className="flex justify-between items-center py-1">
-                <span className="text-sm">${bid.amount} (Online Bid)</span>
+                <span className="text-sm">${bid.amount.toLocaleString()} (Online Bid)</span>
               </div>
             ))}
           </div>
@@ -123,7 +204,7 @@ const AuctionControls = ({
 
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button
-            onClick={() => setAuctionMode("competitor")}
+            onClick={() => handleSetMode("competitor")}
             className={`px-4 py-2 rounded ${
               auctionMode === "competitor"
                 ? "bg-blue-600 text-white"
@@ -133,7 +214,7 @@ const AuctionControls = ({
             Competing Bid
           </button>
           <button
-            onClick={() => setAuctionMode("online")}
+            onClick={() => handleSetMode("online")}
             className={`px-4 py-2 rounded ${
               auctionMode === "online"
                 ? "bg-blue-600 text-white"
@@ -143,6 +224,15 @@ const AuctionControls = ({
             Internet Bid
           </button>
         </div>
+
+        {auctionMode === "competitor" && (
+          <button
+            onClick={handleBidNow}
+            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-2"
+          >
+            Bid Now (${nextBid.toLocaleString()})
+          </button>
+        )}
 
         <div className="grid grid-cols-3 gap-2">
           <button

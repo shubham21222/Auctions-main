@@ -4,23 +4,20 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useSocket } from "@/hooks/useSocket";
 import config from "@/app/config_BASE_URL";
-import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-import AuctionSelector from "./AuctionSelector";
+import CatalogCard from "./CatalogCard";
 import AuctionDetails from "./AuctionDetails";
 import AuctionControls from "./AuctionControls";
 
 const AdminLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
   const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes } = useSocket();
+  const [catalogs, setCatalogs] = useState([]);
+  const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [currentAuction, setCurrentAuction] = useState(null);
-  const [auctions, setAuctions] = useState([]);
-  const [upcomingLots, setUpcomingLots] = useState([]);
   const [bidHistory, setBidHistory] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [totalLots, setTotalLots] = useState(0);
-  const [currentLotIndex, setCurrentLotIndex] = useState(0);
   const [watchers, setWatchers] = useState(0);
 
   const fetchAuctionData = useCallback(async () => {
@@ -32,86 +29,33 @@ const AdminLiveAuctionPage = () => {
 
     setLoading(true);
     try {
-      const auctionResponse = await fetch(`${config.baseURL}/v1/api/auction/all`, {
+      const auctionResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
         method: "GET",
         headers: { Authorization: `${token}` },
       });
       if (!auctionResponse.ok) throw new Error("Failed to fetch auctions");
       const auctionData = await auctionResponse.json();
-      if (auctionData.status && auctionData.items && Array.isArray(auctionData.items.formattedAuctions)) {
-        const auctionsList = auctionData.items.formattedAuctions;
-        setAuctions(auctionsList);
-
-        const liveAuctions = auctionsList.filter(
-          (auction) => auction.status === "ACTIVE" && auction.auctionType === "LIVE"
-        );
-        setTotalLots(liveAuctions.length);
-
-        const upcoming = liveAuctions.filter(
-          (auction) => new Date(auction.startDate) > new Date()
-        );
-        setUpcomingLots(upcoming);
-
-        if (currentAuction && !auctionsList.some((a) => a._id === currentAuction._id)) {
-          setCurrentAuction(null);
-        }
+      if (auctionData.status && auctionData.items && Array.isArray(auctionData.items.catalogs)) {
+        setCatalogs(auctionData.items.catalogs);
       } else {
-        throw new Error("No auction data returned or invalid format");
+        throw new Error("No catalog data returned or invalid format");
       }
     } catch (error) {
       console.error("Error fetching auction data:", error);
-      toast.error("Failed to fetch auctions: " + error.message);
+      toast.error("Failed to fetch catalogs: " + error.message);
     } finally {
       setLoading(false);
     }
-  }, [token, currentAuction]);
+  }, [token]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     fetchAuctionData();
   }, [fetchAuctionData]);
 
-  // Ensure the client joins the auction room as soon as socket and currentAuction are ready
+  // Socket event handlers
   useEffect(() => {
-    if (!socket) {
-      console.log("Socket not ready yet");
-      return;
-    }
-    if (!currentAuction || currentAuction.auctionType !== "LIVE") {
-      console.log("No current auction or not a LIVE auction:", { currentAuction });
-      return;
-    }
-
-    console.log("Joining auction room for auction:", currentAuction._id);
-    joinAuction(currentAuction._id);
-    getAuctionData(currentAuction._id);
-  }, [socket, currentAuction, joinAuction, getAuctionData]);
-
-  // Handle socket events
-  useEffect(() => {
-    if (!socket || !currentAuction || currentAuction.auctionType !== "LIVE") return;
-
-    const handleAuctionData = (data) => {
-      if (data.auctionId === currentAuction._id) {
-        setCurrentAuction((prev) => ({ ...prev, ...data }));
-        setBidHistory(data.bids || []);
-      }
-    };
-
-    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bids, bidType }) => {
-      if (auctionId === currentAuction._id) {
-        setCurrentAuction((prev) => ({
-          ...prev,
-          currentBid: bidAmount,
-          currentBidder: bidderId,
-          bids: bids || prev.bids,
-        }));
-        setBidHistory((prev) => {
-          const newHistory = [...prev, { bidder: bidderId, bidAmount, bidTime: new Date(), bidType }];
-          return newHistory;
-        });
-      }
-    };
+    if (!socket || !currentAuction) return;
 
     const handleWatcherUpdate = ({ auctionId, watchers }) => {
       if (auctionId === currentAuction._id) {
@@ -119,68 +63,73 @@ const AdminLiveAuctionPage = () => {
       }
     };
 
-    const handleAuctionEnded = ({ auctionId }) => {
+    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp }) => {
       if (auctionId === currentAuction._id) {
-        setCurrentAuction((prev) => ({ ...prev, status: "ENDED" }));
-      }
-      fetchAuctionData();
-    };
-
-    const handleAuctionMessage = ({ auctionId, actionType, message }) => {
-      if (auctionId === currentAuction._id) {
+        const senderName = typeof sender === "object" ? (sender.name || "Admin") : "Admin";
         setBidHistory((prev) => [
           ...prev,
-          { message: message || actionType, bidTime: new Date() },
+          {
+            message: message || actionType,
+            bidTime: timestamp || new Date(),
+            sender: senderName,
+          },
         ]);
       }
     };
 
-    socket.on("auctionData", handleAuctionData);
-    socket.on("bidUpdate", handleBidUpdate);
     socket.on("watcherUpdate", handleWatcherUpdate);
-    socket.on("auctionEnded", handleAuctionEnded);
     socket.on("auctionMessage", handleAuctionMessage);
 
+    joinAuction(currentAuction._id);
+    getAuctionData(currentAuction._id);
+
     return () => {
-      socket.off("auctionData", handleAuctionData);
-      socket.off("bidUpdate", handleBidUpdate);
       socket.off("watcherUpdate", handleWatcherUpdate);
-      socket.off("auctionEnded", handleAuctionEnded);
       socket.off("auctionMessage", handleAuctionMessage);
     };
-  }, [socket, currentAuction, fetchAuctionData]);
+  }, [socket, currentAuction, joinAuction, getAuctionData]);
+
+  const handleCatalogSelect = (catalog) => {
+    setSelectedCatalog(catalog);
+    const liveAuctions = catalog.auctions.filter(
+      (a) => a.status === "ACTIVE" && a.auctionType === "LIVE"
+    );
+    if (liveAuctions.length > 0) {
+      setCurrentAuction(liveAuctions[0]); // Set the first live auction
+      setBidHistory(liveAuctions[0].bids || []);
+      setWatchers(0);
+    } else {
+      setCurrentAuction(null);
+      setBidHistory([]);
+      setWatchers(0);
+      toast.info("No live auctions available in this catalog.");
+    }
+  };
 
   const handleAdminAction = async (actionType) => {
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
     }
-
     try {
       performAdminAction(currentAuction._id, actionType);
-      if (actionType === "SOLD" || actionType === "PASS") {
-        socket.emit("endAuction", { auctionId: currentAuction._id });
-        const payload = {
-          product: currentAuction.product._id,
-          startingBid: currentAuction.startingBid,
-          auctionType: currentAuction.auctionType,
-          startDate: new Date(currentAuction.startDate).toISOString(),
-          endDate: new Date(currentAuction.endDate).toISOString(),
-          category: currentAuction.category._id,
-          status: "ENDED",
-        };
-        const response = await fetch(`${config.baseURL}/v1/api/auction/update/${currentAuction._id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) throw new Error("Failed to update auction status");
-        toast.success(`Auction ${actionType.toLowerCase()} successfully!`);
-      } else if (actionType === "NEXT_LOT") {
-        fetchAuctionData();
+      if (actionType === "NEXT_LOT") {
+        const liveAuctions = selectedCatalog.auctions.filter(
+          (a) => a.status === "ACTIVE" && a.auctionType === "LIVE"
+        );
+        const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
+        if (currentIndex < liveAuctions.length - 1) {
+          setCurrentAuction(liveAuctions[currentIndex + 1]);
+          setBidHistory(liveAuctions[currentIndex + 1].bids || []);
+          setWatchers(0);
+        } else {
+          setCurrentAuction(null);
+          setBidHistory([]);
+          setWatchers(0);
+          toast.success("No more lots in this catalog.");
+        }
+      } else if (actionType === "SOLD" || actionType === "PASS") {
+        fetchAuctionData(); // Refresh to update status
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);
@@ -193,35 +142,16 @@ const AdminLiveAuctionPage = () => {
       toast.error("Please enter a message and ensure an auction is selected.");
       return;
     }
-
-    try {
-      sendMessage(currentAuction._id, message);
-      setBidHistory((prev) => [
-        ...prev,
-        { message: message, bidTime: new Date() },
-      ]);
-      setMessage("");
-      toast.success("Message sent successfully!");
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
-    }
+    sendMessage(currentAuction._id, message);
+    setMessage("");
+    toast.success("Message sent successfully!");
   };
 
-  const handleAuctionSelect = (auction) => {
-    if (!auction) {
-      setCurrentAuction(null);
-      setBidHistory([]);
-      setCurrentLotIndex(0);
-      return;
-    }
-    setCurrentAuction(auction);
-    setBidHistory(auction.bids || []);
-    setCurrentLotIndex(
-      auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").findIndex(
-        (a) => a._id === auction._id
-      ) + 1
-    );
+  const handleBackToCatalogs = () => {
+    setSelectedCatalog(null);
+    setCurrentAuction(null);
+    setBidHistory([]);
+    setWatchers(0);
   };
 
   if (loading) {
@@ -238,16 +168,23 @@ const AdminLiveAuctionPage = () => {
               <h1 className="text-2xl font-bold">NY Elizabeth</h1>
               <div className="flex items-center gap-2 text-sm">
                 <span>NY Elizabeth</span>
-                {/* <span className="text-blue-400">25TR</span>
-                <span>Georg Jensen & More! Day 1</span> */}
               </div>
             </div>
             <div className="text-right">
               <div className="text-sm">
-                {currentLotIndex} of {totalLots} Lots Remaining
+                {selectedCatalog
+                  ? `${selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length} of ${selectedCatalog.auctions.length} Lots`
+                  : "0 of 0 Lots"}
               </div>
               <div className="text-sm">
-                {totalLots > 0 ? Math.round(((totalLots - currentLotIndex) / totalLots) * 100) : 0}%
+                {selectedCatalog && selectedCatalog.auctions.length > 0
+                  ? Math.round(
+                      ((selectedCatalog.auctions.length -
+                        selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length) /
+                        selectedCatalog.auctions.length) *
+                        100
+                    )
+                  : 0}%
               </div>
               <div className="text-sm">Online: {watchers}</div>
             </div>
@@ -256,37 +193,42 @@ const AdminLiveAuctionPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-4">
-        <AuctionSelector 
-          auctions={auctions} 
-          onAuctionSelect={handleAuctionSelect} 
-          selectedAuction={currentAuction} 
-        />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          {/* Left Column - Auction Details */}
-          <div>
-            <AuctionDetails 
-              currentAuction={currentAuction} 
-              upcomingLots={upcomingLots} 
-            />
+        {!selectedCatalog ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {catalogs.map((catalog) => (
+              <CatalogCard key={catalog.catalogName} catalog={catalog} onClick={() => handleCatalogSelect(catalog)} />
+            ))}
           </div>
-          
-          {/* Right Column - Auction Controls */}
-          <div>
-            <AuctionControls
-              currentAuction={currentAuction}
-              bidHistory={bidHistory}
-              handleAdminAction={handleAdminAction}
-              handleSendMessage={handleSendMessage}
-              message={message}
-              setMessage={setMessage}
-              watchers={watchers}
-              socket={socket}
-              setAuctionMode={updateAuctionMode}
-              auctionMode={currentAuction ? auctionModes[currentAuction._id] || "online" : "online"}
-            />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left Column - Auction Details */}
+            <div>
+              <AuctionDetails
+                currentAuction={currentAuction}
+                upcomingLots={selectedCatalog.auctions.filter(
+                  (a) => a.status === "ACTIVE" && a.auctionType === "LIVE" && a._id !== currentAuction?._id
+                )}
+              />
+            </div>
+
+            {/* Right Column - Auction Controls */}
+            <div>
+              <AuctionControls
+                currentAuction={currentAuction}
+                bidHistory={bidHistory}
+                handleAdminAction={handleAdminAction}
+                handleSendMessage={handleSendMessage}
+                message={message}
+                setMessage={setMessage}
+                watchers={watchers}
+                socket={socket}
+                setAuctionMode={(mode) => updateAuctionMode(currentAuction?._id, mode)}
+                auctionMode={currentAuction ? auctionModes[currentAuction._id] || "online" : "online"}
+                onBack={handleBackToCatalogs} // Pass back handler
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
