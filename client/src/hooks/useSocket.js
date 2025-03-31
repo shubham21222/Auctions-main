@@ -27,7 +27,7 @@ export const useSocket = () => {
       return;
     }
 
-    const socketIo = io("http://localhost:4000", {
+    const socketIo = io("http://bid.nyelizabeth.com", {
       query: { userId },
       auth: { token, isAdmin: isAdmin || true },
       transports: ["websocket"],
