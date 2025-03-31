@@ -193,7 +193,6 @@ export default function CatalogPage() {
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
-      router.push("/auction-calendar");
     } finally {
       setLoading(false);
     }
