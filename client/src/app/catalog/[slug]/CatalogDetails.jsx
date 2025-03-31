@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
 import BillingDetailsModal from "./BillingDetailsModal";
-import PaymentMethodModal from "./PaymentMethodModal";
+import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
 
 const getBidIncrement = (currentBid) => {
@@ -20,7 +20,7 @@ const getBidIncrement = (currentBid) => {
   if (currentBid >= 50000) return 2500;
   if (currentBid >= 25025) return 1000;
   if (currentBid >= 10000) return 500;
-  if (currentBid >= 5000) return 250;
+  if (currentBid >= 5000) return 250; 
   if (currentBid >= 1000) return 100;
   if (currentBid >= 100) return 50;
   if (currentBid >= 50) return 10;

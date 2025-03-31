@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sparkles } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
@@ -45,6 +45,8 @@ export default function AuctionCalendar() {
   );
 
   const { socket, liveAuctions, setLiveAuctions, joinAuction } = useSocket();
+
+  const [joinedAuctions, setJoinedAuctions] = useState(new Set());
 
   const fetchAuctions = async () => {
     setLoading(true);
@@ -150,7 +152,6 @@ export default function AuctionCalendar() {
     }
   };
 
-  // Update displayed auctions based on current page and items per page
   useEffect(() => {
     const startIndex = (currentPage - 1) * auctionsPerPage;
     const endIndex = startIndex + auctionsPerPage;
@@ -164,20 +165,28 @@ export default function AuctionCalendar() {
         new Date(auction.endDateRaw) > new Date()
     );
     setLiveAuctions(liveAuctionsData);
-    liveAuctionsData.forEach((auction) => joinAuction(auction.id));
 
-    console.log("Displayed Auctions:", paginatedAuctions);
-    console.log("Start Index:", startIndex, "End Index:", endIndex);
-  }, [allAuctions, currentPage, auctionsPerPage]);
+    liveAuctionsData.forEach((auction) => {
+      if (!joinedAuctions.has(auction.id)) {
+        joinAuction(auction.id);
+        setJoinedAuctions((prev) => new Set(prev).add(auction.id));
+        console.log(`Joined new live auction: ${auction.id}`);
+      } else {
+        console.log(`Already joined live auction: ${auction.id}`);
+      }
+    });
+  }, [allAuctions, currentPage, auctionsPerPage, joinAuction]);
 
-  // Fetch auctions when filters, sort, or token change
+  // Fetch auctions when filters, sort, or token change, and log total pages
   useEffect(() => {
     fetchAuctions();
+    console.log("Total Pages Calculated:", Math.ceil(totalAuctions / auctionsPerPage)); // Log only when dependencies change
+
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timeInterval);
-  }, [token, filters, sortOption]);
+  }, [token, filters, sortOption, totalAuctions, auctionsPerPage]); // Added totalAuctions and auctionsPerPage to dependencies
 
   const handleFilterChange = (newFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -196,9 +205,8 @@ export default function AuctionCalendar() {
   };
 
   const totalPages = Math.ceil(totalAuctions / auctionsPerPage);
-  console.log("Total Pages Calculated:", totalPages);
 
-  const getPageNumbers = () => {
+  const getPageNumbers = useCallback(() => {
     const maxPagesToShow = 5;
     const half = Math.floor(maxPagesToShow / 2);
     let start = Math.max(1, currentPage - half);
@@ -212,9 +220,9 @@ export default function AuctionCalendar() {
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    console.log("Page Numbers Generated:", pages);
+    console.log("Page Numbers Generated:", pages); // Log only when called
     return pages;
-  };
+  }, [currentPage, totalPages]); // Memoize to prevent unnecessary recalculations
 
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">

@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }) {
     { href: "/members/dashboard/categories", icon: Tag, label: "Categories", permission: "view categories" },
     { href: "/members/dashboard/orders", icon: Truck, label: "Orders", permission: "view orders" },
     { href: "/members/dashboard/users", icon: Users, label: "Users", permission: "view users" },
-    { href: "/members/dashboard/sellers", icon: UserCheck, label: "Sellers", permission: "view sellers" },
+    { href: "/members/dashboard/Sellers", icon: UserCheck, label: "Sellers", permission: "view sellers" },
     { href: "/members/dashboard/brands", icon: Store, label: "Brands", permission: "view brands" },
     { href: "/members/dashboard/artists", icon: Palette, label: "Artists", permission: "view artists" },
     { href: "/members/dashboard/actions", icon: Activity, label: "Actions", permission: "view actions" },

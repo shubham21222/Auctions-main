@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function PrivateSales() {
     const images = [
@@ -109,9 +110,11 @@ export default function PrivateSales() {
                     {/* Upcoming Auctions */}
                     <section className="mt-20 text-center">
                         <h2 className="text-3xl font-serif text-indigo-900 mb-6">NY Elizabeth Upcoming Auctions</h2>
+                        <Link href="/Auctions">
                         <Button variant="outline" className="mx-auto bg-indigo-900 text-white hover:bg-indigo-800">
                             CLICK HERE TO VIEW OUR UPCOMING AUCTIONS
                         </Button>
+                        </Link>
                     </section>
                 </main>
             </div>
