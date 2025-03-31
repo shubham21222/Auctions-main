@@ -60,35 +60,48 @@ export const useSocket = () => {
       });
     });
 
-    socketIo.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType }) => {
-      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType });
+    socketIo.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp }) => {
+      console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp });
       setLiveAuctions((prev) => {
         const updatedAuctions = prev.map((auction) => {
           if (auction.id === auctionId) {
+            const wasOutbid = auction.currentBidder === userId && bidderId !== userId;
             return {
               ...auction,
               currentBid: bidAmount,
               currentBidder: bidderId,
               minBidIncrement: minBidIncrement || auction.minBidIncrement,
-              bids: bids || auction.bids,
+              bids: bids || [...(auction.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
             };
           }
           return auction;
         });
+
+        const auction = updatedAuctions.find((a) => a.id === auctionId);
+        if (auction) {
+          if (bidderId !== userId) {
+            addNotification("info", `New ${bidType || "online"} bid on auction ${auctionId}: $${bidAmount}`);
+            if (auction.currentBidder === userId && bidderId !== userId) {
+              addNotification("warning", `You've been outbid on auction ${auctionId}! New bid: $${bidAmount}`);
+            }
+          } else {
+            addNotification("success", `Your ${bidType || "online"} bid of $${bidAmount} was placed on auction ${auctionId}`);
+          }
+
+          if (bidType === "competitor") {
+            addNotification("info", `Competitive bid placed: $${bidAmount} on auction ${auctionId}`);
+          }
+        }
+
         return updatedAuctions;
       });
-      if (bidderId !== userId) {
-        addNotification("success", `New ${bidType || "online"} bid on auction ${auctionId}: $${bidAmount}`);
-      }
     });
 
     socketIo.on("auctionEnded", ({ auctionId, winner, message }) => {
       console.log("Received auctionEnded:", { auctionId, winner });
       setLiveAuctions((prev) =>
         prev.map((auction) =>
-          auction.id === auctionId
-            ? { ...auction, status: "ENDED", winner: winner || null }
-            : auction
+          auction.id === auctionId ? { ...auction, status: "ENDED", winner: winner || null } : auction
         )
       );
       addNotification("info", message);
@@ -152,20 +165,9 @@ export const useSocket = () => {
   const placeBid = useCallback(
     (auctionId, bidType = "online", currentBid = 0) => {
       if (socket && auctionId) {
-        let newBidAmount;
-        if (bidType === "competitor") {
-          const increment = getBidIncrement(currentBid);
-          newBidAmount = currentBid + increment;
-        } else {
-          newBidAmount = currentBid; // For online bids, this should be adjusted
-        }
-
-        socket.emit("placeBid", { 
-          auctionId, 
-          userId, 
-          bidType, 
-          bidAmount: newBidAmount 
-        });
+        const increment = getBidIncrement(currentBid);
+        const newBidAmount = bidType === "competitor" ? currentBid + increment : currentBid;
+        socket.emit("placeBid", { auctionId, userId, bidType, bidAmount: newBidAmount });
         console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId} for $${newBidAmount}`);
       }
     },

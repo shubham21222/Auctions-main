@@ -20,7 +20,7 @@ const getBidIncrement = (currentBid) => {
   if (currentBid >= 50000) return 2500;
   if (currentBid >= 25025) return 1000;
   if (currentBid >= 10000) return 500;
-  if (currentBid >= 5000) return 250;
+  if (currentBid >= 5000) return 250; 
   if (currentBid >= 1000) return 100;
   if (currentBid >= 100) return 50;
   if (currentBid >= 50) return 10;
