@@ -203,7 +203,15 @@ export default function CatalogPage() {
 
   useEffect(() => {
     fetchAuctionData();
-    if (auctionId && socket) {
+  }, [fetchAuctionData]); // Only re-fetch when fetchAuctionData changes
+
+  useEffect(() => {
+    if (!auctionId || !socket) return;
+  
+    // Only join and fetch data if not already joined
+    const isAlreadyJoined = Object.keys(socket.rooms || {}).includes(auctionId);
+    if (!isAlreadyJoined) {
+      joinAuction(auctionId);
       getAuctionData(auctionId);
       console.log(`Joined and requested data for auction: ${auctionId}`);
     } else {

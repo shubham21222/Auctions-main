@@ -2,12 +2,12 @@ import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
-// import User from "../models/User/userModel.js";
-import User from "../models/Auth/User.js"
+import User from "../models/Auth/User.js";
 
 const userSocketMap = {};
 const auctionWatchers = {};
 const auctionModes = {};
+const lastAuctionDataSent = new Map(); // Cache to track last time data was sent to a socket
 
 export const initializeSocket = (server) => {
   const io = new Server(server, {
@@ -21,7 +21,6 @@ export const initializeSocket = (server) => {
     const userId = socket.handshake.query.userId;
     if (userId) {
       userSocketMap[userId] = socket.id;
-      console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
 
     socket.on("setAuctionMode", async ({ auctionId, mode, userId }) => {
@@ -37,9 +36,6 @@ export const initializeSocket = (server) => {
         }
 
         auctionModes[auctionId] = mode;
-        console.log(`Auction ${auctionId} mode set to: ${mode}`);
-
-        // Broadcast to all clients in the auction room, including the sender
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -60,11 +56,7 @@ export const initializeSocket = (server) => {
         io.to(auctionId).emit("auctionMessage", {
           auctionId,
           message,
-          sender: {
-            id: userId,
-            name: user.name,
-            role: user.role,
-          },
+          sender: { id: userId, name: user.name, role: user.role },
           timestamp: new Date(),
         });
       } catch (error) {
@@ -83,11 +75,7 @@ export const initializeSocket = (server) => {
         io.to(auctionId).emit("auctionMessage", {
           auctionId,
           actionType,
-          sender: {
-            id: userId,
-            name: user.name,
-            role: user.role,
-          },
+          sender: { id: userId, name: user.name, role: user.role },
           timestamp: new Date(),
         });
       } catch (error) {
@@ -103,8 +91,13 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Auction not found." });
         }
 
+        // Check if the socket is already in the room
+        if (socket.rooms.has(auctionId)) {
+          return;
+        }
+
         socket.join(auctionId);
-        console.log(`User ${userId} joined auction: ${auctionId}`);
+        // console.log(`User ${userId} joined auction: ${auctionId}`);
 
         if (!auctionWatchers[auctionId]) {
           auctionWatchers[auctionId] = new Set();
@@ -190,18 +183,16 @@ export const initializeSocket = (server) => {
           bidder: bidderId,
           bidAmount: finalBidAmount,
           bidTime: new Date(),
-          ipAddress: ipAddress,
+          ipAddress,
           bidType: bidType || "online",
-          Role:user.role
+          Role: user.role,
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
         auction.minBidIncrement = requiredIncrement;
         await auction.save();
 
-        console.log(
-          `Bid placed: ${finalBidAmount} by ${bidderId} on auction ${auctionId} (Type: ${bidType || "online"})`
-        );
+        console.log(`Bid placed: ${finalBidAmount} by ${bidderId} on auction ${auctionId} (Type: ${bidType || "online"})`);
         io.in(auctionId).emit("bidUpdate", {
           auctionId,
           bidAmount: finalBidAmount,
@@ -209,11 +200,10 @@ export const initializeSocket = (server) => {
           minBidIncrement: auction.minBidIncrement,
           bids: auction.bids,
           bidType: bidType || "online",
-          Role: user.role
+          Role: user.role,
         });
 
-        const lastBidderId =
-          auction.bids.length > 1 ? auction.bids[auction.bids.length - 2].bidder : null;
+        const lastBidderId = auction.bids.length > 1 ? auction.bids[auction.bids.length - 2].bidder : null;
         if (lastBidderId && lastBidderId.toString() !== bidderId) {
           const lastBidderSocketId = userSocketMap[lastBidderId];
           if (lastBidderSocketId) {
@@ -234,6 +224,15 @@ export const initializeSocket = (server) => {
       try {
         if (!mongoose.Types.ObjectId.isValid(auctionId)) {
           return socket.emit("auctionDataError", { message: "Invalid auction ID." });
+        }
+
+        // Rate limiting: Check if data was sent recently to this socket for this auction
+        const cacheKey = `${socket.id}-${auctionId}`;
+        const lastSent = lastAuctionDataSent.get(cacheKey);
+        const now = Date.now();
+        const cooldown = 5000; // 5 seconds cooldown
+        if (lastSent && now - lastSent < cooldown) {
+          return;
         }
 
         const auction = await Auction.aggregate([
@@ -324,8 +323,9 @@ export const initializeSocket = (server) => {
           return socket.emit("auctionDataError", { message: "Auction not found." });
         }
 
-        console.log(`Auction data sent for ID: ${auctionId}`);
+        // console.log(`Auction data sent for ID: ${auctionId}`);
         socket.emit("auctionData", auction[0]);
+        lastAuctionDataSent.set(cacheKey, now); // Update last sent time
       } catch (error) {
         console.error("Error fetching auction data:", error);
         socket.emit("auctionDataError", { message: "Internal server error." });
@@ -357,7 +357,6 @@ export const initializeSocket = (server) => {
         auction.status = "ENDED";
         await auction.save();
 
-        console.log(`Auction ${auctionId} ended. Winner: ${auction.winner}`);
         io.emit("auctionEnded", {
           auctionId,
           winner: auction.winner,
@@ -365,7 +364,6 @@ export const initializeSocket = (server) => {
         });
 
         if (userSocketMap[auction.winner]) {
-          console.log(`Notifying winner ${auction.winner} at socket ${userSocketMap[auction.winner]}`);
           io.to(userSocketMap[auction.winner]).emit("winnerNotification", {
             message: "Congratulations! You won the auction.",
             auctionId,
