@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
 import BillingDetailsModal from "./BillingDetailsModal";
-import PaymentMethodModal from "./PaymentMethodModal ";
+import PaymentMethodModal from "./PaymentMethodModal";
 import { motion } from "framer-motion";
 
 const getBidIncrement = (currentBid) => {
@@ -148,7 +148,7 @@ export default function CatalogDetails({
         message: typeof msg.message === "string" ? msg.message : (msg.actionType || ""),
         bidTime: msg.timestamp || new Date(),
         sender: typeof msg.sender === "object" ? msg.sender.name || "Admin" : msg.sender || "Admin",
-        type: msg.type || "message",
+        type: "message",
       }));
       setAdminMessages(formattedMessages);
     } else {

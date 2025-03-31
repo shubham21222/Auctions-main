@@ -12,7 +12,6 @@ const AuctionDetails = ({ currentAuction, upcomingLots }) => {
 
   return (
     <div className="space-y-2">
-      {/* Current Lot Card */}
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4">
           <div className="flex justify-between items-start mb-2">
@@ -53,7 +52,6 @@ const AuctionDetails = ({ currentAuction, upcomingLots }) => {
         </div>
       </div>
 
-      {/* Upcoming Lots */}
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-2">
           {upcomingLots.map((lot) => (

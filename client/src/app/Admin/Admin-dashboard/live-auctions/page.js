@@ -53,7 +53,6 @@ const AdminLiveAuctionPage = () => {
     fetchAuctionData();
   }, [fetchAuctionData]);
 
-  // Sync currentAuction with liveAuctions for real-time updates
   useEffect(() => {
     if (currentAuction) {
       const liveAuction = liveAuctions.find((a) => a.id === currentAuction._id);
@@ -62,6 +61,7 @@ const AdminLiveAuctionPage = () => {
           ...prev,
           currentBid: liveAuction.currentBid,
           bids: liveAuction.bids || prev.bids,
+          messages: liveAuction.messages || prev.messages || [],
         }));
         setBidHistory(liveAuction.bids || []);
       }
@@ -134,6 +134,8 @@ const AdminLiveAuctionPage = () => {
       setCurrentAuction(liveAuctions[0]);
       setBidHistory(liveAuctions[0].bids || []);
       setWatchers(0);
+      joinAuction(liveAuctions[0]._id); // Ensure joining the room
+      getAuctionData(liveAuctions[0]._id);
     } else {
       setCurrentAuction(null);
       setBidHistory([]);
@@ -148,7 +150,7 @@ const AdminLiveAuctionPage = () => {
       return;
     }
     try {
-      performAdminAction(currentAuction._id, actionType);
+      sendMessage(currentAuction._id, actionType); // Use sendMessage to emit as auctionMessage
       if (actionType === "NEXT_LOT") {
         const liveAuctions = selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE");
         const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
@@ -156,6 +158,8 @@ const AdminLiveAuctionPage = () => {
           setCurrentAuction(liveAuctions[currentIndex + 1]);
           setBidHistory(liveAuctions[currentIndex + 1].bids || []);
           setWatchers(0);
+          joinAuction(liveAuctions[currentIndex + 1]._id);
+          getAuctionData(liveAuctions[currentIndex + 1]._id);
         } else {
           setCurrentAuction(null);
           setBidHistory([]);

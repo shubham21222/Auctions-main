@@ -44,7 +44,7 @@ export default function CatalogPage() {
   const auctionId = slug;
   const [auction, setAuction] = useState(null);
   const [product, setProduct] = useState(null);
-  const [allAuctions, setAllAuctions] = useState([]); // Store all auctions
+  const [allAuctions, setAllAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isJoined, setIsJoined] = useState(false);
   const [headerData, setHeaderData] = useState({
@@ -75,7 +75,6 @@ export default function CatalogPage() {
 
     setLoading(true);
     try {
-      // Fetch specific auction
       const auctionResponse = await fetch(
         `${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`,
         {
@@ -169,7 +168,6 @@ export default function CatalogPage() {
         throw new Error("Invalid auction data received");
       }
 
-      // Fetch all auctions for the carousel
       const allAuctionsResponse = await fetch(
         `${config.baseURL}/v1/api/auction/bulk`,
         {
@@ -203,12 +201,11 @@ export default function CatalogPage() {
 
   useEffect(() => {
     fetchAuctionData();
-  }, [fetchAuctionData]); // Only re-fetch when fetchAuctionData changes
+  }, [fetchAuctionData]);
 
   useEffect(() => {
     if (!auctionId || !socket) return;
-  
-    // Only join and fetch data if not already joined
+
     const isAlreadyJoined = Object.keys(socket.rooms || {}).includes(auctionId);
     if (!isAlreadyJoined) {
       joinAuction(auctionId);
@@ -217,7 +214,7 @@ export default function CatalogPage() {
     } else {
       console.log(`Already joined auction: ${auctionId}`);
     }
-  }, [auctionId, socket, joinAuction, getAuctionData]); // Removed fetchAuctionData
+  }, [auctionId, socket, joinAuction, getAuctionData]);
 
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
@@ -226,33 +223,32 @@ export default function CatalogPage() {
         ...prev,
         currentBid: liveAuction.currentBid,
         bids: liveAuction.bids || prev.bids,
-        messages: prev.messages || [],
+        messages: liveAuction.messages || prev.messages || [],
       }));
     }
   }, [liveAuctions, auctionId]);
 
   useEffect(() => {
     if (!socket) return;
-  
+
     const handleAuctionMessage = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp }) => {
       if (msgAuctionId === auctionId) {
         const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
-        setAuction((prev) => {
-          if (!prev) return prev;
-          const newMessage = {
-            message: message || actionType,
+        const displayMessage = message || (actionType ? `Admin Action: ${actionType.replace("_", " ").toLowerCase()}` : "Update");
+        setAuction((prev) => ({
+          ...prev,
+          messages: [...(prev.messages || []), {
+            message: displayMessage,
             timestamp: timestamp || new Date(),
             sender: senderName,
             type: "message",
-          };
-          return {
-            ...prev,
-            messages: [...(prev.messages || []), newMessage],
-          };
-        });
+          }],
+        }));
+        toast.info(displayMessage);
+        console.log("New auction message received:", displayMessage);
       }
     };
-  
+
     const handleAuctionUpdate = (updatedAuction) => {
       if (updatedAuction.id === auctionId) {
         setAuction((prev) => ({
@@ -271,7 +267,7 @@ export default function CatalogPage() {
         }));
       }
     };
-  
+
     const handleBidUpdate = ({ auctionId: bidAuctionId, bidAmount, bidderId, bidType, timestamp }) => {
       if (bidAuctionId === auctionId) {
         setAuction((prev) => ({
@@ -281,11 +277,11 @@ export default function CatalogPage() {
         }));
       }
     };
-  
+
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("auctionUpdate", handleAuctionUpdate);
     socket.on("bidUpdate", handleBidUpdate);
-  
+
     return () => {
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("auctionUpdate", handleAuctionUpdate);
