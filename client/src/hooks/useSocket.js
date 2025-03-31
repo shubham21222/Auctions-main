@@ -63,9 +63,8 @@ export const useSocket = () => {
     socketIo.on("bidUpdate", ({ auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp }) => {
       console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp });
       setLiveAuctions((prev) => {
-        const updatedAuctions = prev.map((auction) => {
+        return prev.map((auction) => {
           if (auction.id === auctionId) {
-            const wasOutbid = auction.currentBidder === userId && bidderId !== userId;
             return {
               ...auction,
               currentBid: bidAmount,
@@ -76,24 +75,27 @@ export const useSocket = () => {
           }
           return auction;
         });
+      });
+    });
 
-        const auction = updatedAuctions.find((a) => a.id === auctionId);
-        if (auction) {
-          if (bidderId !== userId) {
-            addNotification("info", `New ${bidType || "online"} bid on auction ${auctionId}: $${bidAmount}`);
-            if (auction.currentBidder === userId && bidderId !== userId) {
-              addNotification("warning", `You've been outbid on auction ${auctionId}! New bid: $${bidAmount}`);
-            }
-          } else {
-            addNotification("success", `Your ${bidType || "online"} bid of $${bidAmount} was placed on auction ${auctionId}`);
+    socketIo.on("auctionMessage", ({ auctionId, message, actionType, sender, timestamp }) => {
+      console.log("Received auctionMessage:", { auctionId, message, actionType, sender, timestamp });
+      const displayMessage = message || (actionType ? actionType : "Update");
+      addNotification("info", displayMessage);
+      setLiveAuctions((prev) => {
+        return prev.map((auction) => {
+          if (auction.id === auctionId) {
+            const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
+            return {
+              ...auction,
+              messages: [
+                ...(auction.messages || []),
+                { message: displayMessage, actionType, sender: senderName, timestamp: timestamp || new Date(), type: "message" },
+              ],
+            };
           }
-
-          if (bidType === "competitor") {
-            addNotification("info", `Competitive bid placed: $${bidAmount} on auction ${auctionId}`);
-          }
-        }
-
-        return updatedAuctions;
+          return auction;
+        });
       });
     });
 
@@ -129,15 +131,6 @@ export const useSocket = () => {
       addNotification("error", `Error: ${message}`);
     });
 
-    socketIo.on("auctionMessage", ({ auctionId, message, actionType, sender, timestamp }) => {
-      console.log("Received auctionMessage:", { auctionId, message, actionType, sender, timestamp });
-      if (message) {
-        addNotification("info", message);
-      } else if (actionType) {
-        addNotification("info", actionType);
-      }
-    });
-
     socketIo.on("auctionModeUpdate", ({ auctionId, mode }) => {
       console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
       setAuctionModes((prev) => ({
@@ -152,67 +145,49 @@ export const useSocket = () => {
     };
   }, [userId, token, isAdmin, addNotification]);
 
-  const joinAuction = useCallback(
-    (auctionId) => {
-      if (socket && auctionId) {
-        socket.emit("joinAuction", { auctionId });
-        console.log(`Joined auction room: ${auctionId}`);
-      }
-    },
-    [socket]
-  );
+  const joinAuction = useCallback((auctionId) => {
+    if (socket && auctionId) {
+      socket.emit("joinAuction", { auctionId });
+      console.log(`Joined auction room: ${auctionId}`);
+    }
+  }, [socket]);
 
-  const placeBid = useCallback(
-    (auctionId, bidType = "online", currentBid = 0) => {
-      if (socket && auctionId) {
-        const increment = getBidIncrement(currentBid);
-        const newBidAmount = bidType === "competitor" ? currentBid + increment : currentBid;
-        socket.emit("placeBid", { auctionId, userId, bidType, bidAmount: newBidAmount });
-        console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId} for $${newBidAmount}`);
-      }
-    },
-    [socket, userId]
-  );
+  const placeBid = useCallback((auctionId, bidType = "online", currentBid = 0) => {
+    if (socket && auctionId) {
+      const increment = getBidIncrement(currentBid);
+      const newBidAmount = bidType === "competitor" ? currentBid + increment : currentBid;
+      socket.emit("placeBid", { auctionId, userId, bidType, bidAmount: newBidAmount });
+      console.log(`Placed ${bidType} bid on auction ${auctionId} by user ${userId} for $${newBidAmount}`);
+    }
+  }, [socket, userId]);
 
-  const getAuctionData = useCallback(
-    (auctionId) => {
-      if (socket && auctionId) {
-        socket.emit("getAuctionData", { auctionId });
-        console.log(`Requested auction data for: ${auctionId}`);
-      }
-    },
-    [socket]
-  );
+  const getAuctionData = useCallback((auctionId) => {
+    if (socket && auctionId) {
+      socket.emit("getAuctionData", { auctionId });
+      console.log(`Requested auction data for: ${auctionId}`);
+    }
+  }, [socket]);
 
-  const sendMessage = useCallback(
-    (auctionId, message) => {
-      if (socket && auctionId && message) {
-        socket.emit("sendMessage", { auctionId, message, userId, isAdmin: isAdmin || true });
-        console.log(`Sent message to auction ${auctionId}: ${message}`);
-      }
-    },
-    [socket, userId, isAdmin]
-  );
+  const sendMessage = useCallback((auctionId, message) => {
+    if (socket && auctionId && message) {
+      socket.emit("sendMessage", { auctionId, message, userId, isAdmin: isAdmin || true });
+      console.log(`Sent message to auction ${auctionId}: ${message}`);
+    }
+  }, [socket, userId, isAdmin]);
 
-  const performAdminAction = useCallback(
-    (auctionId, actionType) => {
-      if (socket && auctionId && actionType) {
-        socket.emit("adminAction", { auctionId, actionType, userId, isAdmin: isAdmin || true });
-        console.log(`Performed admin action ${actionType} on auction ${auctionId}`);
-      }
-    },
-    [socket, userId, isAdmin]
-  );
+  const performAdminAction = useCallback((auctionId, actionType) => {
+    if (socket && auctionId && actionType) {
+      socket.emit("adminAction", { auctionId, actionType, userId, isAdmin: isAdmin || true });
+      console.log(`Performed admin action ${actionType} on auction ${auctionId}`);
+    }
+  }, [socket, userId, isAdmin]);
 
-  const updateAuctionMode = useCallback(
-    (auctionId, mode) => {
-      if (socket && auctionId && mode) {
-        socket.emit("setAuctionMode", { auctionId, mode, userId, isAdmin: isAdmin || true });
-        console.log(`Set auction ${auctionId} mode to: ${mode}`);
-      }
-    },
-    [socket, userId, isAdmin]
-  );
+  const updateAuctionMode = useCallback((auctionId, mode) => {
+    if (socket && auctionId && mode) {
+      socket.emit("setAuctionMode", { auctionId, mode, userId, isAdmin: isAdmin || true });
+      console.log(`Set auction ${auctionId} mode to: ${mode}`);
+    }
+  }, [socket, userId, isAdmin]);
 
   const getBidIncrement = (currentBid) => {
     if (currentBid >= 1000000) return 50000;

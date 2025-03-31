@@ -222,72 +222,13 @@ export default function CatalogPage() {
       setAuction((prev) => ({
         ...prev,
         currentBid: liveAuction.currentBid,
-        bids: liveAuction.bids || prev.bids,
-        messages: liveAuction.messages || prev.messages || [],
+        bids: liveAuction.bids || prev?.bids || [],
+        messages: liveAuction.messages || prev?.messages || [],
+        status: liveAuction.status || prev?.status,
+        participants: liveAuction.participants || prev?.participants,
       }));
     }
   }, [liveAuctions, auctionId]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleAuctionMessage = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp }) => {
-      if (msgAuctionId === auctionId) {
-        const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
-        const displayMessage = message || (actionType ? `Admin Action: ${actionType.replace("_", " ").toLowerCase()}` : "Update");
-        setAuction((prev) => ({
-          ...prev,
-          messages: [...(prev.messages || []), {
-            message: displayMessage,
-            timestamp: timestamp || new Date(),
-            sender: senderName,
-            type: "message",
-          }],
-        }));
-        toast.info(displayMessage);
-        console.log("New auction message received:", displayMessage);
-      }
-    };
-
-    const handleAuctionUpdate = (updatedAuction) => {
-      if (updatedAuction.id === auctionId) {
-        setAuction((prev) => ({
-          ...prev,
-          currentBid: updatedAuction.currentBid,
-          status: updatedAuction.status,
-          participants: updatedAuction.participants,
-          bids: updatedAuction.bids || prev.bids,
-        }));
-        if (Array.isArray(updatedAuction.participants) && updatedAuction.participants.includes(userId)) {
-          setIsJoined(true);
-        }
-        setHeaderData((prev) => ({
-          ...prev,
-          status: updatedAuction.status || prev.status,
-        }));
-      }
-    };
-
-    const handleBidUpdate = ({ auctionId: bidAuctionId, bidAmount, bidderId, bidType, timestamp }) => {
-      if (bidAuctionId === auctionId) {
-        setAuction((prev) => ({
-          ...prev,
-          currentBid: bidAmount,
-          bids: [...(prev.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
-        }));
-      }
-    };
-
-    socket.on("auctionMessage", handleAuctionMessage);
-    socket.on("auctionUpdate", handleAuctionUpdate);
-    socket.on("bidUpdate", handleBidUpdate);
-
-    return () => {
-      socket.off("auctionMessage", handleAuctionMessage);
-      socket.off("auctionUpdate", handleAuctionUpdate);
-      socket.off("bidUpdate", handleBidUpdate);
-    };
-  }, [socket, auctionId, userId]);
 
   const handlePlaceBid = async (bidAmount) => {
     if (!auction || !auction._id) {
