@@ -3,7 +3,7 @@ import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
 // import User from "../models/User/userModel.js";
-import User from "../models/Auth/User.js";
+import User from "../models/Auth/User.js"
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -24,14 +24,11 @@ export const initializeSocket = (server) => {
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
 
-    // In initializeSocket.js, update the setAuctionMode handler
     socket.on("setAuctionMode", async ({ auctionId, mode, userId }) => {
       try {
         const user = await User.findById(userId);
         if (!user || user.role !== "ADMIN") {
-          return socket.emit("error", {
-            message: "Unauthorized: Only admins can set auction mode.",
-          });
+          return socket.emit("error", { message: "Unauthorized: Only admins can set auction mode." });
         }
 
         const auction = await Auction.findById(auctionId);
@@ -39,9 +36,10 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Auction not found." });
         }
 
-        auctionModes[auctionId] = mode; // Ensure mode is "online" or "competitive"
+        auctionModes[auctionId] = mode;
         console.log(`Auction ${auctionId} mode set to: ${mode}`);
 
+        // Broadcast to all clients in the auction room, including the sender
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -56,9 +54,7 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "User not found." });
         }
         if (user.role !== "ADMIN") {
-          return socket.emit("error", {
-            message: "Unauthorized: Only admins can send messages.",
-          });
+          return socket.emit("error", { message: "Unauthorized: Only admins can send messages." });
         }
 
         io.to(auctionId).emit("auctionMessage", {
@@ -81,9 +77,7 @@ export const initializeSocket = (server) => {
       try {
         const user = await User.findById(userId);
         if (!user || user.role !== "ADMIN") {
-          return socket.emit("error", {
-            message: "Unauthorized: Only admins can perform actions.",
-          });
+          return socket.emit("error", { message: "Unauthorized: Only admins can perform actions." });
         }
 
         io.to(auctionId).emit("auctionMessage", {
@@ -123,10 +117,7 @@ export const initializeSocket = (server) => {
         });
 
         if (auctionModes[auctionId]) {
-          socket.emit("auctionModeUpdate", {
-            auctionId,
-            mode: auctionModes[auctionId],
-          });
+          socket.emit("auctionModeUpdate", { auctionId, mode: auctionModes[auctionId] });
         }
       } catch (error) {
         console.error("Error joining auction:", error);
@@ -145,34 +136,22 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "User not found." });
         }
 
-        // Check auction mode and bid type compatibility
-        const currentMode = auctionModes[auctionId] || "online";
-        if (bidType === "competitor" && currentMode !== "competitor") {
-          return socket.emit("error", {
-            message: "Auction is not in competitor bid mode.",
-          });
-        }
-        if (bidType === "online" && currentMode !== "online") {
-          return socket.emit("error", {
-            message: "Auction is not in online bid mode.",
-          });
-        }
-
-        // Check user permissions
         if (bidType === "competitor" && user.role !== "ADMIN") {
-          return socket.emit("error", {
-            message: "Only admins can place competitor bids.",
-          });
+          return socket.emit("error", { message: "Only admins can place competitor bids." });
         }
         if (bidType === "online" && user.role === "ADMIN") {
-          return socket.emit("error", {
-            message: "Admins cannot place online bids.",
-          });
+          return socket.emit("error", { message: "Admins cannot place online bids." });
         }
 
-        let ipAddress =
-          socket.handshake.headers["x-forwarded-for"] ||
-          socket.handshake.address;
+        const currentMode = auctionModes[auctionId] || "online";
+        if (bidType === "competitor" && currentMode !== "competitor") {
+          return socket.emit("error", { message: "Auction is not in competitor bid mode." });
+        }
+        if (bidType === "online" && currentMode !== "online") {
+          return socket.emit("error", { message: "Auction is not in online bid mode." });
+        }
+
+        let ipAddress = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
         if (ipAddress.includes(",")) {
           ipAddress = ipAddress.split(",")[0].trim();
         }
@@ -213,7 +192,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role: user.role,
+          Role:user.role
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
@@ -221,9 +200,7 @@ export const initializeSocket = (server) => {
         await auction.save();
 
         console.log(
-          `Bid placed: ${finalBidAmount} by ${bidderId} on auction ${auctionId} (Type: ${
-            bidType || "online"
-          })`
+          `Bid placed: ${finalBidAmount} by ${bidderId} on auction ${auctionId} (Type: ${bidType || "online"})`
         );
         io.in(auctionId).emit("bidUpdate", {
           auctionId,
@@ -232,19 +209,15 @@ export const initializeSocket = (server) => {
           minBidIncrement: auction.minBidIncrement,
           bids: auction.bids,
           bidType: bidType || "online",
-          Role: user.role,
+          Role: user.role
         });
 
         const lastBidderId =
-          auction.bids.length > 1
-            ? auction.bids[auction.bids.length - 2].bidder
-            : null;
+          auction.bids.length > 1 ? auction.bids[auction.bids.length - 2].bidder : null;
         if (lastBidderId && lastBidderId.toString() !== bidderId) {
           const lastBidderSocketId = userSocketMap[lastBidderId];
           if (lastBidderSocketId) {
-            console.log(
-              `Notifying outbid user ${lastBidderId} at socket ${lastBidderSocketId}`
-            );
+            console.log(`Notifying outbid user ${lastBidderId} at socket ${lastBidderSocketId}`);
             io.to(lastBidderSocketId).emit("outbidNotification", {
               message: "You've been outbid!",
               auctionId,
@@ -260,9 +233,7 @@ export const initializeSocket = (server) => {
     socket.on("getAuctionData", async ({ auctionId }) => {
       try {
         if (!mongoose.Types.ObjectId.isValid(auctionId)) {
-          return socket.emit("auctionDataError", {
-            message: "Invalid auction ID.",
-          });
+          return socket.emit("auctionDataError", { message: "Invalid auction ID." });
         }
 
         const auction = await Auction.aggregate([
@@ -308,10 +279,7 @@ export const initializeSocket = (server) => {
           {
             $addFields: {
               minBidIncrement: {
-                $ifNull: [
-                  { $arrayElemAt: ["$bidIncrementRule.increment", 0] },
-                  0,
-                ],
+                $ifNull: [{ $arrayElemAt: ["$bidIncrementRule.increment", 0] }, 0],
               },
             },
           },
@@ -353,9 +321,7 @@ export const initializeSocket = (server) => {
         ]);
 
         if (!auction.length) {
-          return socket.emit("auctionDataError", {
-            message: "Auction not found.",
-          });
+          return socket.emit("auctionDataError", { message: "Auction not found." });
         }
 
         console.log(`Auction data sent for ID: ${auctionId}`);
@@ -399,11 +365,7 @@ export const initializeSocket = (server) => {
         });
 
         if (userSocketMap[auction.winner]) {
-          console.log(
-            `Notifying winner ${auction.winner} at socket ${
-              userSocketMap[auction.winner]
-            }`
-          );
+          console.log(`Notifying winner ${auction.winner} at socket ${userSocketMap[auction.winner]}`);
           io.to(userSocketMap[auction.winner]).emit("winnerNotification", {
             message: "Congratulations! You won the auction.",
             auctionId,

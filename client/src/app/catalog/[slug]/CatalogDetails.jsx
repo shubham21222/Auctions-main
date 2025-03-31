@@ -13,19 +13,6 @@ import BillingDetailsModal from "./BillingDetailsModal";
 import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
 
-const SkeletonCard = () => {
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-      <div className="space-y-4">
-        <div className="h-48 bg-gray-200 rounded-lg"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-      </div>
-    </div>
-  );
-};
-
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
   if (currentBid >= 500000) return 25000;
@@ -56,23 +43,34 @@ export default function CatalogDetails({
   notifications,
   socket,
   messages,
-  setMessages,
-  isJoined,
-  setIsJoined,
-  userId,
-  auctionMode,
 }) {
+  const [isJoined, setIsJoined] = useState(false);
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
-  const [adminMessages, setAdminMessages] = useState(messages || []);
+  const [adminMessages, setAdminMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
-  const [imageErrors, setImageErrors] = useState({});
-  const isAdminUser = useSelector((state) => state.auth.isAdmin); // Check if user is admin
+  const [imageErrors, setImageErrors] = useState({}); // Track which images failed
+
+  const userId = useSelector((state) => state.auth.user?._id);
+
+  const SkeletonCard = () => (
+    <motion.div
+      className="group relative bg-white rounded-lg shadow-md overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <div className="relative aspect-square bg-gray-200 animate-shimmer" />
+      <div className="p-4 space-y-2">
+        <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
+      </div>
+    </motion.div>
+  );
 
   const fetchUserName = useCallback(
     async (id) => {
@@ -159,29 +157,19 @@ export default function CatalogDetails({
     updateBidsWithUsernames();
   }, [auction, fetchUserName]);
 
-  // Handle auction messages
   useEffect(() => {
-    if (!socket) return;
-
-    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp }) => {
-      if (auction?.id === auctionId) {
-        const newMessage = {
-          message: message || actionType || "Admin Action",
-          timestamp: timestamp || new Date(),
-          sender: sender?.name || "Admin",
-          type: "message",
-        };
-        setAdminMessages((prev) => [...prev, newMessage]);
-        if (setMessages) setMessages((prev) => [...prev, newMessage]);
-      }
-    };
-
-    socket.on("auctionMessage", handleAuctionMessage);
-
-    return () => {
-      socket.off("auctionMessage", handleAuctionMessage);
-    };
-  }, [socket, auction?.id, setMessages]);
+    if (messages && Array.isArray(messages)) {
+      const formattedMessages = messages.map((msg) => ({
+        message: typeof msg.message === "string" ? msg.message : (msg.actionType || ""),
+        bidTime: msg.timestamp || new Date(),
+        sender: typeof msg.sender === "object" ? msg.sender.name || "Admin" : msg.sender || "Admin",
+        type: msg.type || "message",
+      }));
+      setAdminMessages(formattedMessages);
+    } else {
+      setAdminMessages([]);
+    }
+  }, [messages]);
 
   const handleJoinAuction = async () => {
     if (!userId) {
@@ -189,64 +177,71 @@ export default function CatalogDetails({
       console.log("Join auction failed: No user ID");
       return;
     }
-
+    
     if (!auction || !auction._id) {
       toast.error("No active auction available");
       console.log("Join auction failed: No auction or auction ID", auction);
       return;
     }
-
+    
     if (!termsAccepted) {
       toast.error("You must accept the terms and conditions to join the auction.");
       console.log("Join auction failed: Terms not accepted");
       return;
     }
-
+  
     if (hasBillingDetails === null || hasPaymentMethod === null) {
       toast.error("Checking account details, please wait...");
       console.log("Join auction delayed: Still checking user details");
       return;
     }
-
+  
     if (!hasBillingDetails) {
       setIsBillingModalOpen(true);
       toast.error("Please provide your billing details to join the auction.");
       console.log("Join auction failed: No billing details");
       return;
     }
-
+  
     if (!hasPaymentMethod) {
       setIsPaymentModalOpen(true);
       toast.error("Please add a payment method to join the auction.");
       console.log("Join auction failed: No payment method");
       return;
     }
-
+  
     console.log("Attempting to join auction:", auction._id, "for user:", userId);
-
+    
     try {
+      // First, check if socket is connected
       if (!socket || !socket.connected) {
         console.error("Socket not connected");
         toast.error("Connection to auction server lost. Please refresh the page.");
         return;
       }
-
+      
+      // Emit socket event to join auction room
       socket.emit("joinAuction", { auctionId: auction._id, userId });
       console.log("Socket join auction event emitted");
-
+      
+      // Make API call to join auction
       const response = await fetch(`${config.baseURL}/v1/api/auction/join`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `${token}`,
         },
-        body: JSON.stringify({ auctionId: auction._id, userId: userId }),
+        body: JSON.stringify({ 
+          auctionId: auction._id,
+          userId: userId 
+        }),
       });
-
+  
       const data = await response.json();
       console.log("Join auction API response:", data);
-
+  
       if (!response.ok) {
+        // If user is already joined, we can still consider this a success
         if (data.message === "User already joined the auction") {
           setIsJoined(true);
           toast.success("You are already joined to this auction!");
@@ -254,10 +249,11 @@ export default function CatalogDetails({
         }
         throw new Error(data.message || "Failed to join auction");
       }
-
+      
       setIsJoined(true);
       toast.success("Successfully joined the auction!");
-
+      
+      // Force refresh auction data to reflect participation
       if (socket) {
         socket.emit("getAuctionData", { auctionId: auction._id });
       }
@@ -269,39 +265,28 @@ export default function CatalogDetails({
 
   const handleBidSubmit = (e) => {
     e.preventDefault();
-
+    
     if (hasBillingDetails === null || hasPaymentMethod === null) {
       toast.error("Checking account details, please wait...");
       return;
     }
-
+  
     if (!hasBillingDetails) {
       setIsBillingModalOpen(true);
       toast.error("Please provide your billing details to place a bid.");
       return;
     }
-
+  
     if (!hasPaymentMethod) {
       setIsPaymentModalOpen(true);
       toast.error("Please add a payment method to place a bid.");
       return;
     }
-
-    // Only allow bidding for non-admins in online mode
-    if (isAdminUser) {
-      toast.error("Admins cannot bid from this page. Please use the admin dashboard.");
-      return;
-    }
-
-    if (auctionMode !== "online") {
-      toast.error("Bidding is not available in the current auction mode.");
-      return;
-    }
-
+  
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
     const nextBid = currentBid + bidIncrement;
-
+  
     onBidNowClick(nextBid);
   };
 
@@ -330,7 +315,7 @@ export default function CatalogDetails({
     ...adminMessages.map((msg) => ({
       type: "message",
       message: msg.message,
-      bidTime: msg.timestamp,
+      bidTime: msg.bidTime,
       sender: msg.sender,
     })),
   ].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
@@ -347,46 +332,10 @@ export default function CatalogDetails({
       className="space-y-10"
     >
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="md:w-28 flex md:flex-col gap-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-24 h-24 md:w-28 md:h-28 bg-gray-200 rounded-lg animate-pulse"></div>
-                ))}
-              </div>
-              <div className="flex-1">
-                <div className="aspect-[4/3] bg-gray-200 rounded-xl animate-pulse"></div>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-full"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                <div className="h-4 bg-gray-200 rounded w-4/6"></div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                </div>
-                <div className="flex justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                </div>
-                <div className="flex justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : product ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -478,89 +427,87 @@ export default function CatalogDetails({
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
-              <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-luxury-gold" /> Auction Information
-              </h3>
-              <div className="space-y-4">
-                {auctionMode === "competitive" ? (
-                  <div className="text-center text-red-600 font-semibold">
-                    Competitive bidding in progress. Only admins can bid via the admin dashboard.
+            {auction && (
+              <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Sparkles className="w-6 h-6 text-luxury-gold" /> Place Your Bid
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Current Bid</span>
+                    <span className="text-2xl font-bold text-luxury-gold">
+                      $
+                      {(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}
+                    </span>
                   </div>
-                ) : !isAdminUser && auctionMode === "online" && isJoined && auction.status !== "ENDED" ? (
-                  <form onSubmit={handleBidSubmit} className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Current Bid</span>
-                      <span className="text-2xl font-bold text-luxury-gold">
-                        ${(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Next Bid</span>
-                      <span className="text-lg font-semibold text-gray-900">
-                        ${(typeof auction.currentBid === "number"
-                          ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
-                          : 0
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Bid Increment</span>
-                      <span className="text-lg font-semibold text-gray-900">
-                        ${getBidIncrement(
-                          typeof auction.currentBid === "number" ? auction.currentBid : 0
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="text-center text-gray-600">
-                      Click to place a bid of{" "}
-                      <span className="font-semibold text-luxury-gold">
-                        ${(typeof auction.currentBid === "number"
-                          ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
-                          : 0
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300"
-                      disabled={auction.status === "ENDED"}
-                    >
-                      Place Bid
-                    </Button>
-                  </form>
-                ) : isAdminUser ? (
-                  <div className="text-center text-gray-600 font-semibold">
-                    Admins cannot bid from this page. Use the admin dashboard to place bids.
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Next Bid</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      $
+                      {(typeof auction.currentBid === "number"
+                        ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
+                        : 0
+                      ).toLocaleString()}
+                    </span>
                   </div>
-                ) : !isJoined ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="terms"
-                        checked={termsAccepted}
-                        onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="h-5 w-5 text-luxury-gold border-gray-300 rounded focus:ring-luxury-gold"
-                      />
-                      <label htmlFor="terms" className="text-gray-600 text-sm">
-                        I agree to the{" "}
-                        <Link href="/terms" className="text-luxury-gold hover:underline">
-                          Terms and Conditions
-                        </Link>
-                      </label>
-                    </div>
-                    <Button
-                      onClick={handleJoinAuction}
-                      className="w-full bg-luxury-gold text-white hover:bg-luxury-gold/90 transition-all duration-300"
-                      disabled={!termsAccepted || hasBillingDetails === null || hasPaymentMethod === null}
-                    >
-                      Join Auction
-                    </Button>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Bid Increment</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      $
+                      {getBidIncrement(
+                        typeof auction.currentBid === "number" ? auction.currentBid : 0
+                      ).toLocaleString()}
+                    </span>
                   </div>
-                ) : null}
+                  {!isJoined ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="terms"
+                          checked={termsAccepted}
+                          onChange={(e) => setTermsAccepted(e.target.checked)}
+                          className="h-5 w-5 text-luxury-gold border-gray-300 rounded focus:ring-luxury-gold"
+                        />
+                        <label htmlFor="terms" className="text-gray-600 text-sm">
+                          I agree to the{" "}
+                          <Link href="/terms" className="text-luxury-gold hover:underline">
+                            Terms and Conditions
+                          </Link>
+                        </label>
+                      </div>
+                      <Button
+                        onClick={handleJoinAuction}
+                        className="w-full bg-luxury-gold text-white hover:bg-luxury-gold/90 transition-all duration-300"
+                        disabled={!termsAccepted || hasBillingDetails === null || hasPaymentMethod === null}
+                      >
+                        Join Auction
+                      </Button>
+                    </div>
+                  ) : auction.status !== "ENDED" ? (
+                    <form onSubmit={handleBidSubmit} className="space-y-4">
+                      <div className="text-center text-gray-600">
+                        Click to place a bid of{" "}
+                        <span className="font-semibold text-luxury-gold">
+                          $
+                          {(typeof auction.currentBid === "number"
+                            ? auction.currentBid + getBidIncrement(auction.currentBid || 0)
+                            : 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <Button
+                        type="submit"
+                        className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300"
+                        disabled={auction.status === "ENDED"}
+                      >
+                        Place Bid
+                      </Button>
+                    </form>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </div>
       ) : (
@@ -574,7 +521,7 @@ export default function CatalogDetails({
           className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10"
         >
           <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-luxury-gold" /> Auction Details
+            <Sparkles className="w-6 h-6 text-luxury-gold" /> Auction Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -647,7 +594,7 @@ export default function CatalogDetails({
                   {entry.type === "bid" ? (
                     <div>
                       <span className="font-semibold text-gray-900">
-                        {entry.bidderName || "Anonymous"}
+                        {typeof entry.bidderName === 'string' ? entry.bidderName : 'Anonymous'}
                       </span>
                       <span className="text-gray-600"> placed a bid of </span>
                       <span className="font-semibold text-luxury-gold">
@@ -657,11 +604,11 @@ export default function CatalogDetails({
                   ) : (
                     <div>
                       <span className="font-semibold text-blue-600">
-                        {entry.sender || "Admin"}
+                        {typeof entry.sender === 'string' ? entry.sender : 'Admin'}
                       </span>
                       <span className="text-gray-600">: </span>
                       <span className="text-gray-800">
-                        {entry.message || "N/A"}
+                        {typeof entry.message === 'string' ? entry.message : 'N/A'}
                       </span>
                     </div>
                   )}
