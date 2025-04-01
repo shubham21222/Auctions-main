@@ -19,7 +19,7 @@ const AuctionControls = ({
   onBack,
   placeBid,
   getBidIncrement,
-  token,
+  token, // Ensure token is received
 }) => {
   if (!currentAuction) return null;
 

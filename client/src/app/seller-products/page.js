@@ -67,7 +67,7 @@ export default function Home() {
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
         <div className="w-full max-w-6xl mx-auto p-6">
-          <Toaster position="top-right" />
+          {/* <Toaster position="top-right" /> */}
           {currentStep === 1 && (
             <StepperForm
               selectedCategory={selectedCategory}

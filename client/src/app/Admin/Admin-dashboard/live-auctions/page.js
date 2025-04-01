@@ -175,8 +175,36 @@ const AdminLiveAuctionPage = () => {
           setWatchers(0);
           toast.success("No more lots in this catalog.");
         }
-      } else if (actionType === "SOLD" || actionType === "PASS") {
-        fetchAuctionData();
+      } else if (actionType === "SOLD") {
+        // Use the auction ID in the payload
+        const auctionId = currentAuction._id;
+
+        if (!auctionId) {
+          throw new Error("Auction ID not found in current auction");
+        }
+
+        // Call API to update auction status to "ENDED" with auction ID in payload
+        const response = await fetch(`${config.baseURL}/v1/api/auction/update/${auctionId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+          body: JSON.stringify({
+            auctionId: auctionId, // Pass auction ID in payload
+            status: "ENDED", // Set status to "ENDED"
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to update auction status");
+        }
+
+        toast.success("Auction marked as sold and status updated to ENDED");
+        fetchAuctionData(); // Refresh data after updating
+      } else if (actionType === "PASS") {
+        fetchAuctionData(); // Refresh data after passing
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);
@@ -271,7 +299,7 @@ const AdminLiveAuctionPage = () => {
                 onBack={handleBackToCatalogs}
                 placeBid={placeBid}
                 getBidIncrement={getBidIncrement}
-                token={token}
+                token={token} // Pass token to AuctionControls
               />
             </div>
           </div>
