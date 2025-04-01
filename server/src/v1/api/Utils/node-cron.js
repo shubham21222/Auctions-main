@@ -218,7 +218,7 @@ cron.schedule("*/1 * * * *", async () => {
                     console.log(`✅ Payment email sent to ${findUser.email}`);
                     
                     // ✅ Mark the auction as Emailsend: true to prevent duplicate emails
-                    auction.Emailsend = true;
+                    auction.Emailsend = "true";
                     await auction.save();
                 } else {
                     console.error(`❌ Failed to send email to ${findUser.email}`);
@@ -303,7 +303,7 @@ cron.schedule("*/1 * * * *", async () => {  // Runs every minute
                     console.log(`✅ Payment email sent to ${findUser.email}`);
                     
                     // ✅ Mark the auction as Emailsend: true to prevent duplicate emails
-                    auction.Emailsend = true;
+                    auction.Emailsend = "true";
                     await auction.save();
                 } else {
                     console.error(`❌ Failed to send email to ${findUser.email}`);

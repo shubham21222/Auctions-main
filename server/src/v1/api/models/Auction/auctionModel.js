@@ -23,7 +23,7 @@ const auctionSchema = new mongoose.Schema(
         startDate: { type: Date, default: Date.now, required: true },
         endDate: { type: Date, required: false , default:null },
         bids: [bidSchema],
-        winner: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+        winner: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
         winnerBidTime: { type: Date },
         minBidIncrement: { type: Number, default: 0 }, // Optional
         lotNumber: { type: String }, // Ensure unique LOT numbers
