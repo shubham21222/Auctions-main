@@ -49,6 +49,7 @@ export default function CatalogDetails({
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [adminMessages, setAdminMessages] = useState([]);
+  const [clerkMessages, setClerkMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -56,10 +57,11 @@ export default function CatalogDetails({
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const isClerk = useSelector((state) => state.auth.isClerk);
 
   const fetchUserName = useCallback(
     async (id) => {
-      if (!token || !id) return id;
+      if (!token || !id) return 'Anonymous';
       if (userCache[id]) return userCache[id];
 
       try {
@@ -69,12 +71,12 @@ export default function CatalogDetails({
         });
         if (!response.ok) throw new Error("Failed to fetch user");
         const data = await response.json();
-        const userName = data.items?.name || id;
+        const userName = data.items?.name || 'Anonymous';
         setUserCache((prev) => ({ ...prev, [id]: userName }));
         return userName;
       } catch (error) {
         console.error(`Error fetching user ${id}:`, error.message);
-        return id;
+        return 'Anonymous';
       }
     },
     [token, userCache]
@@ -131,10 +133,14 @@ export default function CatalogDetails({
 
     const updateBidsWithUsernames = async () => {
       const updatedBids = await Promise.all(
-        auction.bids.map(async (bid) => ({
-          ...bid,
-          bidderName: await fetchUserName(bid.bidder),
-        }))
+        auction.bids.map(async (bid) => {
+          const bidderName = await fetchUserName(bid.bidder);
+          return {
+            ...bid,
+            bidderName: typeof bidderName === 'object' ? bidderName.name : bidderName,
+            isClerk: bid.bidder?.isClerk || false
+          };
+        })
       );
       setBidsWithUsernames(updatedBids);
     };
@@ -145,14 +151,22 @@ export default function CatalogDetails({
   useEffect(() => {
     if (messages && Array.isArray(messages)) {
       const formattedMessages = messages.map((msg) => ({
-        message: typeof msg.message === "string" ? msg.message : (msg.actionType || "Update"),
+        message: typeof msg.message === "string" ? msg.message : msg.actionType || "Update",
         bidTime: msg.timestamp || new Date(),
-        sender: typeof msg.sender === "string" ? msg.sender : (msg.sender?.name || "Admin"),
+        sender: typeof msg.sender === "string" ? msg.sender : msg.sender?.name || "Admin",
         type: "message",
+        isClerk: msg.sender?.isClerk || false,
       }));
-      setAdminMessages(formattedMessages);
+
+      // Separate admin and clerk messages
+      const adminMsgs = formattedMessages.filter(msg => !msg.isClerk);
+      const clerkMsgs = formattedMessages.filter(msg => msg.isClerk);
+
+      setAdminMessages(adminMsgs);
+      setClerkMessages(clerkMsgs);
     } else {
       setAdminMessages([]);
+      setClerkMessages([]);
     }
   }, [messages]);
 
@@ -266,6 +280,7 @@ export default function CatalogDetails({
       bidderName: bid.bidderName,
       bidAmount: bid.bidAmount,
       bidTime: bid.bidTime,
+      bidType: bid.bidType,
     })),
     ...adminMessages.map((msg) => ({
       type: "message",
@@ -273,7 +288,7 @@ export default function CatalogDetails({
       bidTime: msg.bidTime,
       sender: msg.sender,
     })),
-  ].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
+  ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime)); // Sort descending
 
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
@@ -370,15 +385,15 @@ export default function CatalogDetails({
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Current Bid</span>
-                    <span className="text-2xl font-bold text-luxury-gold">${(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}</span>
+                    <span className="text-2xl font-bold text-luxury-gold">${(auction.currentBid || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Next Bid</span>
-                    <span className="text-lg font-semibold text-gray-900">${(typeof auction.currentBid === "number" ? auction.currentBid + getBidIncrement(auction.currentBid || 0) : 0).toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-gray-900">${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Bid Increment</span>
-                    <span className="text-lg font-semibold text-gray-900">${getBidIncrement(typeof auction.currentBid === "number" ? auction.currentBid : 0).toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-gray-900">${getBidIncrement(auction.currentBid || 0).toLocaleString()}</span>
                   </div>
                   {!isJoined ? (
                     <div className="space-y-4">
@@ -405,7 +420,7 @@ export default function CatalogDetails({
                   ) : auction.status !== "ENDED" ? (
                     <form onSubmit={handleBidSubmit} className="space-y-4">
                       <div className="text-center text-gray-600">
-                        Click to place a bid of <span className="font-semibold text-luxury-gold">${(typeof auction.currentBid === "number" ? auction.currentBid + getBidIncrement(auction.currentBid || 0) : 0).toLocaleString()}</span>
+                        Click to place a bid of <span className="font-semibold text-luxury-gold">${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}</span>
                       </div>
                       <Button type="submit" className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300" disabled={auction.status === "ENDED"}>
                         Place Bid
@@ -455,47 +470,83 @@ export default function CatalogDetails({
                 <span className="font-semibold text-gray-900">{Array.isArray(auction.participants) ? auction.participants.length : 0}</span>
               </div>
             </div>
+
+            {/* Messages Section */}
+            <div className="col-span-2 space-y-4">
+              <h4 className="text-lg font-semibold text-gray-800">Auction Messages</h4>
+              
+              {/* Admin Messages */}
+              {adminMessages.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-600">Admin Updates</h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {adminMessages.map((msg, index) => (
+                      <div key={index} className="bg-blue-50 p-3 rounded-lg">
+                        <p className="text-sm text-blue-800">{msg.message}</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          {new Date(msg.bidTime).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Clerk Messages */}
+              {clerkMessages.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-600">Clerk Updates</h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {clerkMessages.map((msg, index) => (
+                      <div key={index} className="bg-green-50 p-3 rounded-lg">
+                        <p className="text-sm text-green-800">{msg.message}</p>
+                        <p className="text-xs text-green-600 mt-1">
+                          {new Date(msg.bidTime).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Bid History */}
+              {bidsWithUsernames.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-600">Bid History</h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {bidsWithUsernames.map((bid, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded-lg ${
+                          bid.bidder === userId 
+                            ? 'bg-luxury-gold/10' 
+                            : bid.isClerk 
+                              ? 'bg-green-50' 
+                              : 'bg-gray-50'
+                        }`}
+                      >
+                        <p className="text-sm">
+                          <span className="font-medium">
+                            {bid.bidderName || 'Anonymous'}
+                          </span>
+                          {bid.isClerk ? ' (Clerk)' : ''}
+                          {' placed a bid of '}
+                          <span className="font-bold text-luxury-gold">
+                            ${bid.bidAmount.toLocaleString()}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(bid.bidTime).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
       )}
-
-      <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
-        <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-luxury-gold" /> Bid History & Updates
-        </h3>
-        <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-luxury-gold scrollbar-track-gray-100">
-          {combinedHistory.length > 0 ? (
-            combinedHistory.map((entry, index) => (
-              <motion.div
-                key={`${entry.type}-${index}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-start space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all"
-              >
-                <div className="flex-1">
-                  {entry.type === "bid" ? (
-                    <div>
-                      <span className="font-semibold text-gray-900">{typeof entry.bidderName === "string" ? entry.bidderName : "Anonymous"}</span>
-                      <span className="text-gray-600"> placed a bid of </span>
-                      <span className="font-semibold text-luxury-gold">${(typeof entry.bidAmount === "number" ? entry.bidAmount : 0).toLocaleString()}</span>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="font-semibold text-blue-600">{typeof entry.sender === "string" ? entry.sender : "Admin"}</span>
-                      <span className="text-gray-600">: </span>
-                      <span className="text-gray-800">{typeof entry.message === "string" ? entry.message : "N/A"}</span>
-                    </div>
-                  )}
-                  <div className="text-sm text-gray-500 mt-1">{entry.bidTime ? new Date(entry.bidTime).toLocaleString() : "N/A"}</div>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500">No bids or updates yet.</p>
-          )}
-        </div>
-      </motion.div>
 
       <BillingDetailsModal isOpen={isBillingModalOpen} onClose={() => setIsBillingModalOpen(false)} onBillingUpdate={handleBillingUpdate} />
       <PaymentMethodModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} onSuccess={handlePaymentSuccess} token={token} />

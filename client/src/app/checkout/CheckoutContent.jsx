@@ -9,7 +9,7 @@ import BillingDetailsForm from "./BillingDetailsForm";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-
+import config from "@/app/config_BASE_URL";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 const CheckoutForm = ({ productDetails, userId, token, billingDetails, orderId, paymentIntentClientSecret, onError }) => {
@@ -173,7 +173,7 @@ export default function CheckoutContent() {
       if (!newProductDetails.productId || !token || !userId) return;
 
       try {
-        const billingResponse = await fetch(`https://bid.nyelizabeth.com/v1/api/auth/getUserByBillingAddress/${userId}`, {
+        const billingResponse = await fetch(`${config.baseURL}/v1/api/auth/getUserByBillingAddress/${userId}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -196,7 +196,7 @@ export default function CheckoutContent() {
         const totalAmount = parseFloat(newProductDetails.offerPrice) + 100;
         const holdAmount = parseFloat(newProductDetails.offerPrice);
 
-        const orderResponse = await fetch("https://bid.nyelizabeth.com/v1/api/order/MakeOrder", {
+        const orderResponse = await fetch(`${config.baseURL}/v1/api/order/MakeOrder`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

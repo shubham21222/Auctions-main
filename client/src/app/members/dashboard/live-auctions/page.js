@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { useSocket } from "@/hooks/useSocket";
+import { useMemberSocket } from "@/hooks/useMemberSocket";
 import config from "@/app/config_BASE_URL";
 import toast from "react-hot-toast";
 import CatalogCard from "./CatalogCard";
 import AuctionDetails from "./AuctionDetails";
 import AuctionControls from "./AuctionControls";
 
-const AdminLiveAuctionPage = () => {
+const MemberLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
-  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes, placeBid, getBidIncrement, liveAuctions } = useSocket();
+  const { socket, joinAuction, getAuctionData, sendMessage, performClerkAction, updateAuctionMode, auctionModes, placeBid, getBidIncrement, liveAuctions } = useMemberSocket();
   const [catalogs, setCatalogs] = useState([]);
   const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [currentAuction, setCurrentAuction] = useState(null);
@@ -19,6 +19,7 @@ const AdminLiveAuctionPage = () => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [watchers, setWatchers] = useState(0);
+  const [joinedRooms, setJoinedRooms] = useState(new Set());
 
   const fetchAuctionData = useCallback(async () => {
     if (!token) {
@@ -49,11 +50,9 @@ const AdminLiveAuctionPage = () => {
   }, [token]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     fetchAuctionData();
   }, [fetchAuctionData]);
 
-  // Sync currentAuction with liveAuctions for real-time updates
   useEffect(() => {
     if (currentAuction) {
       const liveAuction = liveAuctions.find((a) => a.id === currentAuction._id);
@@ -62,14 +61,23 @@ const AdminLiveAuctionPage = () => {
           ...prev,
           currentBid: liveAuction.currentBid,
           bids: liveAuction.bids || prev.bids,
+          messages: liveAuction.messages || prev.messages || [],
         }));
         setBidHistory(liveAuction.bids || []);
       }
     }
-  }, [liveAuctions, currentAuction]);
+  }, [liveAuctions, currentAuction?._id]);
 
   useEffect(() => {
+    let cleanup = () => {};
+
     if (!socket || !currentAuction) return;
+
+    if (!joinedRooms.has(currentAuction._id)) {
+      joinAuction(currentAuction._id);
+      getAuctionData(currentAuction._id);
+      setJoinedRooms((prev) => new Set(prev).add(currentAuction._id));
+    }
 
     const handleWatcherUpdate = ({ auctionId, watchers }) => {
       if (auctionId === currentAuction._id) {
@@ -79,7 +87,7 @@ const AdminLiveAuctionPage = () => {
 
     const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
       if (auctionId === currentAuction._id) {
-        const senderName = typeof sender === "object" ? (sender.name || "Admin") : "Admin";
+        const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
         setBidHistory((prev) => [
           ...prev,
           {
@@ -117,15 +125,14 @@ const AdminLiveAuctionPage = () => {
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("bidUpdate", handleBidUpdate);
 
-    joinAuction(currentAuction._id);
-    getAuctionData(currentAuction._id);
-
-    return () => {
+    cleanup = () => {
       socket.off("watcherUpdate", handleWatcherUpdate);
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("bidUpdate", handleBidUpdate);
     };
-  }, [socket, currentAuction, joinAuction, getAuctionData, getBidIncrement, liveAuctions]);
+
+    return cleanup;
+  }, [socket, currentAuction?._id, joinAuction, getAuctionData, getBidIncrement]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -134,6 +141,7 @@ const AdminLiveAuctionPage = () => {
       setCurrentAuction(liveAuctions[0]);
       setBidHistory(liveAuctions[0].bids || []);
       setWatchers(0);
+      setJoinedRooms(new Set());
     } else {
       setCurrentAuction(null);
       setBidHistory([]);
@@ -142,13 +150,13 @@ const AdminLiveAuctionPage = () => {
     }
   };
 
-  const handleAdminAction = async (actionType) => {
+  const handleClerkAction = async (actionType) => {
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
     }
     try {
-      performAdminAction(currentAuction._id, actionType);
+      sendMessage(currentAuction._id, actionType);
       if (actionType === "NEXT_LOT") {
         const liveAuctions = selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE");
         const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
@@ -156,6 +164,11 @@ const AdminLiveAuctionPage = () => {
           setCurrentAuction(liveAuctions[currentIndex + 1]);
           setBidHistory(liveAuctions[currentIndex + 1].bids || []);
           setWatchers(0);
+          setJoinedRooms((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(currentAuction._id);
+            return newSet;
+          });
         } else {
           setCurrentAuction(null);
           setBidHistory([]);
@@ -186,6 +199,7 @@ const AdminLiveAuctionPage = () => {
     setCurrentAuction(null);
     setBidHistory([]);
     setWatchers(0);
+    setJoinedRooms(new Set());
   };
 
   if (loading) {
@@ -246,7 +260,7 @@ const AdminLiveAuctionPage = () => {
               <AuctionControls
                 currentAuction={currentAuction}
                 bidHistory={bidHistory}
-                handleAdminAction={handleAdminAction}
+                handleAdminAction={handleClerkAction}
                 handleSendMessage={handleSendMessage}
                 message={message}
                 setMessage={setMessage}
@@ -267,4 +281,4 @@ const AdminLiveAuctionPage = () => {
   );
 };
 
-export default AdminLiveAuctionPage;
+export default MemberLiveAuctionPage;

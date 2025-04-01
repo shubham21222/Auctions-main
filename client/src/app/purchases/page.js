@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Calendar, DollarSign, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import config from "../config_BASE_URL";
+import config from "@/app/config_BASE_URL";
 
 const PurchasesPage = () => {
   const auth = useSelector((state) => state.auth);
@@ -30,7 +30,7 @@ const PurchasesPage = () => {
       try {
         setLoading(true);
         const response = await axios.get(
-          `https://bid.nyelizabeth.com/v1/api/order/getOrdersById/${userId}?page=1&limit=100`,
+          `${config.baseURL}/v1/api/order/getOrdersById/${userId}?page=1&limit=100`,
           {
             headers: {
               Authorization: `${token}`,

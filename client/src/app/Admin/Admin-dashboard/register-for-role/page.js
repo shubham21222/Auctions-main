@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
+import config from '@/app/config_BASE_URL';
 
 const RegisterPage = () => {
   const router = useRouter();
@@ -25,7 +26,7 @@ const RegisterPage = () => {
     const fetchRoles = async () => {
       try {
         const rolesResponse = await axios.get(
-          "https://bid.nyelizabeth.com/v1/api/role/all",
+          `${config.baseURL}/v1/api/role/all`,
           { headers: { Authorization: `${token}` } }
         );
         if (rolesResponse.data.status) {
@@ -72,7 +73,7 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        "https://bid.nyelizabeth.com/v1/api/auth/register",
+        `${config.baseURL}/v1/api/auth/register`,
         formData,
         { headers: { Authorization: `${token}` } }
       );

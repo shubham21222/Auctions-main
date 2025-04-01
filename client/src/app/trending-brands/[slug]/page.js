@@ -6,7 +6,7 @@ import axios from 'axios';
 import Image from "next/image";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-
+import config from "@/app/config_BASE_URL";
 const BrandDetail = () => {
   const params = useParams();
   const [brand, setBrand] = useState(null);
@@ -24,7 +24,7 @@ const BrandDetail = () => {
   const fetchBrand = async (id) => {
     try {
       setLoading(true);
-      const response = await axios.get(`https://bid.nyelizabeth.com/v1/api/brands/${id}`, {
+      const response = await axios.get(`${config.baseURL}/v1/api/brands/${id}`, {
         headers: { Authorization: token }
       });
       setBrand(response.data.items); // Extract brand from 'items'

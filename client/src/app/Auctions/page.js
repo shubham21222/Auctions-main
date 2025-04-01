@@ -60,7 +60,7 @@ export default function AuctionCalendar() {
         ...(filters.status && { status: filters.status }),
       }).toString();
 
-      const url = `https://bid.nyelizabeth.com/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
+      const url =       `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
       const auctionsResponse = await fetch(url, {
         method: "GET",
         headers,

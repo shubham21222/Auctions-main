@@ -47,7 +47,7 @@ export default function Auctions() {
 
     setLoading(true);
     try {
-      const response = await fetch(`https://bid.nyelizabeth.com/v1/api/auction/bulk`, {
+      const response = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
         method: "GET",
         headers: {
           Authorization: `${token}`,
@@ -105,7 +105,7 @@ export default function Auctions() {
     }
 
     try {
-      const response = await fetch(`https://bid.nyelizabeth.com/v1/api/category/all`, {
+      const response = await fetch(`${config.baseURL}/v1/api/category/all`, {
         method: "GET",
         headers: {
           Authorization: `${token}`,
@@ -254,7 +254,7 @@ export default function Auctions() {
       console.log("Final payload being sent:", JSON.stringify(payload, null, 2)); // Debug log
   
       try {
-        const response = await fetch(`https://bid.nyelizabeth.com/v1/api/auction/bulkCreate`, {
+        const response = await fetch(`${config.baseURL}/v1/api/auction/bulkCreate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

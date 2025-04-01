@@ -4,14 +4,14 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Image from "next/image";
 import Link from "next/link";
-
+import config from "@/app/config_BASE_URL";
 export default function PopularArtists() {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
-  const API_URL = 'https://bid.nyelizabeth.com/v1/api/artist';
+  const API_URL = `${config.baseURL}/v1/api/artist`;
 
   useEffect(() => {
     const fetchArtists = async () => {

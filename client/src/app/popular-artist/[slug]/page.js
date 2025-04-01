@@ -6,7 +6,7 @@ import axios from 'axios';
 import Image from "next/image";
 import Footer from "@/app/components/Footer";
 import Header from "@/app/components/Header";
-
+import config from "@/app/config_BASE_URL"; 
 const ArtistDetail = () => {
   const params = useParams();
   const [artist, setArtist] = useState(null);
@@ -24,7 +24,7 @@ const ArtistDetail = () => {
   const fetchArtist = async (id) => {
     try {
       setLoading(true);
-      const response = await axios.get(`https://bid.nyelizabeth.com/v1/api/artist/${id}`, {
+      const response = await axios.get(`${config.baseURL}/v1/api/artist/${id}`, {
         headers: { Authorization: token } // Add token to headers
       });
       // Extract artist from 'items' object

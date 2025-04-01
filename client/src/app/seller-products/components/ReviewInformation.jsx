@@ -3,7 +3,7 @@
 import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-
+import config from "@/app/config_BASE_URL";
 const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setFormData }) => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
@@ -22,7 +22,7 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
     };
 
     try {
-      const response = await fetch("https://bid.nyelizabeth.com/v1/api/seller/create", {
+      const response = await fetch(`${config.baseURL}/v1/api/seller/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

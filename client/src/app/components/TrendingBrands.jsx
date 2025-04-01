@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Image from "next/image";
 import Link from "next/link";
+import config from "@/app/config_BASE_URL";
 
 const TrendingBrands = () => {
   const [brands, setBrands] = useState([]);
@@ -11,7 +12,7 @@ const TrendingBrands = () => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
-  const API_URL = 'https://bid.nyelizabeth.com/v1/api/brands';
+  const API_URL = `${config.baseURL}/v1/api/brands`;
 
   useEffect(() => {
     const fetchBrands = async () => {

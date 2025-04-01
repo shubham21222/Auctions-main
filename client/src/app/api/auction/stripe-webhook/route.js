@@ -113,7 +113,8 @@
 
 
 import Stripe from "stripe";
-
+import config from "@/app/config_BASE_URL";
+  
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-11-15", // Stable version
 });
@@ -150,7 +151,7 @@ export async function POST(req) {
         }
 
         // Call addBalance API
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/addBalance", {
+        const response = await fetch(`${config.baseURL}/v1/api/auction/addBalance`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

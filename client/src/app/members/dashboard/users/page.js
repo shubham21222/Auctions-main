@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
-
+import config from "@/app/config_BASE_URL";
+  
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,8 +26,8 @@ const UsersPage = () => {
 
       try {
         const url = searchQuery
-          ? `https://bid.nyelizabeth.com/v1/api/auth/getAllUsers?page=${page}&limit=${limit}&search=${encodeURIComponent(searchQuery)}`
-          : `https://bid.nyelizabeth.com/v1/api/auth/getAllUsers?page=${page}&limit=${limit}`;
+          ? `${config.baseURL}/v1/api/auth/getAllUsers?page=${page}&limit=${limit}&search=${encodeURIComponent(searchQuery)}`
+          : `${config.baseURL}/v1/api/auth/getAllUsers?page=${page}&limit=${limit}`;
 
         const response = await fetch(url, {
           method: "GET",

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { useSelector, useDispatch } from "react-redux";
 import { updateBillingDetails } from "@/redux/authSlice";
-
+import config from "@/app/config_BASE_URL";
+  
 export default function BillingDetailsModal({ isOpen, onClose, onBillingUpdate }) {
   const dispatch = useDispatch();
   const token = useSelector((state) => state.auth.token);
@@ -63,7 +64,7 @@ export default function BillingDetailsModal({ isOpen, onClose, onBillingUpdate }
     };
 
     try {
-      const response = await fetch("https://bid.nyelizabeth.com/v1/api/auth/UpdateBillingAddress", {
+      const response = await fetch(`${config.baseURL}/v1/api/auth/UpdateBillingAddress`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

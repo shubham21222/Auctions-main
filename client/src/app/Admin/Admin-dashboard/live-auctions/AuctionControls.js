@@ -24,9 +24,11 @@ const AuctionControls = ({
   if (!currentAuction) return null;
 
   const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
-  const nextBid = currentBid + getBidIncrement(currentBid);
+  const bidIncrement = getBidIncrement(currentBid);
+  const nextBid = currentBid + bidIncrement;
 
   const handleAddCompetitorBid = async () => {
+    console.log("Add Competitive Bid clicked", { auctionMode, currentAuction });
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
@@ -35,9 +37,17 @@ const AuctionControls = ({
       toast.error("Socket or token not available.");
       return;
     }
+    if (!socket.connected) {
+      toast.error("Socket is not connected. Please refresh the page.");
+      return;
+    }
 
-    const bidAmount = nextBid;
     try {
+      console.log("Placing competitive bid via socket:", { auctionId: currentAuction._id, bidAmount: nextBid });
+      await placeBid(currentAuction._id, "competitor", nextBid);
+
+      // Additional API call for competitive bid
+      console.log("Placing competitive bid via API:", { auctionId: currentAuction._id, bidAmount: nextBid });
       const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
         method: "POST",
         headers: {
@@ -46,18 +56,17 @@ const AuctionControls = ({
         },
         body: JSON.stringify({
           auctionId: currentAuction._id,
-          bidAmount: bidAmount.toString(),
-          bidType: "competitor",
+          bidAmount: nextBid.toString(),
+          bidType: "competitor", // Explicitly set bidType for API
         }),
       });
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || "Failed to place competitive bid");
+        throw new Error(data.message || "Failed to place competitive bid via API");
       }
 
-      placeBid(currentAuction._id, "competitor", currentBid);
-      toast.success(`Competitive bid placed at $${bidAmount.toLocaleString()}`);
+      toast.success(`Competitive bid placed at $${nextBid.toLocaleString()}`);
     } catch (error) {
       console.error("Error placing competitive bid:", error);
       toast.error(error.message || "Failed to place competitive bid");
@@ -69,7 +78,9 @@ const AuctionControls = ({
       toast.error("No active auction selected.");
       return;
     }
-    setAuctionMode(currentAuction._id, mode);
+    console.log(`Switching auction mode to: ${mode}`);
+    setAuctionMode(mode);
+    toast.success(`Auction mode switched to ${mode}`);
   };
 
   const competitorBids = bidHistory
@@ -90,7 +101,7 @@ const AuctionControls = ({
 
   return (
     <div className="space-y-2">
-      <Button onClick={onBack} className="mb-4 bg-gray-600 text-white hover:bg-gray-700">
+      <Button onClick={onBack} className="mb-4 bg-gray-600 text-white hover:bg-gray-700 cursor-pointer">
         Back to Catalogs
       </Button>
 
@@ -143,53 +154,62 @@ const AuctionControls = ({
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button
             onClick={() => handleAdminAction("FAIR_WARNING")}
-            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 cursor-pointer"
           >
             Fair Warning
           </button>
           <button
             onClick={() => handleAdminAction("FINAL_CALL")}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 cursor-pointer"
           >
             Final Call
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-2">
+          <div className="bg-gray-100 p-2 rounded text-center">
+            <p className="text-sm font-semibold">Bid Increment</p>
+            <p className="text-lg">${bidIncrement.toLocaleString()}</p>
+          </div>
+          <div className="bg-gray-100 p-2 rounded text-center">
+            <p className="text-sm font-semibold">Next Bid Amount</p>
+            <p className="text-lg">${nextBid.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-2">
           <button
             onClick={handleAddCompetitorBid}
-            className={`px-4 py-2 rounded ${
-              auctionMode === "competitor" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-            }`}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
           >
             Add Competitive Bid
           </button>
           <button
-            onClick={() => handleSetMode("online")}
+            onClick={() => handleSetMode(auctionMode === "online" ? "competitor" : "online")}
             className={`px-4 py-2 rounded ${
-              auctionMode === "online" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-            }`}
+              auctionMode === "online" ? "bg-gray-200 text-gray-700" : "bg-blue-600 text-white hover:bg-blue-700"
+            } cursor-pointer`}
           >
-            Internet Bid
+            {auctionMode === "online" ? "Switch to Competitor" : "Switch to Online"}
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => handleAdminAction("PASS")}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 cursor-pointer"
           >
             Pass
           </button>
           <button
             onClick={() => handleAdminAction("SOLD")}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer"
           >
             Sold
           </button>
           <button
             onClick={() => handleAdminAction("NEXT_LOT")}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
           >
             Next Lot
           </button>
@@ -206,7 +226,7 @@ const AuctionControls = ({
             />
             <button
               onClick={handleSendMessage}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 cursor-pointer"
             >
               Send
             </button>

@@ -2,8 +2,7 @@ import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
-// import User from "../models/User/userModel.js";
-import User from "../models/Auth/User.js"
+import User from "../models/Auth/User.js";
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -12,7 +11,7 @@ const auctionModes = {};
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["https://bid.nyelizabeth.com"],
+      origin: ["http://localhost:3000", "http://localhost:3001", "https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
   });
@@ -39,7 +38,6 @@ export const initializeSocket = (server) => {
         auctionModes[auctionId] = mode;
         console.log(`Auction ${auctionId} mode set to: ${mode}`);
 
-        // Broadcast to all clients in the auction room, including the sender
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -124,7 +122,7 @@ export const initializeSocket = (server) => {
       }
     });
 
-    socket.on("placeBid", async ({ auctionId, userId: bidderId, bidType }) => {
+    socket.on("placeBid", async ({ auctionId, userId: bidderId, bidType, bidAmount }) => {
       try {
         const auction = await Auction.findById(auctionId).populate("bids");
         if (!auction || auction.status === "ENDED") {
@@ -177,14 +175,20 @@ export const initializeSocket = (server) => {
 
         const currentBid = auction.currentBid || 0;
         const bidIncrement = getBidIncrement(currentBid);
-        const bidAmount = currentBid + bidIncrement;
+        let finalBidAmount = bidAmount || (currentBid + bidIncrement);
+
+        // Ensure the bid is higher than the current bid
+        if (finalBidAmount <= currentBid) {
+          return socket.emit("error", { message: "Your bid must be higher than the current bid." });
+        }
 
         const bidRule = await bidIncrementModel
-          .findOne({ price: { $lte: bidAmount } })
+          .findOne({ price: { $lte: finalBidAmount } })
           .sort({ price: -1 });
         const requiredIncrement = bidRule ? bidRule.increment : bidIncrement;
 
-        const finalBidAmount = currentBid + requiredIncrement;
+        // Adjust final bid to meet minimum increment if necessary
+        finalBidAmount = Math.ceil(finalBidAmount / requiredIncrement) * requiredIncrement;
 
         auction.bids.push({
           bidder: bidderId,
@@ -192,7 +196,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role:user.role
+          Role: user.role
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
@@ -209,7 +213,8 @@ export const initializeSocket = (server) => {
           minBidIncrement: auction.minBidIncrement,
           bids: auction.bids,
           bidType: bidType || "online",
-          Role: user.role
+          Role: user.role,
+          timestamp: new Date()
         });
 
         const lastBidderId =

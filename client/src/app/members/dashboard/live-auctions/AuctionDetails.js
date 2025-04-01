@@ -1,73 +1,89 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const AuctionDetails = ({ currentAuction, upcomingLots }) => {
-  const [imageError, setImageError] = useState(false);
-
-  if (!currentAuction) {
-    return <p className="text-gray-500 text-sm">Select an auction to view details.</p>;
-  }
+  if (!currentAuction) return null;
 
   return (
-    <div className="space-y-2">
-      {/* Current Lot Card */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Lot:</span>
-                <span className="text-lg font-bold">{currentAuction?.lotNumber || "N/A"}</span>
-              </div>
-              <h2 className="text-lg font-bold mt-1 uppercase">
-                {currentAuction?.product?.title || "N/A"}
-              </h2>
-            </div>
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-xl font-semibold mb-1">Lot {currentAuction.lotNumber}</h2>
+            <h3 className="text-lg font-medium text-gray-700">{currentAuction.product?.title}</h3>
           </div>
-          <div className="relative w-full h-[300px] mb-4 bg-gray-100 rounded-lg overflow-hidden">
-            {imageError ? (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                Image not available
-              </div>
-            ) : (
-              <Image
-                src={currentAuction?.product?.image || "/placeholder.svg"}
-                alt={currentAuction?.product?.title || "Product Image"}
-                fill
-                className="object-contain"
-                onError={() => setImageError(true)}
-                priority
-              />
-            )}
-          </div>
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm">Brand: {currentAuction?.product?.brand || "N/A"}</p>
-            </div>
-            <div>
-              <p className="text-sm">Estimate: ${currentAuction?.startingBid || 0} - ${(currentAuction?.startingBid || 0) + 1000}</p>
-            </div>
-          </div>
+          <Badge variant={currentAuction.status === "ACTIVE" ? "default" : "secondary"}>
+            {currentAuction.status}
+          </Badge>
         </div>
-      </div>
 
-      {/* Upcoming Lots */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-2">
-          {upcomingLots.map((lot) => (
-            <div
-              key={lot._id}
-              className="flex items-center gap-2 p-2 border-b last:border-b-0"
-            >
-              <p className="text-sm">
-                Lot {lot.lotNumber} - {lot.product?.title}
-              </p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p className="text-sm text-gray-600">Starting Bid</p>
+            <p className="text-lg font-semibold">${currentAuction.startingBid?.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Current Bid</p>
+            <p className="text-lg font-semibold">${currentAuction.currentBid?.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Reserve Price</p>
+            <p className="text-lg font-semibold">${currentAuction.reservePrice?.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Time Remaining</p>
+            <p className="text-lg font-semibold">{currentAuction.timeRemaining || "N/A"}</p>
+          </div>
         </div>
-      </div>
+
+        {currentAuction.product?.description && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold mb-2">Description</h4>
+            <p className="text-sm text-gray-600">{currentAuction.product.description}</p>
+          </div>
+        )}
+
+        {currentAuction.product?.images && currentAuction.product.images.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold mb-2">Images</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {currentAuction.product.images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Product image ${index + 1}`}
+                  className="w-full h-32 object-cover rounded"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {upcomingLots && upcomingLots.length > 0 && (
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Upcoming Lots</h3>
+          <div className="space-y-2">
+            {upcomingLots.map((lot) => (
+              <div
+                key={lot._id}
+                className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer"
+              >
+                <div>
+                  <p className="text-sm font-medium">Lot {lot.lotNumber}</p>
+                  <p className="text-xs text-gray-600">{lot.product?.title}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold">${lot.startingBid?.toLocaleString()}</p>
+                  <p className="text-xs text-gray-600">Starting Bid</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
