@@ -194,7 +194,6 @@ export default function Auctions() {
     reader.readAsArrayBuffer(file);
   };
 
-
   const handleBulkCreate = async () => {
     if (productsToUpload.length === 0) {
       toast.error("No products to upload. Please upload a valid file.");
@@ -228,27 +227,34 @@ export default function Auctions() {
         .format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
   
       const payload = {
-        category: catalogName, // Catalog name as category
-        stateDate: startDateTimeUTC, // Typo fixed: "stateDate" -> "startDate" if that's what the backend expects
-        endDate: endDateTimeUTC,
-        description: catalogDescription, // Catalog description
-        products: batch.map((product) => ({
-          title: product.title,
-          description: product.description,
-          price: product.price,
-          estimateprice: product.estimateprice,
-          offerAmount: product.offerAmount,
-          onlinePrice: product.onlinePrice,
-          sellPrice: product.sellPrice,
-          ReservePrice: product.ReservePrice,
-          image: product.image, // Include image array
-          skuNumber: product.skuNumber,
-          lotNumber: product.lotNumber,
-          sortByPrice: product.sortByPrice,
-          stock: product.stock,
-          type: product.type,
-          auctionType: product.auctionType,
-        })),
+        category: catalogName,
+        stateDate: startDateTimeUTC,
+        endDate: endDateTimeUTC, // This is for the catalog level, adjust if needed
+        description: catalogDescription,
+        products: batch.map((product) => {
+          const productPayload = {
+            title: product.title,
+            description: product.description,
+            price: product.price,
+            estimateprice: product.estimateprice,
+            offerAmount: product.offerAmount,
+            onlinePrice: product.onlinePrice,
+            sellPrice: product.sellPrice,
+            ReservePrice: product.ReservePrice,
+            image: product.image,
+            skuNumber: product.skuNumber,
+            lotNumber: product.lotNumber,
+            sortByPrice: product.sortByPrice,
+            stock: product.stock,
+            type: product.type,
+            auctionType: product.auctionType,
+          };
+          // Only include endDate for TIMED auctions
+          if (product.auctionType === "TIMED") {
+            productPayload.endDate = endDateTimeUTC;
+          }
+          return productPayload;
+        }),
       };
   
       console.log("Final payload being sent:", JSON.stringify(payload, null, 2)); // Debug log
@@ -306,18 +312,6 @@ export default function Auctions() {
         <h2 className="text-3xl font-bold">Auctions</h2>
         <Button onClick={() => setOpenBulkUploadDialog(true)}>Add Auctions</Button>
       </div>
-
-      {/* {initialFetchDone ? (
-        <AuctionForm
-          categories={categories}
-          auctions={auctions}
-          setAuctions={setAuctions}
-          fetchAuctions={fetchAuctions}
-          token={token}
-        />
-      ) : (
-        <p>Loading form...</p>
-      )} */}
 
       {initialFetchDone ? (
         <AuctionList auctions={auctions} loading={loading} token={token} fetchAuctions={fetchAuctions} />
@@ -397,14 +391,33 @@ export default function Auctions() {
               <Label htmlFor="bulkUpload" className="text-right">
                 Upload Excel/CSV File
               </Label>
-              <Input
-                id="bulkUpload"
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleFileUpload}
-                className="col-span-3 bg-white border-luxury-gold/20"
-                disabled={!catalogName || !catalogDescription || !startDate || !endDate}
-              />
+              <div className="col-span-3 flex flex-col space-y-2">
+                <Input
+                  id="bulkUpload"
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleFileUpload}
+                  className="bg-white border-luxury-gold/20"
+                  disabled={!catalogName || !catalogDescription || !startDate || !endDate}
+                />
+                <Button 
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = "/sample_auctions.xlsx"; // Path to the file in public folder
+                    link.download = "sample_auctions.xlsx";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  Download Sample Excel File
+                </Button>
+                <p className="text-sm text-gray-500">
+                  Note: Please ensure your Excel file column names match with this sample file.
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>

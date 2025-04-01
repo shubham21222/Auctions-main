@@ -11,14 +11,39 @@ const auctionModes = {};
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["http://localhost:3000", "http://localhost:3001", "https://bid.nyelizabeth.com"],
+      origin: ["https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 10000,
+    maxHttpBufferSize: 1e8,
+    allowEIO3: true,
+    transports: ['websocket', 'polling'],
   });
+
+  // Clean up disconnected sockets periodically
+  setInterval(() => {
+    const connectedSockets = Object.keys(userSocketMap);
+    connectedSockets.forEach(userId => {
+      const socketId = userSocketMap[userId];
+      if (!io.sockets.sockets.get(socketId)) {
+        delete userSocketMap[userId];
+        console.log(`Cleaned up disconnected socket for user: ${userId}`);
+      }
+    });
+  }, 30000);
 
   io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
     if (userId) {
+      // Clean up any existing socket for this user
+      if (userSocketMap[userId]) {
+        const oldSocket = io.sockets.sockets.get(userSocketMap[userId]);
+        if (oldSocket) {
+          oldSocket.disconnect(true);
+        }
+      }
       userSocketMap[userId] = socket.id;
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
@@ -382,17 +407,28 @@ export const initializeSocket = (server) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       if (userId) {
-        console.log(`User ${userId} disconnected.`);
+        console.log(`User ${userId} disconnected. Reason: ${reason}`);
         delete userSocketMap[userId];
 
+        // Clean up auction watchers
         for (let auctionId in auctionWatchers) {
-          auctionWatchers[auctionId].delete(userId);
-          io.in(auctionId).emit("watcherUpdate", {
-            auctionId,
-            watchers: auctionWatchers[auctionId].size,
-          });
+          if (auctionWatchers[auctionId].has(userId)) {
+            auctionWatchers[auctionId].delete(userId);
+            io.in(auctionId).emit("watcherUpdate", {
+              auctionId,
+              watchers: auctionWatchers[auctionId].size,
+            });
+          }
+        }
+
+        // Clean up auction modes if no watchers
+        for (let auctionId in auctionWatchers) {
+          if (auctionWatchers[auctionId].size === 0) {
+            delete auctionWatchers[auctionId];
+            delete auctionModes[auctionId];
+          }
         }
       }
     });

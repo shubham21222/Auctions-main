@@ -17,12 +17,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 
 export default function AuctionCalendar() {
-  const [allAuctions, setAllAuctions] = useState([]); // Store all auctions from API
-  const [displayedAuctions, setDisplayedAuctions] = useState([]); // Auctions to display on current page
+  const [allAuctions, setAllAuctions] = useState([]);
+  const [displayedAuctions, setDisplayedAuctions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [sortOption, setSortOption] = useState("date-desc");
@@ -44,10 +43,6 @@ export default function AuctionCalendar() {
     state.auth.user?.walletBalance ? Number(state.auth.user.walletBalance) : 0
   );
 
-  const { socket, liveAuctions, setLiveAuctions, joinAuction } = useSocket();
-
-  const [joinedAuctions, setJoinedAuctions] = useState(new Set());
-
   const fetchAuctions = async () => {
     setLoading(true);
     try {
@@ -60,15 +55,13 @@ export default function AuctionCalendar() {
         ...(filters.status && { status: filters.status }),
       }).toString();
 
-      const url =       `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
+      const url = `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
       const auctionsResponse = await fetch(url, {
         method: "GET",
         headers,
       });
       if (!auctionsResponse.ok) throw new Error("Failed to fetch auctions");
       const auctionsData = await auctionsResponse.json();
-
-      console.log("API Response:", auctionsData);
 
       if (auctionsData.status) {
         const auctionItems = auctionsData.items?.catalogs?.flatMap((catalog) =>
@@ -78,8 +71,6 @@ export default function AuctionCalendar() {
             images: auction.product?.image || ["/placeholder.svg"],
           }))
         ) || [];
-
-        console.log("Flattened Auction Items:", auctionItems);
 
         const enrichedAuctions = auctionItems.map((auction) => ({
           id: auction._id,
@@ -101,8 +92,6 @@ export default function AuctionCalendar() {
           bids: auction.bids || [],
         }));
 
-        console.log("Enriched Auctions:", enrichedAuctions);
-
         let filteredAuctions = filters.date
           ? enrichedAuctions.filter((auction) => {
               const startDate = new Date(auction.startDateRaw);
@@ -113,8 +102,6 @@ export default function AuctionCalendar() {
               );
             })
           : enrichedAuctions;
-
-        console.log("Filtered Auctions:", filteredAuctions);
 
         filteredAuctions = [...filteredAuctions].sort((a, b) => {
           switch (sortOption) {
@@ -134,10 +121,8 @@ export default function AuctionCalendar() {
           }
         });
 
-        console.log("Sorted Auctions:", filteredAuctions);
-
         setAllAuctions(filteredAuctions);
-        setTotalAuctions(filteredAuctions.length); // Use the length of filtered auctions since backend doesn’t paginate
+        setTotalAuctions(filteredAuctions.length);
       } else {
         throw new Error(auctionsData.message);
       }
@@ -152,45 +137,40 @@ export default function AuctionCalendar() {
     }
   };
 
+  // Effect for pagination
   useEffect(() => {
     const startIndex = (currentPage - 1) * auctionsPerPage;
     const endIndex = startIndex + auctionsPerPage;
     const paginatedAuctions = allAuctions.slice(startIndex, endIndex);
     setDisplayedAuctions(paginatedAuctions);
+  }, [allAuctions, currentPage, auctionsPerPage]);
 
-    const liveAuctionsData = paginatedAuctions.filter(
-      (auction) =>
-        auction.status === "ACTIVE" &&
-        new Date(auction.startDateRaw) <= new Date() &&
-        new Date(auction.endDateRaw) > new Date()
-    );
-    setLiveAuctions(liveAuctionsData);
-
-    liveAuctionsData.forEach((auction) => {
-      if (!joinedAuctions.has(auction.id)) {
-        joinAuction(auction.id);
-        setJoinedAuctions((prev) => new Set(prev).add(auction.id));
-        console.log(`Joined new live auction: ${auction.id}`);
-      } else {
-        console.log(`Already joined live auction: ${auction.id}`);
-      }
-    });
-  }, [allAuctions, currentPage, auctionsPerPage, joinAuction]);
-
-  // Fetch auctions when filters, sort, or token change, and log total pages
+  // Effect for fetching auctions and updating time
   useEffect(() => {
-    fetchAuctions();
-    console.log("Total Pages Calculated:", Math.ceil(totalAuctions / auctionsPerPage)); // Log only when dependencies change
+    let isSubscribed = true;
+
+    const fetchData = async () => {
+      if (!isSubscribed) return;
+      await fetchAuctions();
+    };
+
+    fetchData();
 
     const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
+      if (isSubscribed) {
+        setCurrentTime(new Date());
+      }
     }, 1000);
-    return () => clearInterval(timeInterval);
-  }, [token, filters, sortOption, totalAuctions, auctionsPerPage]); // Added totalAuctions and auctionsPerPage to dependencies
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(timeInterval);
+    };
+  }, [token, filters, sortOption]);
 
   const handleFilterChange = (newFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-    setCurrentPage(1); // Reset to page 1 when filters change
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page) => {
@@ -201,7 +181,7 @@ export default function AuctionCalendar() {
 
   const handlePerPageChange = (newPerPage) => {
     setAuctionsPerPage(newPerPage);
-    setCurrentPage(1); // Reset to page 1 when items per page changes
+    setCurrentPage(1);
   };
 
   const totalPages = Math.ceil(totalAuctions / auctionsPerPage);
@@ -220,9 +200,8 @@ export default function AuctionCalendar() {
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    console.log("Page Numbers Generated:", pages); // Log only when called
     return pages;
-  }, [currentPage, totalPages]); // Memoize to prevent unnecessary recalculations
+  }, [currentPage, totalPages]);
 
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
@@ -253,7 +232,7 @@ export default function AuctionCalendar() {
             Auction Calendar
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Discover extraordinary pieces from the world’s most prestigious collections. Each auction is carefully
+            Discover extraordinary pieces from the world&apos;s most prestigious collections. Each auction is carefully
             curated to bring you the finest in luxury.
           </p>
         </div>
@@ -321,7 +300,6 @@ export default function AuctionCalendar() {
           </div>
         </div>
 
-        {/* Pagination Controls with Numbers */}
         {totalAuctions > 0 && (
           <div className="mt-8 flex justify-center items-center gap-2">
             <Button
