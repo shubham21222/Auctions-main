@@ -151,7 +151,7 @@ cron.schedule("*/1 * * * *", async () => {
         const expiredAuctions = await Auction.find({
             $or: [
                 { status: "ACTIVE", endDate: { $lte: now }, Emailsend: "false", winner: { $ne: null } }, // Expired active auctions with a winner
-                { status: "ENDED", Emailsend: "false", winner: { $ne: null } } // Already ended, email not sent, has a winner
+                { status: "ENDED", Emailsend: "false", winner: null} // Already ended, email not sent, has a winner
             ]
         }).populate({
             path: 'product',
