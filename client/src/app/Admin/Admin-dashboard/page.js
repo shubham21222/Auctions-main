@@ -7,6 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { DollarSign, Users, Package, ShoppingCart, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSelector } from "react-redux";
+import config from "@/app/config_BASE_URL";
 
 export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -18,7 +19,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardStats = async () => {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/getDashboardStats", {
+        const response = await fetch(`${config.baseURL}/v1/api/auction/getDashboardStats`, {
           method: "GET",
           headers: {
             "Authorization": `${token}`,

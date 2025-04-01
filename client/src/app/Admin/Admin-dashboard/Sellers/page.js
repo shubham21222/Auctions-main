@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
+import config from "@/app/config_BASE_URL";
 
 const SellersPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -24,7 +25,7 @@ const SellersPage = () => {
 
       try {
         const response = await fetch(
-          `https://bid.nyelizabeth.com/v1/api/seller/all?page=${page}&limit=${limit}`,
+          `${config.baseURL}/v1/api/seller/all?page=${page}&limit=${limit}`,
           {
             method: "GET",
             headers: {
@@ -64,7 +65,7 @@ const SellersPage = () => {
     }
 
     try {
-      const response = await fetch("https://bid.nyelizabeth.com/v1/api/seller/approve", {
+      const response = await fetch(`${config.baseURL}/v1/api/seller/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,7 +105,7 @@ const SellersPage = () => {
 
     try {
       const response = await fetch(
-        `https://bid.nyelizabeth.com/v1/api/seller/delete/${sellerId}`,
+        `${config.baseURL}/v1/api/seller/delete/${sellerId}`,
         {
           method: "DELETE",
           headers: {

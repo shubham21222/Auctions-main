@@ -19,6 +19,7 @@ const AdminLiveAuctionPage = () => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [watchers, setWatchers] = useState(0);
+  const [joinedRooms, setJoinedRooms] = useState(new Set());
 
   const fetchAuctionData = useCallback(async () => {
     if (!token) {
@@ -49,7 +50,6 @@ const AdminLiveAuctionPage = () => {
   }, [token]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     fetchAuctionData();
   }, [fetchAuctionData]);
 
@@ -66,10 +66,18 @@ const AdminLiveAuctionPage = () => {
         setBidHistory(liveAuction.bids || []);
       }
     }
-  }, [liveAuctions, currentAuction]);
+  }, [liveAuctions, currentAuction?._id]);
 
   useEffect(() => {
+    let cleanup = () => {};
+
     if (!socket || !currentAuction) return;
+
+    if (!joinedRooms.has(currentAuction._id)) {
+      joinAuction(currentAuction._id);
+      getAuctionData(currentAuction._id);
+      setJoinedRooms((prev) => new Set(prev).add(currentAuction._id));
+    }
 
     const handleWatcherUpdate = ({ auctionId, watchers }) => {
       if (auctionId === currentAuction._id) {
@@ -79,7 +87,7 @@ const AdminLiveAuctionPage = () => {
 
     const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
       if (auctionId === currentAuction._id) {
-        const senderName = typeof sender === "object" ? (sender.name || "Admin") : "Admin";
+        const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
         setBidHistory((prev) => [
           ...prev,
           {
@@ -117,15 +125,14 @@ const AdminLiveAuctionPage = () => {
     socket.on("auctionMessage", handleAuctionMessage);
     socket.on("bidUpdate", handleBidUpdate);
 
-    joinAuction(currentAuction._id);
-    getAuctionData(currentAuction._id);
-
-    return () => {
+    cleanup = () => {
       socket.off("watcherUpdate", handleWatcherUpdate);
       socket.off("auctionMessage", handleAuctionMessage);
       socket.off("bidUpdate", handleBidUpdate);
     };
-  }, [socket, currentAuction, joinAuction, getAuctionData, getBidIncrement, liveAuctions]);
+
+    return cleanup;
+  }, [socket, currentAuction?._id, joinAuction, getAuctionData, getBidIncrement]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -134,8 +141,7 @@ const AdminLiveAuctionPage = () => {
       setCurrentAuction(liveAuctions[0]);
       setBidHistory(liveAuctions[0].bids || []);
       setWatchers(0);
-      joinAuction(liveAuctions[0]._id); // Ensure joining the room
-      getAuctionData(liveAuctions[0]._id);
+      setJoinedRooms(new Set());
     } else {
       setCurrentAuction(null);
       setBidHistory([]);
@@ -150,7 +156,7 @@ const AdminLiveAuctionPage = () => {
       return;
     }
     try {
-      sendMessage(currentAuction._id, actionType); // Use sendMessage to emit as auctionMessage
+      sendMessage(currentAuction._id, actionType);
       if (actionType === "NEXT_LOT") {
         const liveAuctions = selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE");
         const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
@@ -158,8 +164,11 @@ const AdminLiveAuctionPage = () => {
           setCurrentAuction(liveAuctions[currentIndex + 1]);
           setBidHistory(liveAuctions[currentIndex + 1].bids || []);
           setWatchers(0);
-          joinAuction(liveAuctions[currentIndex + 1]._id);
-          getAuctionData(liveAuctions[currentIndex + 1]._id);
+          setJoinedRooms((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(currentAuction._id);
+            return newSet;
+          });
         } else {
           setCurrentAuction(null);
           setBidHistory([]);
@@ -190,6 +199,7 @@ const AdminLiveAuctionPage = () => {
     setCurrentAuction(null);
     setBidHistory([]);
     setWatchers(0);
+    setJoinedRooms(new Set());
   };
 
   if (loading) {

@@ -24,52 +24,34 @@ const AuctionControls = ({
   if (!currentAuction) return null;
 
   const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
-  const nextBid = currentBid + getBidIncrement(currentBid);
+  const bidIncrement = getBidIncrement(currentBid);
+  const nextBid = currentBid + bidIncrement;
 
   const handleAddCompetitorBid = async () => {
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
     }
-    if (!socket || !token) {
-      toast.error("Socket or token not available.");
+
+    if (!token) {
+      toast.error("Authentication token missing. Please log in.");
       return;
     }
 
-    const bidAmount = nextBid;
     try {
-      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${token}`,
-        },
-        body: JSON.stringify({
-          auctionId: currentAuction._id,
-          bidAmount: bidAmount.toString(),
-          bidType: "competitor",
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to place competitive bid");
-      }
-
-      placeBid(currentAuction._id, "competitor", currentBid);
-      toast.success(`Competitive bid placed at $${bidAmount.toLocaleString()}`);
+      // Show loading toast
+      const loadingToast = toast.loading("Placing bid...");
+      
+      // Place the bid using the API
+      await placeBid(currentAuction._id, "competitor", nextBid);
+      
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
+      toast.success(`Competitive bid placed at $${nextBid.toLocaleString()}`);
     } catch (error) {
       console.error("Error placing competitive bid:", error);
       toast.error(error.message || "Failed to place competitive bid");
     }
-  };
-
-  const handleSetMode = (mode) => {
-    if (!currentAuction) {
-      toast.error("No active auction selected.");
-      return;
-    }
-    setAuctionMode(currentAuction._id, mode);
   };
 
   const competitorBids = bidHistory
@@ -80,44 +62,102 @@ const AuctionControls = ({
       label: "Competing Bid",
     }));
 
-  const onlineBids = bidHistory
-    .filter((bid) => bid.bidType === "online")
-    .slice(-5)
-    .map((bid) => ({
-      amount: bid.bidAmount,
-      label: "Online Bid",
-    }));
-
   return (
-    <div className="space-y-2">
-      <Button onClick={onBack} className="mb-4 bg-gray-600 text-white hover:bg-gray-700">
-        Back to Catalogs
-      </Button>
-
+    <div className="space-y-4">
       <div className="bg-white rounded-lg shadow-sm p-4">
-        <h3 className="text-sm font-semibold mb-2">Bid Information</h3>
-        <div className="space-y-1">
-          <p className="text-sm">Current Bid: ${currentBid.toLocaleString()}</p>
-          <p className="text-sm">Next Competitive Bid: ${nextBid.toLocaleString()}</p>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Auction Controls</h2>
+          <Button variant="outline" onClick={onBack}>
+            Back to Catalogs
+          </Button>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="space-y-2">
-          <div>
-            {competitorBids.map((bid, index) => (
-              <div key={index} className="flex justify-between items-center py-1">
-                <span className="text-sm">${bid.amount} (Competing Bid)</span>
-              </div>
-            ))}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-sm font-semibold mb-1">Current Bid</h3>
+            <p className="text-2xl font-bold">${currentBid.toLocaleString()}</p>
           </div>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-sm font-semibold mb-1">Watchers</h3>
+            <p className="text-2xl font-bold">{watchers}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold mb-1">Online: {watchers}</h3>
-            {onlineBids.map((bid, index) => (
-              <div key={index} className="flex justify-between items-center py-1">
-                <span className="text-sm">${bid.amount} (Online Bid)</span>
+            <h3 className="text-sm font-semibold mb-2">Send Message</h3>
+            <div className="flex gap-2">
+              <Input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1"
+              />
+              <Button onClick={handleSendMessage}>Send</Button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold mb-2">Auction Actions</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleAdminAction("FAIR_WARNING")}
+                className="bg-yellow-100 hover:bg-yellow-200"
+              >
+                Fair Warning
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleAdminAction("FINAL_CALL")}
+                className="bg-red-100 hover:bg-red-200"
+              >
+                Final Call
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleAdminAction("NEXT_LOT")}
+                className="col-span-2"
+              >
+                Next Lot
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleAdminAction("SOLD")}
+                className="bg-green-100 hover:bg-green-200"
+              >
+                Sold
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleAdminAction("PASS")}
+                className="bg-gray-100 hover:bg-gray-200"
+              >
+                Pass
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold mb-2">Competitive Bidding</h3>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gray-100 p-2 rounded text-center">
+                  <p className="text-sm font-semibold">Bid Increment</p>
+                  <p className="text-lg">${bidIncrement.toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-100 p-2 rounded text-center">
+                  <p className="text-sm font-semibold">Next Bid Amount</p>
+                  <p className="text-lg">${nextBid.toLocaleString()}</p>
+                </div>
               </div>
-            ))}
+              <Button
+                onClick={handleAddCompetitorBid}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                Add Competitive Bid
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -136,81 +176,6 @@ const AuctionControls = ({
               )}
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <button
-            onClick={() => handleAdminAction("FAIR_WARNING")}
-            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-          >
-            Fair Warning
-          </button>
-          <button
-            onClick={() => handleAdminAction("FINAL_CALL")}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Final Call
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <button
-            onClick={handleAddCompetitorBid}
-            className={`px-4 py-2 rounded ${
-              auctionMode === "competitor" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-            }`}
-          >
-            Add Competitive Bid
-          </button>
-          <button
-            onClick={() => handleSetMode("online")}
-            className={`px-4 py-2 rounded ${
-              auctionMode === "online" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-            }`}
-          >
-            Internet Bid
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => handleAdminAction("PASS")}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            Pass
-          </button>
-          <button
-            onClick={() => handleAdminAction("SOLD")}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Sold
-          </button>
-          <button
-            onClick={() => handleAdminAction("NEXT_LOT")}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Next Lot
-          </button>
-        </div>
-
-        <div className="mt-2">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter message..."
-              className="flex-1 px-3 py-2 border rounded"
-            />
-            <button
-              onClick={handleSendMessage}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-            >
-              Send
-            </button>
-          </div>
         </div>
       </div>
     </div>

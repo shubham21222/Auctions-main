@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ProductCard } from "../Buy-now/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import config from "@/app/config_BASE_URL";
 
 export default function LatestProducts() {
     const [products, setProducts] = useState([]);
@@ -14,7 +15,7 @@ export default function LatestProducts() {
             try {
                 // Fetch the latest 6 products directly from the API
                 const response = await fetch(
-                    "https://bid.nyelizabeth.com/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=6"
+                    `${config.baseURL}/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=6`
                 );
                 if (!response.ok) throw new Error("Failed to fetch latest products");
                 const data = await response.json();

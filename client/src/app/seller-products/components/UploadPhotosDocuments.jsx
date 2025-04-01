@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useSelector } from "react-redux";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
-
+import config from "@/app/config_BASE_URL"; 
 const UploadBox = ({ label, setFormData, token }) => {
     const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
 
@@ -26,7 +26,7 @@ const UploadBox = ({ label, setFormData, token }) => {
             formData.append("image", file); // Use "image" key as confirmed
 
             try {
-                const response = await fetch("https://bid.nyelizabeth.com/v1/api/uploadImg/upload-multiple", {
+                const response = await fetch(`${config.baseURL}/v1/api/uploadImg/upload-multiple`, {
                     method: "POST",
                     headers: {
                         Authorization: `Bearer ${token}`,

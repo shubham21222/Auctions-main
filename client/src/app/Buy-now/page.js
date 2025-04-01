@@ -8,7 +8,7 @@ import { ProductCard } from "./components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LuxuryBackground } from "../Auctions/components/luxury-background";
 import config from "../config_BASE_URL";
-
+          
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
   const [originalProducts, setOriginalProducts] = useState([]);
@@ -35,7 +35,7 @@ export default function Home() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
+        const response = await fetch(`${config.baseURL}/v1/api/category/all`);
         if (!response.ok) throw new Error("Failed to fetch categories");
         const data = await response.json();
         setCategories(data.items);

@@ -1,5 +1,6 @@
 import Stripe from "stripe";
-
+import config from "@/app/config_BASE_URL";
+  
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-11-15",
 });
@@ -17,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     // Fetch order details from your backend
-    const orderResponse = await fetch(`https://bid.nyelizabeth.com/v1/api/order/getOrderById?_id=${orderId}`, {
+    const orderResponse = await fetch(`${config.baseURL}/v1/api/order/getOrderById?_id=${orderId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

@@ -32,9 +32,7 @@ const Notification = ({ type, message }) => {
       className={`${bgColor} text-white p-3 rounded-lg mb-3 shadow-lg border border-opacity-20 border-white max-w-md`}
     >
       <div className="font-medium">{message}</div>
-      <div className="text-xs opacity-80 mt-1">
-        {new Date().toLocaleTimeString()}
-      </div>
+      <div className="text-xs opacity-80 mt-1">{new Date().toLocaleTimeString()}</div>
     </motion.div>
   );
 };
@@ -75,25 +73,17 @@ export default function CatalogPage() {
 
     setLoading(true);
     try {
-      const auctionResponse = await fetch(
-        `${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`,
-        {
-          method: "GET",
-          headers: { Authorization: `${token}` },
-        }
-      );
+      const auctionResponse = await fetch(`${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
       if (!auctionResponse.ok) throw new Error("Failed to fetch auction");
       const auctionData = await auctionResponse.json();
       if (auctionData.status && auctionData.items) {
         const auctionResult = {
           ...auctionData.items,
-          messages: Array.isArray(auctionData.items.messages)
-            ? auctionData.items.messages
-            : [],
-          catalog:
-            auctionData.items.category?.name ||
-            auctionData.items.catalog ||
-            "Uncategorized",
+          messages: Array.isArray(auctionData.items.messages) ? auctionData.items.messages : [],
+          catalog: auctionData.items.category?.name || auctionData.items.catalog || "Uncategorized",
         };
 
         console.log("Fetched Auction:", auctionResult);
@@ -107,27 +97,18 @@ export default function CatalogPage() {
           status: auctionResult.status || "Loading",
         });
 
-        if (
-          Array.isArray(auctionResult.participants) &&
-          auctionResult.participants.some((p) => p._id === userId)
-        ) {
+        if (Array.isArray(auctionResult.participants) && auctionResult.participants.some((p) => p._id === userId)) {
           setIsJoined(true);
         } else {
           try {
-            const joinCheckResponse = await fetch(
-              `${config.baseURL}/v1/api/auction/join`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `${token}`,
-                },
-                body: JSON.stringify({
-                  auctionId: auctionResult._id,
-                  userId: userId,
-                }),
-              }
-            );
+            const joinCheckResponse = await fetch(`${config.baseURL}/v1/api/auction/join`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `${token}`,
+              },
+              body: JSON.stringify({ auctionId: auctionResult._id, userId: userId }),
+            });
             const joinCheckData = await joinCheckResponse.json();
             if (joinCheckData.message === "User already joined the auction") {
               setIsJoined(true);
@@ -140,43 +121,29 @@ export default function CatalogPage() {
         setProduct({
           id: auctionResult.product?._id || "",
           name: auctionResult.product?.title || "Unnamed Item",
-          images: Array.isArray(auctionResult.product?.image)
-            ? auctionResult.product.image
-            : [],
-          description:
-            auctionResult.product?.description ||
-            "No additional description available.",
+          images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
+          description: auctionResult.product?.description || "No additional description available.",
           price: {
             min: auctionResult.product?.price || 0,
-            max: auctionResult.product?.price
-              ? auctionResult.product.price + 1000
-              : 1000,
+            max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
           },
         });
 
         setLiveAuctions((prev) => {
           const exists = prev.find((a) => a.id === auctionId);
           return exists
-            ? prev.map((a) =>
-                a.id === auctionId
-                  ? { ...a, ...auctionResult, id: auctionId }
-                  : a
-              )
+            ? prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a))
             : [...prev, { ...auctionResult, id: auctionId }];
         });
       } else {
         throw new Error("Invalid auction data received");
       }
 
-      const allAuctionsResponse = await fetch(
-        `${config.baseURL}/v1/api/auction/bulk`,
-        {
-          method: "GET",
-          headers: { Authorization: `${token}` },
-        }
-      );
-      if (!allAuctionsResponse.ok)
-        throw new Error("Failed to fetch all auctions");
+      const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
+      if (!allAuctionsResponse.ok) throw new Error("Failed to fetch all auctions");
       const allAuctionsData = await allAuctionsResponse.json();
       if (allAuctionsData.status && allAuctionsData.items?.catalogs) {
         const auctions = allAuctionsData.items.catalogs.flatMap((catalog) =>
@@ -210,9 +177,88 @@ export default function CatalogPage() {
       joinAuction(auctionId);
       getAuctionData(auctionId);
       console.log(`Joined and requested data for auction: ${auctionId}`);
-    } else {
-      console.log(`Already joined auction: ${auctionId}`);
     }
+
+    // Listen for new messages
+    socket.on("newMessage", (message) => {
+      if (message.auctionId === auctionId) {
+        console.log("Received new message:", message);
+        setAuction((prev) => ({
+          ...prev,
+          messages: [...(prev.messages || []), message],
+        }));
+      }
+    });
+
+    // Listen for auction messages
+    socket.on("auctionMessage", (message) => {
+      if (message.auctionId === auctionId) {
+        console.log("Received auction message:", message);
+        setAuction((prev) => ({
+          ...prev,
+          messages: [...(prev.messages || []), message],
+        }));
+      }
+    });
+
+    // Listen for bid updates
+    socket.on("bidUpdate", (bidData) => {
+      if (bidData.auctionId === auctionId) {
+        console.log("Received bid update:", bidData);
+        setAuction((prev) => ({
+          ...prev,
+          currentBid: bidData.currentBid || bidData.bidAmount,
+          bids: [...(prev.bids || []), {
+            bidder: bidData.bidder,
+            bidAmount: bidData.bidAmount,
+            bidTime: bidData.bidTime,
+            bidType: bidData.bidType,
+            isClerk: bidData.isClerk,
+            bidderName: bidData.bidderName
+          }],
+        }));
+      }
+    });
+
+    // Listen for new bids
+    socket.on("newBid", (bidData) => {
+      if (bidData.auctionId === auctionId) {
+        console.log("Received new bid:", bidData);
+        setAuction((prev) => ({
+          ...prev,
+          currentBid: bidData.currentBid || bidData.bidAmount,
+          bids: [...(prev.bids || []), {
+            bidder: bidData.bidder,
+            bidAmount: bidData.bidAmount,
+            bidTime: bidData.bidTime,
+            bidType: bidData.bidType,
+            isClerk: bidData.isClerk,
+            bidderName: bidData.bidderName
+          }],
+        }));
+      }
+    });
+
+    // Listen for auction updates
+    socket.on("auctionUpdate", (updateData) => {
+      if (updateData.auctionId === auctionId) {
+        console.log("Received auction update:", updateData);
+        setAuction((prev) => ({
+          ...prev,
+          ...updateData,
+          currentBid: updateData.currentBid || prev.currentBid,
+        }));
+      }
+    });
+
+    return () => {
+      socket.off("newMessage");
+      socket.off("auctionMessage");
+      socket.off("bidUpdate");
+      socket.off("newBid");
+      socket.off("auctionUpdate");
+      console.log(`Cleaned up auction room: ${auctionId}`);
+    };
   }, [auctionId, socket, joinAuction, getAuctionData]);
 
   useEffect(() => {
@@ -244,42 +290,33 @@ export default function CatalogPage() {
     }
 
     try {
-      const response = await fetch(
-        `${config.baseURL}/v1/api/auction/placeBid`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `${token}`,
-          },
-          body: JSON.stringify({
-            auctionId: auction._id,
-            bidAmount: bidAmount.toString(),
-          }),
-        }
-      );
+      // Use the original place bid API endpoint
+      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify({
+          auctionId: auction._id,
+          bidAmount: bidAmount,
+          bidType: "online",
+        }),
+      });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || "Failed to place bid");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to place bid");
       }
 
+      // Update local state optimistically
       setAuction((prev) => ({
         ...prev,
         currentBid: bidAmount,
-        bids: [
-          ...(prev.bids || []),
-          { bidder: userId, bidAmount, bidTime: new Date() },
-        ],
+        bids: [...(prev.bids || []), { bidder: userId, bidAmount, bidTime: new Date(), bidType: "online" }],
       }));
 
-      if (socket && socket.connected) {
-        socket.emit("placeBid", { auctionId: auction._id, bidAmount, userId });
-      }
-
-      toast.success(
-        `Bid of $${bidAmount.toLocaleString()} placed successfully!`
-      );
+      toast.success(`Bid of $${bidAmount.toLocaleString()} placed successfully!`);
     } catch (error) {
       console.error("Place Bid Error:", error);
       toast.error(error.message || "Failed to place bid");
@@ -289,23 +326,15 @@ export default function CatalogPage() {
   return (
     <>
       <Header />
-
       {auction && (
         <CatalogCarousel
           catalogName={auction.catalog}
-          auctions={allAuctions.filter(
-            (a) => a.catalog === auction.catalog && a._id !== auction._id
-          )}
+          auctions={allAuctions.filter((a) => a.catalog === auction.catalog && a._id !== auction._id)}
           currentTime={new Date()}
           onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
         />
       )}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className="min-h-screen relative overflow-hidden"
-      >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="min-h-screen relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-96 h-96 bg-luxury-gold opacity-10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600 opacity-10 rounded-full blur-3xl"></div>
@@ -313,11 +342,7 @@ export default function CatalogPage() {
 
         <div className="fixed top-24 right-6 z-50 w-80 max-h-[50vh] overflow-y-auto scrollbar-thin scrollbar-thumb-luxury-gold scrollbar-track-gray-800">
           {notifications.map((notification) => (
-            <Notification
-              key={notification.id}
-              type={notification.type}
-              message={notification.message}
-            />
+            <Notification key={notification.id} type={notification.type} message={notification.message} />
           ))}
         </div>
 

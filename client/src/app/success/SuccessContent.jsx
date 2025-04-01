@@ -233,7 +233,7 @@ import { CheckCircle } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import toast from "react-hot-toast";
 import { updatePaymentStatus, selectPaymentDetails, clearPaymentDetails } from "@/redux/authSlice";
-
+import config from "@/app/config_BASE_URL";
 export default function SuccessContent() {
   const searchParams = useSearchParams();
   const success = searchParams.get("success");
@@ -295,7 +295,7 @@ export default function SuccessContent() {
 
         let updateResponse;
         if (orderId) {
-          updateResponse = await fetch("https://bid.nyelizabeth.com/v1/api/order/updateOrderStatus", {
+          updateResponse = await fetch(`${config.baseURL}/v1/api/order/updateOrderStatus`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -324,7 +324,7 @@ export default function SuccessContent() {
         }
 
         if (productId || auctionId) {
-          updateResponse = await fetch("https://bid.nyelizabeth.com/v1/api/auction/updatePaymentStatus", {
+          updateResponse = await fetch(`${config.baseURL}/v1/api/auction/updatePaymentStatus`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

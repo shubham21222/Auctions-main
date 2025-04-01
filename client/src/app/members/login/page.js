@@ -7,7 +7,7 @@ import { useDispatch } from 'react-redux';
 import { setToken, setEmail, setUser, setUserId } from '@/redux/authSlice';
 import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-
+import config from "@/app/config_BASE_URL";
 const MemberLogin = () => {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -45,7 +45,7 @@ const MemberLogin = () => {
     try {
       // Step 1: Send login request
       const response = await axios.post(
-        "https://bid.nyelizabeth.com/v1/api/auth/login",
+        `${config.baseURL}/v1/api/auth/login`,
         formData
       );
 
@@ -88,7 +88,7 @@ const MemberLogin = () => {
       // Step 3: Verify token and get additional user data
       try {
         const verifyResponse = await axios.post(
-          `https://bid.nyelizabeth.com/v1/api/auth/verify/${token}`,
+            `${config.baseURL}/v1/api/auth/verify/${token}`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );

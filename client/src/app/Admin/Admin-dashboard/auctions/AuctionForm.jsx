@@ -61,37 +61,37 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
   const addAuction = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     if (!newAuction.startDate || !newAuction.startTime || !newAuction.endDate || !newAuction.endTime || !newAuction.startingBid || !newAuction.category) {
       toast.error("Please fill in all required fields.");
       setLoading(false);
       return;
     }
-
+  
     // Convert DD-MM-YYYY and HH:mm to ISO 8601 format
     const startDateTimeLocal = `${newAuction.startDate} ${newAuction.startTime}`;
-    const endDateTimeLocal = `${newAuction.endDate} ${newAuction.endTime}`;
-
     const startDateTimeUTC = moment(startDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
+  
+    const endDateTimeLocal = `${newAuction.endDate} ${newAuction.endTime}`;
     const endDateTimeUTC = moment(endDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
-
+  
     const nowUTC = moment().utc();
-    if (moment(endDateTimeUTC).isSameOrBefore(nowUTC)) {
-      toast.error("End date and time must be in the future.");
+    if (newAuction.auctionType !== "LIVE" && moment(endDateTimeUTC).isSameOrBefore(nowUTC)) {
+      toast.error("End date and time must be in the future for TIMED auctions.");
       setLoading(false);
       return;
     }
-
+  
     const payload = {
       product: newAuction.product,
       category: newAuction.category,
       auctionType: newAuction.auctionType,
       startingBid: Number(newAuction.startingBid),
       startDate: startDateTimeUTC,
-      endDate: endDateTimeUTC,
+      endDate: newAuction.auctionType === "LIVE" ? null : endDateTimeUTC, // Set to null for LIVE, actual date for TIMED
       status: newAuction.status,
     };
-
+  
     try {
       const response = await fetch(`${config.baseURL}/v1/api/auction/create`, {
         method: "POST",
@@ -102,7 +102,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-
+  
       if (data.status) {
         setAuctions((prev) => [
           ...prev,
@@ -112,7 +112,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
             startingBid: payload.startingBid,
             currentBid: payload.startingBid,
             status: payload.status,
-            endDate: payload.endDate,
+            endDate: payload.endDate || null, // Include endDate only if it exists
             auctionType: payload.auctionType,
           },
         ]);

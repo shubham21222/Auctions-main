@@ -2,8 +2,7 @@ import { Server } from "socket.io";
 import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
-// import User from "../models/User/userModel.js";
-import User from "../models/Auth/User.js"
+import User from "../models/Auth/User.js";
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -15,11 +14,36 @@ export const initializeSocket = (server) => {
       origin: ["https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 10000,
+    maxHttpBufferSize: 1e8,
+    allowEIO3: true,
+    transports: ['websocket', 'polling'],
   });
+
+  // Clean up disconnected sockets periodically
+  setInterval(() => {
+    const connectedSockets = Object.keys(userSocketMap);
+    connectedSockets.forEach(userId => {
+      const socketId = userSocketMap[userId];
+      if (!io.sockets.sockets.get(socketId)) {
+        delete userSocketMap[userId];
+        console.log(`Cleaned up disconnected socket for user: ${userId}`);
+      }
+    });
+  }, 30000);
 
   io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
     if (userId) {
+      // Clean up any existing socket for this user
+      if (userSocketMap[userId]) {
+        const oldSocket = io.sockets.sockets.get(userSocketMap[userId]);
+        if (oldSocket) {
+          oldSocket.disconnect(true);
+        }
+      }
       userSocketMap[userId] = socket.id;
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
@@ -39,7 +63,6 @@ export const initializeSocket = (server) => {
         auctionModes[auctionId] = mode;
         console.log(`Auction ${auctionId} mode set to: ${mode}`);
 
-        // Broadcast to all clients in the auction room, including the sender
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -124,7 +147,7 @@ export const initializeSocket = (server) => {
       }
     });
 
-    socket.on("placeBid", async ({ auctionId, userId: bidderId, bidType }) => {
+    socket.on("placeBid", async ({ auctionId, userId: bidderId, bidType, bidAmount }) => {
       try {
         const auction = await Auction.findById(auctionId).populate("bids");
         if (!auction || auction.status === "ENDED") {
@@ -177,14 +200,20 @@ export const initializeSocket = (server) => {
 
         const currentBid = auction.currentBid || 0;
         const bidIncrement = getBidIncrement(currentBid);
-        const bidAmount = currentBid + bidIncrement;
+        let finalBidAmount = bidAmount || (currentBid + bidIncrement);
+
+        // Ensure the bid is higher than the current bid
+        if (finalBidAmount <= currentBid) {
+          return socket.emit("error", { message: "Your bid must be higher than the current bid." });
+        }
 
         const bidRule = await bidIncrementModel
-          .findOne({ price: { $lte: bidAmount } })
+          .findOne({ price: { $lte: finalBidAmount } })
           .sort({ price: -1 });
         const requiredIncrement = bidRule ? bidRule.increment : bidIncrement;
 
-        const finalBidAmount = currentBid + requiredIncrement;
+        // Adjust final bid to meet minimum increment if necessary
+        finalBidAmount = Math.ceil(finalBidAmount / requiredIncrement) * requiredIncrement;
 
         auction.bids.push({
           bidder: bidderId,
@@ -192,7 +221,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role:user.role
+          Role: user.role
         });
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
@@ -209,7 +238,8 @@ export const initializeSocket = (server) => {
           minBidIncrement: auction.minBidIncrement,
           bids: auction.bids,
           bidType: bidType || "online",
-          Role: user.role
+          Role: user.role,
+          timestamp: new Date()
         });
 
         const lastBidderId =
@@ -377,17 +407,28 @@ export const initializeSocket = (server) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       if (userId) {
-        console.log(`User ${userId} disconnected.`);
+        console.log(`User ${userId} disconnected. Reason: ${reason}`);
         delete userSocketMap[userId];
 
+        // Clean up auction watchers
         for (let auctionId in auctionWatchers) {
-          auctionWatchers[auctionId].delete(userId);
-          io.in(auctionId).emit("watcherUpdate", {
-            auctionId,
-            watchers: auctionWatchers[auctionId].size,
-          });
+          if (auctionWatchers[auctionId].has(userId)) {
+            auctionWatchers[auctionId].delete(userId);
+            io.in(auctionId).emit("watcherUpdate", {
+              auctionId,
+              watchers: auctionWatchers[auctionId].size,
+            });
+          }
+        }
+
+        // Clean up auction modes if no watchers
+        for (let auctionId in auctionWatchers) {
+          if (auctionWatchers[auctionId].size === 0) {
+            delete auctionWatchers[auctionId];
+            delete auctionModes[auctionId];
+          }
         }
       }
     });

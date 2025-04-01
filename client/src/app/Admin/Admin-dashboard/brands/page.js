@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import config from '@/app/config_BASE_URL';
 
 const BrandsPage = () => {
   const [brands, setBrands] = useState([]);
@@ -32,7 +33,7 @@ const BrandsPage = () => {
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
-  const API_URL = 'https://bid.nyelizabeth.com/v1/api/brands';
+  const API_URL = `${config.baseURL}/v1/api/brands`;
 
   useEffect(() => {
     fetchBrands();

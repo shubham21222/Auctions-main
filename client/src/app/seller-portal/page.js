@@ -8,6 +8,8 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import config from "@/app/config_BASE_URL";
+
 
 const SellerDetailsPage = () => {
   const [sellerData, setSellerData] = useState([]);
@@ -31,7 +33,7 @@ const SellerDetailsPage = () => {
 
       try {
         const response = await fetch(
-          `https://bid.nyelizabeth.com/v1/api/seller/getByCreatedBy`,
+          `${config.baseURL}/v1/api/seller/getByCreatedBy`,
           {
             method: "GET",
             headers: {

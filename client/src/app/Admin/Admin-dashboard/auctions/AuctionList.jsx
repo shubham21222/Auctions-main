@@ -48,6 +48,42 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
     setOpenEditDialog(true);
   };
 
+  const handleDeleteClick = async (auctionId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this auction?");
+    if (!confirmDelete) return;
+
+    const payload = {
+      ids: [auctionId], // Sending a single ID in an array as per the API requirement
+    };
+
+    try {
+      const response = await fetch(`${config.baseURL}/v1/api/auction/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to delete auction: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.status) {
+        toast.success("Auction deleted successfully!");
+        fetchAuctions(); // Refresh the auction list after deletion
+      } else {
+        throw new Error(data.message || "Failed to delete auction");
+      }
+    } catch (error) {
+      console.error("Error deleting auction:", error);
+      toast.error(`Failed to delete auction: ${error.message}`);
+    }
+  };
+
   const handleUpdateAuction = async (e) => {
     e.preventDefault();
 
@@ -130,7 +166,11 @@ export default function AuctionList({ auctions, loading, token, fetchAuctions })
                       <Button variant="ghost" onClick={() => handleEditClick(auction)}>
                         Edit
                       </Button>
-                      <Button variant="ghost" className="text-red-500">
+                      <Button
+                        variant="ghost"
+                        className="text-red-500"
+                        onClick={() => handleDeleteClick(auction._id)}
+                      >
                         Delete
                       </Button>
                     </TableCell>

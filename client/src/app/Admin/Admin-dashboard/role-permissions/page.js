@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import config from "@/app/config_BASE_URL";
 
 const RoleManagementPage = () => {
   const [roles, setRoles] = useState([]);
@@ -23,7 +24,7 @@ const RoleManagementPage = () => {
       try {
         // Fetch all roles
         const rolesResponse = await axios.get(
-          "https://bid.nyelizabeth.com/v1/api/role/all",
+          `${config.baseURL}/v1/api/role/all`,
           { headers: { Authorization: `${token}` } }
         );
         if (rolesResponse.data.status) {
@@ -34,7 +35,7 @@ const RoleManagementPage = () => {
 
         // Fetch all permissions
         const permsResponse = await axios.get(
-          "https://bid.nyelizabeth.com/v1/api/role/all-permissions",
+          `${config.baseURL}/v1/api/role/all-permissions`,
           { headers: { Authorization: `${token}` } }
         );
         if (permsResponse.data.status) {
@@ -77,8 +78,8 @@ const RoleManagementPage = () => {
     setLoading(true);
     try {
       const url = editRoleId
-        ? `https://bid.nyelizabeth.com/v1/api/role/update/${editRoleId}`
-        : "https://bid.nyelizabeth.com/v1/api/role/create";
+        ? `${config.baseURL}/v1/api/role/update/${editRoleId}`
+        : `${config.baseURL}/v1/api/role/create`;
       const method = editRoleId ? "put" : "post";
 
       const response = await axios({
@@ -95,7 +96,7 @@ const RoleManagementPage = () => {
         toast.success(response.data.message || "Role saved successfully");
         // Refresh roles list instead of updating state directly
         const rolesResponse = await axios.get(
-          "https://bid.nyelizabeth.com/v1/api/role/all",
+          `${config.baseURL}/v1/api/role/all`,
           { headers: { Authorization: `${token}` } }
         );
         if (rolesResponse.data.status) {
@@ -127,7 +128,7 @@ const RoleManagementPage = () => {
     setLoading(true);
     try {
       const response = await axios.delete(
-        `https://bid.nyelizabeth.com/v1/api/role/delete/${roleId}`,
+        `${config.baseURL}/v1/api/role/delete/${roleId}`,
         { headers: { Authorization: `${token}` } }
       );
 
@@ -135,7 +136,7 @@ const RoleManagementPage = () => {
         toast.success(response.data.message || "Role deleted successfully");
         // Refresh roles list instead of updating state directly
         const rolesResponse = await axios.get(
-          "https://bid.nyelizabeth.com/v1/api/role/all",
+            `${config.baseURL}/v1/api/role/all`,
           { headers: { Authorization: `${token}` } }
         );
         if (rolesResponse.data.status) {

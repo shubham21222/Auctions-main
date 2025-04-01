@@ -14,7 +14,7 @@ import ReviewInformation from "./components/ReviewInformation";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { Toaster } from "react-hot-toast";
-
+import config from "@/app/config_BASE_URL";
 // Map category names to their ItemForm components
 const formMap = {
   "OTHERS": OthersItemForm,
@@ -36,7 +36,7 @@ export default function Home() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
+        const response = await fetch(`${config.baseURL}/v1/api/category/all`);
         const data = await response.json();
         if (data.status) {
           setCategories(data.items);
@@ -86,7 +86,7 @@ export default function Home() {
             />
           ) : currentStep === 2 ? (
             <div className="text-red-500 text-center">
-              Invalid category selected: "{selectedCategory}" - Please go back and choose a valid category.
+              Invalid category selected: &quot;{selectedCategory}&quot; - Please go back and choose a valid category.
             </div>
           ) : null}
           {currentStep === 3 && (

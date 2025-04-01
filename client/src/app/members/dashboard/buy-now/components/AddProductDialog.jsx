@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { Plus, X } from "lucide-react";
 import * as XLSX from "xlsx";
+import config from "@/app/config_BASE_URL";
 
 export default function AddProductDialog({ fetchProducts, token, onClose, open, onOpenChange }) {
   const [newProduct, setNewProduct] = useState({
@@ -33,7 +34,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/category/all");
+        const response = await fetch(`${config.baseURL}/v1/api/category/all`);
         if (!response.ok) {
           throw new Error("Failed to fetch categories");
         }
@@ -199,7 +200,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             continue;
           }
 
-          const response = await fetch("https://bid.nyelizabeth.com/v1/api/product/create", {
+          const response = await fetch( `${config.baseURL}/v1/api/product/create`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -243,7 +244,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
           const formData = new FormData();
           formData.append("file", input.file);
 
-          const uploadResponse = await fetch("https://bid.nyelizabeth.com/v1/api/uploadImg/upload", {
+          const uploadResponse = await fetch(`${config.baseURL}/v1/api/uploadImg/upload`, {
             method: "POST",
             headers: {
               Authorization: `${token}`,
@@ -270,7 +271,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         return;
       }
 
-      const response = await fetch("https://bid.nyelizabeth.com/v1/api/product/create", {
+      const response = await fetch(`${config.baseURL}/v1/api/product/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

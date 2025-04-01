@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import countries from "i18n-iso-countries";
-
+import config from "@/app/config_BASE_URL"; 
 // Register English locale for browser environment
 import enLocale from "i18n-iso-countries/langs/en.json";
 countries.registerLocale(enLocale);
@@ -76,7 +76,7 @@ export default function BillingDetailsForm({ token, onBillingUpdate }) {
     };
 
     try {
-      const response = await fetch("https://bid.nyelizabeth.com/v1/api/auth/UpdateBillingAddress", {
+      const response = await fetch(`${config.baseURL}/v1/api/auth/UpdateBillingAddress`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

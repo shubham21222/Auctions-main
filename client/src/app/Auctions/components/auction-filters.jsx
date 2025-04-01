@@ -5,6 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
+import config from "@/app/config_BASE_URL";     
+
 
 export function AuctionFilters({ onFilterChange }) {
   const [date, setDate] = useState("");
@@ -25,7 +27,7 @@ export function AuctionFilters({ onFilterChange }) {
   useEffect(() => {
     async function fetchCatalogs() {
       try {
-        const response = await fetch("https://bid.nyelizabeth.com/v1/api/auction/bulk");
+        const response = await fetch(`${config.baseURL}/v1/api/auction/bulk`);
         if (!response.ok) throw new Error("Failed to fetch catalogs");
         const data = await response.json();
         const catalogNames = data.items?.catalogs?.map((catalog) => catalog.catalogName) || [];

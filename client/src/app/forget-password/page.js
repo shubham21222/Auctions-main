@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-
+import config from "@/app/config_BASE_URL";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
       setLoading(true);
 
       // Send forgot password request to the backend
-      const response = await axios.post("https://bid.nyelizabeth.com/v1/api/auth/forgotPassword", {
+      const response = await axios.post(`${config.baseURL}/v1/api/auth/forgotPassword`, {
         email,
       });
 

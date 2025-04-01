@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useSelector } from "react-redux";
+import config from "@/app/config_BASE_URL";
 
 const SocketContext = createContext();
 
@@ -15,7 +16,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!userId || !token) return;
 
-    const socketIo = io("https://bid.nyelizabeth.com", {
+    const socketIo = io(`${config.baseURL}`, {
       query: { userId },
       auth: { token },
       transports: ["websocket"],
