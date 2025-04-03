@@ -555,10 +555,11 @@ export const getAllUsers = async (req, res, next) => {
                 }
             },
 
+
             // Lookup products associated with those auctions
             {
                 $lookup: {
-                    from: 'products',
+                    from: 'auctionproducts',
                     localField: 'userAuctions.product',
                     foreignField: '_id',
                     as: 'auctionProducts'
@@ -585,12 +586,13 @@ export const getAllUsers = async (req, res, next) => {
                     Payment_Status: 1,
                     createdAt: 1,
 
+
                     userAuctions: {
                         $map: {
                             input: { $ifNull: ["$userAuctions", []] },
                             as: "auction",
                             in: {
-                                product: {
+                                auctionProduct: {
                                     title: {
                                         $ifNull: [
                                             { $arrayElemAt: ["$auctionProducts.title", 0] },
@@ -607,7 +609,9 @@ export const getAllUsers = async (req, res, next) => {
                                 auctionType: { $ifNull: ["$$auction.auctionType", ""] },
                                 lotNumber: { $ifNull: ["$$auction.lotNumber", ""] },
                                 createdBy: { $ifNull: ["$$auction.createdBy", ""] },
-                                status: { $ifNull: ["$$auction.status", ""] }
+                                status: { $ifNull: ["$$auction.status", ""] },
+                                bids: { $ifNull: ["$$auction.bids", []] },
+
                             }
                         }
                     },
