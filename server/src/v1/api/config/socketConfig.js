@@ -14,36 +14,41 @@ export const initializeSocket = (server) => {
       origin: ["https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
-    pingTimeout: 60000,
-    pingInterval: 25000,
-    connectTimeout: 10000,
-    maxHttpBufferSize: 1e8,
-    allowEIO3: true,
-    transports: ['websocket', 'polling'],
+    // pingTimeout: 60000,
+    // pingInterval: 25000,
+    // connectTimeout: 10000,
+    // maxHttpBufferSize: 1e8,
+    // allowEIO3: true,
+    // transports: ['websocket', 'polling'],
   });
 
   // Clean up disconnected sockets periodically
-  setInterval(() => {
-    const connectedSockets = Object.keys(userSocketMap);
-    connectedSockets.forEach(userId => {
-      const socketId = userSocketMap[userId];
-      if (!io.sockets.sockets.get(socketId)) {
-        delete userSocketMap[userId];
-        console.log(`Cleaned up disconnected socket for user: ${userId}`);
-      }
-    });
-  }, 30000);
+  // setInterval(() => {
+  //   const connectedSockets = Object.keys(userSocketMap);
+  //   connectedSockets.forEach(userId => {
+  //     const socketId = userSocketMap[userId];
+  //     if (!io.sockets.sockets.get(socketId)) {
+  //       delete userSocketMap[userId];
+  //       console.log(`Cleaned up disconnected socket for user: ${userId}`);
+  //     }
+  //   });
+  // }, 30000);
 
   io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
+    // if (userId) {
+    //   // Clean up any existing socket for this user
+    //   if (userSocketMap[userId]) {
+    //     const oldSocket = io.sockets.sockets.get(userSocketMap[userId]);
+    //     if (oldSocket) {
+    //       oldSocket.disconnect(true);
+    //     }
+    //   }
+    //   userSocketMap[userId] = socket.id;
+    //   console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
+    // }
+
     if (userId) {
-      // Clean up any existing socket for this user
-      if (userSocketMap[userId]) {
-        const oldSocket = io.sockets.sockets.get(userSocketMap[userId]);
-        if (oldSocket) {
-          oldSocket.disconnect(true);
-        }
-      }
       userSocketMap[userId] = socket.id;
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
     }
