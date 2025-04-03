@@ -538,7 +538,9 @@ export const getAllUsers = async (req, res, next) => {
             matchQuery.$or = [
                 { name: { $regex: search, $options: 'i' } },
                 { email: { $regex: search, $options: 'i' } },
-                { mobile: { $regex: search, $options: 'i' } }
+                { mobile: { $regex: search, $options: 'i' } },
+                {role: { $regex: search, $options: 'i' } }
+
             ];
         }
 
