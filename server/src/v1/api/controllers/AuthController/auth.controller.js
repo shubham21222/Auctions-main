@@ -32,7 +32,7 @@ const generateResetPasswordToken = () => {
 
 // Register User //
 export const register = async (req, res , next) => {
-    const { email, password , BillingDetails, paymentMethodId} = req.body;
+    const { email, password , BillingDetails, paymentMethodId , temp_password} = req.body;
     try {
 
         const existingUser = await User.findOne({ email });
@@ -40,7 +40,7 @@ export const register = async (req, res , next) => {
             return badRequest(res, 'User already exists');
         }
 
-        if(!email || !password){
+        if(!email){
             return badRequest(res, 'Please provide an email and password');
         }
 
@@ -60,6 +60,190 @@ export const register = async (req, res , next) => {
 
         if(password){
             userData.password = password;
+        }
+
+        if(temp_password == "true"){
+            const tempPassword = crypto.randomBytes(5).toString('hex');
+            userData.password = tempPassword;
+
+            await sendEmail({
+                to: email,
+                subject: "Your Temporary Password - NY Elizabeth",
+                html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #f4f4f7;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .email-container {
+                            background-color: #ffffff;
+                            width: 90%;
+                            max-width: 600px;
+                            margin: 30px auto;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                            border: 1px solid #e0e0e0;
+                        }
+                        .email-header {
+                            background-color: #1a73e8;
+                            padding: 20px;
+                            text-align: center;
+                            color: white;
+                        }
+                        .email-body {
+                            padding: 30px;
+                            color: #333333;
+                            line-height: 1.6;
+                        }
+                        .button {
+                            display: inline-block;
+                            padding: 12px 25px;
+                            margin-top: 20px;
+                            background-color: #1a73e8;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            font-size: 16px;
+                        }
+                        .email-footer {
+                            padding: 20px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #888888;
+                        }
+                        .highlight {
+                            color: #1a73e8;
+                            font-weight: bold;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="email-container">
+                        <div class="email-header">
+                            <h1>NY Elizabeth</h1>
+                        </div>
+                        <div class="email-body">
+                            <p>Dear <strong>${req.body.name || 'User'}</strong>,</p>
+                            
+                            <p>We have generated a temporary password for your account at <span class="highlight">NY Elizabeth</span>. Please use the password below to log in:</p>
+                            
+                            <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
+                                <h2 style="margin: 0; color: #1a73e8;">${tempPassword}</h2>
+                            </div>
+                            
+                            <p>For security reasons, we recommend changing your password immediately after logging in.</p>
+                            
+                            <a href="https://bid.nyelizabeth.com/" class="button">Login Now</a>
+                            
+                            <p>If you did not request this, please ignore this email or contact our support team immediately.</p>
+                            
+                            <p>Thank you,<br><strong>NY Elizabeth Support Team</strong></p>
+                        </div>
+                        <div class="email-footer">
+                            &copy; ${new Date().getFullYear()} NY Elizabeth. All rights reserved.
+                        </div>
+                    </div>
+                </body>
+                </html>
+                `
+            });
+            
+            
+        }
+
+        else if (temp_password == "false"){
+            await sendEmail({
+                to: email,
+                subject: "🎉 Welcome to NY Elizabeth - We're Excited to Have You!",
+                html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #f4f4f7;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .email-container {
+                            background-color: #ffffff;
+                            width: 90%;
+                            max-width: 600px;
+                            margin: 30px auto;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                            border: 1px solid #e0e0e0;
+                        }
+                        .email-header {
+                            background-color: #1a73e8;
+                            padding: 20px;
+                            text-align: center;
+                            color: white;
+                        }
+                        .email-body {
+                            padding: 30px;
+                            color: #333333;
+                            line-height: 1.6;
+                        }
+                        .button {
+                            display: inline-block;
+                            padding: 12px 25px;
+                            margin-top: 20px;
+                            background-color: #1a73e8;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            font-size: 16px;
+                        }
+                        .email-footer {
+                            padding: 20px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #888888;
+                        }
+                        .highlight {
+                            color: #1a73e8;
+                            font-weight: bold;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="email-container">
+                        <div class="email-header">
+                            <h1>Welcome to NY Elizabeth!</h1>
+                        </div>
+                        <div class="email-body">
+                            <p>Dear <strong>${req.body.name || 'User'}</strong>,</p>
+                            
+                            <p>🎉 Congratulations on successfully registering at <span class="highlight">NY Elizabeth</span>! We're thrilled to have you as part of our community.</p>
+                            
+                            <p>Whether you're here to explore, create, or engage, we’re committed to providing you with an exceptional experience. Here's a quick link to get started:</p>
+                            
+                            <a href="https://bid.nyelizabeth.com/" class="button">Explore NY Elizabeth</a>
+                            
+                            <p>Need help or have questions? Feel free to reach out to our support team anytime. We're here to assist you.</p>
+                            
+                            <p>Welcome aboard, and we can’t wait to see what amazing things you achieve with us!</p>
+                            
+                            <p>Warm Regards,<br><strong>The NY Elizabeth Team</strong></p>
+                        </div>
+                        <div class="email-footer">
+                            &copy; ${new Date().getFullYear()} NY Elizabeth. All rights reserved.
+                        </div>
+                    </div>
+                </body>
+                </html>
+                `
+            });
+            
         }
         
         if(paymentMethodId){
