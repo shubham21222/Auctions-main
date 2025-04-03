@@ -73,7 +73,7 @@ export default function CategoryManagement() {
   return (
     <div className="space-y-6">
       {/* Add Toaster for displaying notifications */}
-      <Toaster position="top-right" />
+      {/* <Toaster position="top-right" /> */}
 
       {/* Header Section */}
       <div className="flex justify-between items-center">

@@ -214,7 +214,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
 
   return (
     <> 
-      <Toaster position="top-right" reverseOrder={false} />
+      {/* <Toaster position="top-right" reverseOrder={false} /> */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
