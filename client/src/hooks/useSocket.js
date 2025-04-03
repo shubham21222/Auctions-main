@@ -29,7 +29,7 @@ export const useSocket = () => {
     const initializeSocket = () => {
       if (!userId || !token || socket) return;
 
-      socketIo = io(`${config.baseURL}`, {
+      socketIo = io("https://bid.nyelizabeth.com", {
         query: { userId },
         auth: { token, isAdmin: isAdmin || false },
         transports: ["websocket"],
