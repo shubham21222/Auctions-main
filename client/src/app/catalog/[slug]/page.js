@@ -55,7 +55,7 @@ export default function CatalogPage() {
   const userId = useSelector((state) => state.auth._id);
   const router = useRouter();
   const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications } = useSocket();
-  const hasJoinedRef = useRef(new Set()); // Track joined auctions
+  const hasJoinedRef = useRef(new Set());
 
   const fetchAuctionData = useCallback(async () => {
     if (!token || !auctionId) {
@@ -143,7 +143,6 @@ export default function CatalogPage() {
   useEffect(() => {
     if (!auctionId || !socket) return;
 
-    // Join auction only once
     if (!hasJoinedRef.current.has(auctionId)) {
       joinAuction(auctionId);
       hasJoinedRef.current.add(auctionId);
@@ -160,7 +159,6 @@ export default function CatalogPage() {
         });
     }
 
-    // Set up socket listeners (these should persist even after joining)
     const handleAuctionMessage = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType }) => {
       console.log("Received auctionMessage in CatalogPage:", { msgAuctionId, message, actionType, sender, timestamp, bidType });
       if (msgAuctionId === auctionId) {
@@ -171,14 +169,10 @@ export default function CatalogPage() {
           timestamp: timestamp || new Date(),
           bidType: bidType || "message",
         };
-        setAuction((prev) => {
-          const updatedMessages = [...(prev?.messages || []), newMessage];
-          console.log("Updated auction messages:", updatedMessages);
-          return {
-            ...prev,
-            messages: updatedMessages,
-          };
-        });
+        setAuction((prev) => ({
+          ...prev,
+          messages: [...(prev?.messages || []), newMessage],
+        }));
         toast.info(`Auction update: ${newMessage.message}`);
       }
     };
@@ -199,6 +193,7 @@ export default function CatalogPage() {
             },
           ],
         }));
+        toast.success(`New ${bidData.bidType} bid: $${bidData.bidAmount.toLocaleString()}`);
       }
     };
 
@@ -212,7 +207,6 @@ export default function CatalogPage() {
     };
   }, [auctionId, socket, joinAuction, getAuctionData]);
 
-  // Sync with liveAuctions (runs when liveAuctions changes)
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
     if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(auction)) {
@@ -227,7 +221,6 @@ export default function CatalogPage() {
     }
   }, [liveAuctions, auctionId]);
 
-  // Handle NEXT_LOT navigation (separate effect to avoid dependency conflicts)
   useEffect(() => {
     if (!socket || !auction || !allAuctions.length) return;
 

@@ -18,9 +18,7 @@ export const useSocket = () => {
   const addNotification = useCallback((type, message) => {
     const id = Date.now();
     setNotifications((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 5000);
+    setTimeout(() => setNotifications((prev) => prev.filter((n) => n.id !== id)), 5000);
   }, []);
 
   useEffect(() => {
@@ -68,10 +66,7 @@ export const useSocket = () => {
         console.log("Received auctionData:", data);
         setLiveAuctions((prev) => {
           const auctionId = data._id || data.auctionId;
-          if (!auctionId) {
-            console.error("Auction ID missing in auctionData:", data);
-            return prev;
-          }
+          if (!auctionId) return prev;
           const exists = prev.find((a) => a.id === auctionId);
           return exists
             ? prev.map((a) => (a.id === auctionId ? { ...a, ...data, id: auctionId } : a))
@@ -113,7 +108,10 @@ export const useSocket = () => {
                   ...auction,
                   currentBid: bidAmount,
                   currentBidder: bidderId,
-                  bids: [...(auction.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
+                  bids: [
+                    ...(auction.bids || []),
+                    { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType },
+                  ],
                 }
               : auction
           )
@@ -123,11 +121,7 @@ export const useSocket = () => {
       socketIo.on("watcherUpdate", ({ auctionId, watchers }) => {
         console.log("Received watcherUpdate:", { auctionId, watchers });
         setLiveAuctions((prev) =>
-          prev.map((auction) =>
-            auction.id === auctionId && auction.watchers !== watchers // Only update if watchers changed
-              ? { ...auction, watchers }
-              : auction
-          )
+          prev.map((auction) => (auction.id === auctionId ? { ...auction, watchers } : auction))
         );
       });
 
@@ -137,27 +131,18 @@ export const useSocket = () => {
       });
 
       setSocket(socketIo);
+
+      return () => {
+        if (socketIo) {
+          socketIo.disconnect();
+          setIsConnected(false);
+          setSocket(null);
+          console.log("Socket disconnected during cleanup");
+        }
+      };
     };
 
     initializeSocket();
-
-    return () => {
-      if (socketIo) {
-        socketIo.off("connect");
-        socketIo.off("disconnect");
-        socketIo.off("reconnect");
-        socketIo.off("connect_error");
-        socketIo.off("auctionData");
-        socketIo.off("auctionMessage");
-        socketIo.off("bidUpdate");
-        socketIo.off("watcherUpdate");
-        socketIo.off("auctionModeUpdate");
-        socketIo.disconnect();
-        setIsConnected(false);
-        setSocket(null);
-        console.log("Socket disconnected during cleanup");
-      }
-    };
   }, [userId, token, isAdmin, addNotification]);
 
   const joinAuction = useCallback((auctionId) => {
@@ -184,7 +169,6 @@ export const useSocket = () => {
 
       const onAuctionData = (data) => {
         if (data._id === auctionId || data.auctionId === auctionId) {
-          // console.log(`Received auction data for ${auctionId}:`, data);
           socket.off("auctionData", onAuctionData);
           socket.off("auctionDataError", onError);
           resolve(data);
@@ -192,7 +176,6 @@ export const useSocket = () => {
       };
 
       const onError = (error) => {
-        console.error(`Auction data error for ${auctionId}:`, error);
         socket.off("auctionData", onAuctionData);
         socket.off("auctionDataError", onError);
         reject(error);

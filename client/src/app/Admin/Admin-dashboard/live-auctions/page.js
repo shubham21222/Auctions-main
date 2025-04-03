@@ -56,7 +56,7 @@ const AdminLiveAuctionPage = () => {
   useEffect(() => {
     if (currentAuction) {
       const liveAuction = liveAuctions.find((a) => a.id === currentAuction._id);
-      if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(currentAuction)) { // Prevent redundant updates
+      if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(currentAuction)) {
         setCurrentAuction((prev) => ({
           ...prev,
           currentBid: liveAuction.currentBid,
@@ -85,7 +85,7 @@ const AdminLiveAuctionPage = () => {
       }
     };
 
-    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
+    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidType }) => {
       if (auctionId === currentAuction._id) {
         const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
         setBidHistory((prev) => [
@@ -95,7 +95,7 @@ const AdminLiveAuctionPage = () => {
             bidTime: timestamp || new Date(),
             sender: senderName,
             bidType: bidType || (message ? "message" : actionType),
-            bidAmount: bidAmount || (bidType === "competitor" && prev.length > 0 ? prev[prev.length - 1].bidAmount + getBidIncrement(prev[prev.length - 1].bidAmount || 0) : currentAuction.startingBid),
+            bidAmount: 0,
           },
         ]);
       }
@@ -132,7 +132,7 @@ const AdminLiveAuctionPage = () => {
     };
 
     return cleanup;
-  }, [socket, currentAuction?._id, joinAuction, getAuctionData, getBidIncrement, watchers]);
+  }, [socket, currentAuction?._id, joinAuction, getAuctionData, watchers]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -177,10 +177,7 @@ const AdminLiveAuctionPage = () => {
         }
       } else if (actionType === "SOLD") {
         const auctionId = currentAuction._id;
-
-        if (!auctionId) {
-          throw new Error("Auction ID not found in current auction");
-        }
+        if (!auctionId) throw new Error("Auction ID not found in current auction");
 
         const response = await fetch(`${config.baseURL}/v1/api/auction/update/${auctionId}`, {
           method: "POST",
