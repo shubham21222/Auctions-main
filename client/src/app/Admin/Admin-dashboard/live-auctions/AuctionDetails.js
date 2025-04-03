@@ -1,122 +1,105 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 
-const AuctionDetails = ({ currentAuction, upcomingLots }) => {
-  const [imageError, setImageError] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+const AuctionDetails = memo(({ currentAuction, upcomingLots }) => {
+  const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
     if (currentAuction?.product?.image?.[0]) {
-      const url = currentAuction.product.image[0];
-      setImageUrl(url);
-      setImageError(false);
-      setIsImageLoaded(false);
+      const newImageUrl = currentAuction.product.image[0];
+      if (newImageUrl !== imageUrl) {
+        console.log("Setting image URL for AuctionDetails:", newImageUrl);
+        setImageUrl(newImageUrl);
+      }
     }
-  }, [currentAuction]);
+  }, [currentAuction?.product?.image]);
+
+  // Debug re-renders
+  useEffect(() => {
+    console.log("AuctionDetails re-rendered with props:", { currentAuction, upcomingLots });
+  }, [currentAuction, upcomingLots]);
 
   if (!currentAuction) {
-    return <p className="text-gray-500 text-sm">Select an auction to view details.</p>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-500">No active auction selected.</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Lot:</span>
-                <span className="text-lg font-bold">{currentAuction?.lotNumber || "N/A"}</span>
-              </div>
-              <h2 className="text-lg font-bold mt-1 uppercase">
-                {currentAuction?.product?.title || "N/A"}
-              </h2>
-            </div>
-          </div>
-          
-          <div className="relative w-full h-[300px] bg-gray-100 rounded-lg overflow-hidden">
-            {imageError ? (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <p>Image not available</p>
-                </div>
-              </div>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold mb-4">Current Auction</h2>
+        <div className="flex gap-4">
+          <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={currentAuction.product?.title || "Auction Item"}
+                fill
+                className="object-cover"
+                onError={(e) => {
+                  console.error(`Failed to load image: ${imageUrl}`);
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "flex";
+                }}
+              />
             ) : (
-              <>
-                <Image
-                  src={imageUrl || "/placeholder.svg"}
-                  alt={currentAuction?.product?.title || "Product Image"}
-                  fill
-                  className={`object-contain transition-opacity duration-300 ${
-                    isImageLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  onError={() => {
-                    console.error("Image load error for:", imageUrl);
-                    setImageError(true);
-                  }}
-                  onLoad={() => setIsImageLoaded(true)}
-                  unoptimized={true}
-                  loading="lazy"
-                />
-                {!isImageLoaded && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin"></div>
-                  </div>
-                )}
-              </>
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                No image
+              </div>
             )}
+            <div className="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
+              Image not available
+            </div>
           </div>
-
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Brand:</p>
-              <p className="text-sm font-medium">{currentAuction?.product?.brand || "N/A"}</p>
-            </div>
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Estimate:</p>
-              <p className="text-sm font-medium">
-                ${currentAuction?.startingBid?.toLocaleString() || "0"} - ${((currentAuction?.startingBid || 0) + 1000).toLocaleString()}
-              </p>
-            </div>
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Status:</p>
-              <p className={`text-sm font-medium ${
-                currentAuction.status === "ACTIVE" ? "text-green-600" : "text-gray-600"
-              }`}>
-                {currentAuction.status}
-              </p>
-            </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-medium">{currentAuction.product?.title || "Unnamed Item"}</h3>
+            <p className="text-sm text-gray-600">Lot: {currentAuction.lotNumber || "N/A"}</p>
+            <p className="text-sm text-gray-600">Current Bid: ${currentAuction.currentBid?.toLocaleString() || 0}</p>
+            <p className="text-sm text-gray-600">Status: {currentAuction.status}</p>
           </div>
         </div>
       </div>
 
-      {upcomingLots.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-600 mb-2">Upcoming Lots</h3>
-            <div className="space-y-2">
-              {upcomingLots.map((lot) => (
-                <div
-                  key={lot._id}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                >
-                  <p className="text-sm">
-                    Lot {lot.lotNumber}
-                  </p>
-                  <p className="text-sm font-medium text-gray-600">
-                    {lot.product?.title}
-                  </p>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold mb-4">Upcoming Lots</h2>
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {upcomingLots.length > 0 ? (
+            upcomingLots.map((lot) => (
+              <div key={lot._id} className="flex gap-4">
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                  {lot.product?.image?.[0] ? (
+                    <Image
+                      src={lot.product.image[0]}
+                      alt={lot.product?.title || "Upcoming Lot"}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                      No image
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
+                <div>
+                  <h3 className="text-md font-medium">{lot.product?.title || "Unnamed Item"}</h3>
+                  <p className="text-sm text-gray-600">Lot: {lot.lotNumber || "N/A"}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No upcoming lots.</p>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
-};
+});
+
+AuctionDetails.displayName = "AuctionDetails";
 
 export default AuctionDetails;

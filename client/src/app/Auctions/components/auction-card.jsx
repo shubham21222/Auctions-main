@@ -157,12 +157,14 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
+              className="relative w-full h-full"
             >
               <Image
                 src={auction.images[currentImage] || "/placeholder.svg"}
                 alt={auction.title}
                 fill
                 className="object-cover transition-all duration-700 group-hover:scale-105"
+                style={{ transform: 'translateZ(0)' }}
               />
             </motion.div>
             <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-6">
@@ -183,6 +185,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                     alt={`${auction.title} thumbnail ${index + 1}`}
                     fill
                     className="object-cover"
+                    style={{ transform: 'translateZ(0)' }}
                   />
                 </motion.button>
               ))}

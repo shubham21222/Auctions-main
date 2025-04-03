@@ -22,34 +22,34 @@ const AuctionCard = ({ auction, currentTime, onSelectAuction }) => {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
-      whileHover={{ x: 5 }}
+      whileHover={{ x: 5, backgroundColor: "#f8fafc" }}
       onClick={() => onSelectAuction(auction._id)}
-      className="flex items-center gap-4 p-3 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 w-full"
+      className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 cursor-pointer border-b border-gray-200 w-full transition-all duration-200 ease-in-out"
     >
-      <div className="relative w-20 h-20 flex-shrink-0">
+      <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
         <Image
           src={images[currentImage]}
           alt={auction.product?.title || "Auction Item"}
           fill
-          className="object-cover rounded-lg"
+          className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
         />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-800 font-medium">
             {auction.lotNumber}
           </Badge>
-          <Badge className={`${isLive ? "bg-green-600" : "bg-gray-600"} text-white`}>
+          <Badge className={`${isLive ? "bg-emerald-600" : "bg-slate-600"} text-white font-medium`}>
             {isLive ? "LIVE" : auction.status}
           </Badge>
         </div>
-        <h3 className="text-sm font-medium text-gray-900 truncate">
+        <h3 className="text-base font-semibold text-slate-900 truncate mb-1">
           {auction.product?.title || "Untitled Auction"}
         </h3>
-        <div className="text-sm text-gray-500">
-          ${(auction.currentBid || auction.startingBid || 0).toLocaleString()}
+        <div className="text-sm text-slate-600">
+          <span className="font-medium">${(auction.currentBid || auction.startingBid || 0).toLocaleString()}</span>
           {auction.status === "ACTIVE" && (
-            <span className="text-xs text-gray-400 ml-2">
+            <span className="text-xs text-slate-400 ml-2">
               ({auction.bids?.length || 0} bids)
             </span>
           )}
@@ -73,21 +73,21 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
   }
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden">
-      <div className="p-4 border-b border-gray-200 mt-[120px]">
-        <div className="text-xl font-bold text-gray-800 mb-2">{catalogName}</div>
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>{itemsRemaining} of {totalItems} Lots Remaining</span>
-          <div className="h-2 w-32 bg-gray-200 rounded-full overflow-hidden">
+    <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">
+      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
+        <div className="text-2xl font-bold text-slate-900 mb-3">{catalogName}</div>
+        <div className="flex items-center justify-between text-sm text-slate-600">
+          <span className="font-medium">{itemsRemaining} of {totalItems} Lots Remaining</span>
+          <div className="h-2.5 w-32 bg-slate-200 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-green-600 rounded-full" 
+              className="h-full bg-emerald-600 rounded-full transition-all duration-500 ease-out" 
               style={{ width: `${(itemsRemaining / totalItems) * 100}%` }}
             />
           </div>
         </div>
       </div>
 
-      <div className="h-[calc(100vh-130px)] overflow-y-auto">
+      <div className="h-[calc(100vh-120px)] overflow-y-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
         <div className="divide-y divide-gray-200">
           {auctions.map((auction) => (
             <AuctionCard

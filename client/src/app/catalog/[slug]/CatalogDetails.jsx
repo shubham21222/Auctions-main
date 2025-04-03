@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { Heart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { useState, useEffect, useCallback } from "react";
@@ -11,7 +9,6 @@ import config from "@/app/config_BASE_URL";
 import BillingDetailsModal from "./BillingDetailsModal";
 import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
 
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
@@ -49,8 +46,6 @@ export default function CatalogDetails({
 }) {
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
-  const [adminMessages, setAdminMessages] = useState([]);
-  const [clerkMessages, setClerkMessages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -58,12 +53,10 @@ export default function CatalogDetails({
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
-  const [loadedImages, setLoadedImages] = useState({});
-  const isClerk = useSelector((state) => state.auth.isClerk);
 
   const fetchUserName = useCallback(
     async (id) => {
-      if (!token || !id) return 'Anonymous';
+      if (!token || !id) return "Anonymous";
       if (userCache[id]) return userCache[id];
 
       try {
@@ -73,12 +66,12 @@ export default function CatalogDetails({
         });
         if (!response.ok) throw new Error("Failed to fetch user");
         const data = await response.json();
-        const userName = data.items?.name || 'Anonymous';
+        const userName = data.items?.name || "Anonymous";
         setUserCache((prev) => ({ ...prev, [id]: userName }));
         return userName;
       } catch (error) {
         console.error(`Error fetching user ${id}:`, error.message);
-        return 'Anonymous';
+        return "Anonymous";
       }
     },
     [token, userCache]
@@ -137,11 +130,7 @@ export default function CatalogDetails({
       const updatedBids = await Promise.all(
         auction.bids.map(async (bid) => {
           const bidderName = await fetchUserName(bid.bidder);
-          return {
-            ...bid,
-            bidderName: typeof bidderName === 'object' ? bidderName.name : bidderName,
-            isClerk: bid.bidder?.isClerk || false
-          };
+          return { ...bid, bidderName };
         })
       );
       setBidsWithUsernames(updatedBids);
@@ -150,39 +139,15 @@ export default function CatalogDetails({
     updateBidsWithUsernames();
   }, [auction?.bids, fetchUserName]);
 
-  useEffect(() => {
-    if (messages && Array.isArray(messages)) {
-      const formattedMessages = messages.map((msg) => ({
-        message: typeof msg.message === "string" ? msg.message : msg.actionType || "Update",
-        bidTime: msg.timestamp || new Date(),
-        sender: typeof msg.sender === "string" ? msg.sender : msg.sender?.name || "Admin",
-        type: "message",
-        isClerk: msg.sender?.isClerk || false,
-      }));
-
-      // Separate admin and clerk messages
-      const adminMsgs = formattedMessages.filter(msg => !msg.isClerk);
-      const clerkMsgs = formattedMessages.filter(msg => msg.isClerk);
-
-      setAdminMessages(adminMsgs);
-      setClerkMessages(clerkMsgs);
-    } else {
-      setAdminMessages([]);
-      setClerkMessages([]);
-    }
-  }, [messages]);
-
   const handleJoinAuction = async () => {
-    if (!userId) {
-      toast.error("Please log in to join the auction");
-      return;
-    }
-    if (!auction || !auction._id) {
-      toast.error("No active auction available");
-      return;
-    }
-    if (!termsAccepted) {
-      toast.error("You must accept the terms and conditions to join the auction.");
+    if (!userId || !auction || !auction._id || !termsAccepted) {
+      toast.error(
+        !userId
+          ? "Please log in to join the auction"
+          : !auction || !auction._id
+          ? "No active auction available"
+          : "You must accept the terms and conditions"
+      );
       return;
     }
 
@@ -193,7 +158,7 @@ export default function CatalogDetails({
           "Content-Type": "application/json",
           Authorization: `${token}`,
         },
-        body: JSON.stringify({ auctionId: auction._id, userId: userId }),
+        body: JSON.stringify({ auctionId: auction._id, userId }),
       });
 
       const data = await response.json();
@@ -203,10 +168,8 @@ export default function CatalogDetails({
 
       setIsJoined(true);
       toast.success("Successfully joined the auction!");
-      
       if (socket && socket.connected) {
-        socket.emit("joinAuction", { auctionId: auction._id, userId });
-      socket.emit("getAuctionData", { auctionId: auction._id });
+        socket.emit("joinAuction", { auctionId: auction._id });
       }
     } catch (error) {
       console.error("Join Auction Error:", error);
@@ -222,31 +185,6 @@ export default function CatalogDetails({
     onBidNowClick(nextBid);
   };
 
-  const handleBillingUpdate = (normalizedDetails) => {
-    setIsBillingModalOpen(false);
-    setHasBillingDetails(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    setIsPaymentModalOpen(false);
-    setHasPaymentMethod(true);
-    toast.success("Payment method added successfully!");
-  };
-
-  const handleImageError = (index) => {
-    if (!imageErrors[index]) {
-      console.log(`Image ${index} failed to load, marking as errored`);
-      setImageErrors((prev) => ({ ...prev, [index]: true }));
-    }
-  };
-
-  const handleImageLoad = (index) => {
-    if (!loadedImages[index]) {
-      console.log(`Image ${index} loaded successfully`);
-      setLoadedImages((prev) => ({ ...prev, [index]: true }));
-    }
-  };
-
   const combinedHistory = [
     ...bidsWithUsernames.map((bid) => ({
       type: "bid",
@@ -255,227 +193,197 @@ export default function CatalogDetails({
       bidTime: bid.bidTime,
       bidType: bid.bidType,
     })),
-    ...adminMessages.map((msg) => ({
+    ...(messages || []).map((msg) => ({
       type: "message",
-      message: msg.message,
-      bidTime: msg.bidTime,
-      sender: msg.sender,
+      message: msg.message || msg.actionType || "Update",
+      bidTime: msg.timestamp || new Date(),
+      sender: msg.sender || "Admin",
+      bidType: msg.bidType || "message",
     })),
-  ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime)); // Sort descending
+    {
+      type: "lot",
+      message: `Lot ${auction?.lotNumber || "N/A"} is now open for bidding`,
+      bidTime: auction?.startDate || new Date(),
+      sender: "System",
+      bidType: "lot_open",
+    }
+  ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime));
 
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
   return (
     <div className="flex gap-6 h-[calc(100vh-120px)]">
-      {/* Main Content - Left Side */}
-      <div className="flex-1 flex flex-col">
-        {/* Scrollable Content */}
+      <div className="flex-1 max-w-[800px] flex flex-col">
         <div className="flex-1 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="flex flex-col gap-8 pb-6">
-              {/* Product Image */}
-              <div className="relative aspect-square rounded-lg overflow-hidden">
+              <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 shadow-md">
                 {productImages.length > 0 ? (
                   imageErrors[selectedImageIndex] ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
-                      <div className="text-center">
-                        <p>Image not available</p>
-                        <p className="text-xs mt-2">Please try another image</p>
-                      </div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
+                      Image not available
                     </div>
                   ) : (
                     <Image
                       src={productImages[selectedImageIndex]}
                       alt={`${product?.name || "Product"} main image`}
                       fill
-                      className="object-contain"
-                      priority={selectedImageIndex === 0}
-                      onError={() => handleImageError(selectedImageIndex)}
-                      onLoad={() => handleImageLoad(selectedImageIndex)}
-                      unoptimized={true}
+                      className="object-contain transition-transform duration-300 hover:scale-105"
+                      onError={(e) => {
+                        console.error(`Failed to load image: ${productImages[selectedImageIndex]}`);
+                        setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
+                      }}
+                      onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
                     />
                   )
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
                     No images available
                   </div>
                 )}
               </div>
 
-              {/* Thumbnails */}
               {productImages.length > 1 && (
-                <div className="flex gap-4 overflow-x-auto py-2">
+                <div className="flex gap-4 overflow-x-auto py-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                   {productImages.map((image, index) => (
                     <button
                       key={index}
-                      onClick={() => !imageErrors[index] && setSelectedImageIndex(index)}
-                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${
-                        selectedImageIndex === index ? "border-gray-900" : "border-gray-200"
-                      } ${imageErrors[index] ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                        selectedImageIndex === index ? "border-emerald-600 shadow-md" : "border-slate-200 hover:border-slate-300"
+                      }`}
                     >
                       {imageErrors[index] ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                          <span className="text-xs text-gray-500">Error</span>
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
+                          Error
                         </div>
                       ) : (
-                        <Image
-                          src={image}
-                          alt={`Thumbnail ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          onError={() => handleImageError(index)}
-                          onLoad={() => handleImageLoad(index)}
-                          unoptimized={true}
-                        />
+                        <Image src={image} alt={`Thumbnail ${index + 1}`} fill className="object-cover" unoptimized={true} />
                       )}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Product Info */}
               <div className="space-y-6 px-2">
-                <div className="space-y-4">
-                  <h1 className="text-2xl font-bold text-gray-900">{product?.name}</h1>
-                  <div className="prose prose-gray max-w-none">
-                    <p className="text-gray-600 whitespace-pre-wrap">{renderHTML(product?.description)}</p>
-                  </div>
-                </div>
-
-                {/* Additional Details if any */}
-                {product?.details && (
-                  <div className="space-y-4 border-t pt-6">
-                    <h2 className="text-xl font-semibold text-gray-900">Additional Details</h2>
-                    <div className="prose prose-gray max-w-none">
-                      <p className="text-gray-600 whitespace-pre-wrap">{renderHTML(product?.details)}</p>
-                    </div>
-                  </div>
-                )}
+                <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
+                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">{renderHTML(product?.description)}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sticky Bid Section */}
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 mt-auto">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg">
           <div className="max-w-3xl mx-auto space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Current Bid</span>
-                <span className="text-3xl font-bold text-gray-900">
+                <span className="text-slate-600 font-medium">Current Bid</span>
+                <span className="text-4xl font-bold text-slate-900">
                   ${(auction?.currentBid || 0).toLocaleString()}
                 </span>
               </div>
-              {/* <div className="mt-2 text-sm text-gray-500 flex justify-between">
-                <span>Est. ${auction?.estimatedValue?.min?.toLocaleString()} - ${auction?.estimatedValue?.max?.toLocaleString()}</span>
-                <span>{auction?.bids?.length || 0} bids</span>
-              </div> */}
-                </div>
-                
+            </div>
+
             {auction && auction.status === "ACTIVE" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {!isJoined ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         id="terms"
                         checked={termsAccepted}
                         onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                        className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
                       />
-                      <label htmlFor="terms" className="text-sm text-gray-600">
-                        I agree to the terms and conditions of this auction
+                      <label htmlFor="terms" className="text-sm text-slate-600">
+                        I agree to the terms and conditions
                       </label>
                     </div>
-                    <button
+                    <Button
                       onClick={handleJoinAuction}
                       disabled={!termsAccepted}
-                      className={`w-full py-3 px-4 rounded-lg ${
+                      className={`w-full py-6 text-lg font-medium transition-all duration-200 ${
                         termsAccepted 
-                          ? 'bg-gray-900 text-white hover:bg-gray-800' 
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      } transition-colors`}
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
                     >
                       Join Auction to Bid
-                    </button>
+                    </Button>
                   </div>
                 ) : (
-                  <button
-                    onClick={handleBidSubmit}
-                    className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors"
+                  <Button 
+                    onClick={handleBidSubmit} 
+                    className="w-full py-6 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
                   >
                     Place Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
-                  </button>
-                )}
-                  </div>
+                  </Button>
                 )}
               </div>
-            </div>
-        </div>
-
-      {/* Bid History Panel - Right Side */}
-      <div className="w-[350px] bg-white rounded-lg shadow-sm p-6">
-        <div className="h-full flex flex-col">
-          <h2 className="text-xl font-semibold mb-4">Bid History</h2>
-          
-          {/* Live Status */}
-          {auction?.status === "ACTIVE" && (
-            <div className="bg-green-50 text-green-800 px-4 py-2 rounded-lg mb-4 flex items-center">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-              Live Auction
-                </div>
-              )}
-
-          {/* Bid List */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="space-y-3">
-              {auction?.bids?.map((bid, index) => (
-                      <div 
-                        key={index} 
-                        className={`p-3 rounded-lg ${
-                          bid.bidder === userId 
-                      ? 'bg-gray-50 border border-gray-200' 
-                      : 'bg-white border border-gray-100'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-medium text-gray-900">
-                            ${bid.bidAmount.toLocaleString()}
-                          </span>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {bid.bidderName || 'Anonymous'}
-                        </p>
-                      </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(bid.bidTime).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {(!auction?.bids || auction.bids.length === 0) && (
-                <div className="text-center text-gray-500 py-4">
-                  No bids yet
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Modals */}
-      <BillingDetailsModal 
-        isOpen={isBillingModalOpen} 
-        onClose={() => setIsBillingModalOpen(false)} 
-        onBillingUpdate={handleBillingUpdate} 
+      <div className="w-[400px] bg-white rounded-xl shadow-sm">
+        <div className="h-full flex flex-col">
+          <div className="p-6 border-b border-slate-200">
+            <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
+            {auction?.status === "ACTIVE" && (
+              <div className="mt-4 bg-emerald-50 text-emerald-800 px-4 py-3 rounded-lg flex items-center">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+                Live Auction
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+            {combinedHistory.map((entry, index) => (
+              <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
+                {entry.type === "bid" ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
+                      {/* <span className="text-sm text-slate-500">by {entry.bidderName || "Anonymous"}</span> */}
+                    </div>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
+                  </div>
+                ) : entry.type === "lot" ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-emerald-600 font-medium">{entry.message}</span>
+                    </div>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-emerald-600">{entry.message}</span>
+                      <span className="text-xs text-slate-500">— {entry.sender}</span>
+                    </div>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+            {combinedHistory.length === 0 && (
+              <div className="text-center text-slate-500 py-4">No activity yet</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <BillingDetailsModal
+        isOpen={isBillingModalOpen}
+        onClose={() => setIsBillingModalOpen(false)}
+        onBillingUpdate={() => setHasBillingDetails(true)}
       />
-      <PaymentMethodModal 
-        isOpen={isPaymentModalOpen} 
-        onClose={() => setIsPaymentModalOpen(false)} 
-        onSuccess={handlePaymentSuccess}
-        token={token} 
+      <PaymentMethodModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onSuccess={() => setHasPaymentMethod(true)}
+        token={token}
       />
     </div>
   );

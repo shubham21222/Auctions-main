@@ -7,14 +7,20 @@ const CatalogCard = ({ catalog, onClick }) => {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const firstAuction = catalog.auctions[0];
+  const firstAuction = catalog?.auctions?.[0];
 
   useEffect(() => {
     if (firstAuction?.product?.image?.[0]) {
       const url = firstAuction.product.image[0];
+      console.log("Setting image URL for CatalogCard:", url);
       setImageUrl(url);
       setImageError(false);
       setIsImageLoaded(false);
+    } else {
+      console.log("No valid image found for CatalogCard, using placeholder");
+      setImageUrl("/placeholder.svg");
+      setImageError(false);
+      setIsImageLoaded(true); // Placeholder doesn’t need loading
     }
   }, [firstAuction]);
 
@@ -23,8 +29,8 @@ const CatalogCard = ({ catalog, onClick }) => {
       className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
       onClick={onClick}
     >
-      <h3 className="text-lg font-semibold mb-2">{catalog.catalogName}</h3>
-      {firstAuction && (
+      <h3 className="text-lg font-semibold mb-2">{catalog?.catalogName || "Unnamed Catalog"}</h3>
+      {firstAuction ? (
         <>
           <div className="relative w-full h-[200px] mb-4 bg-gray-100 rounded-lg overflow-hidden">
             {imageError ? (
@@ -36,17 +42,20 @@ const CatalogCard = ({ catalog, onClick }) => {
             ) : (
               <>
                 <Image
-                  src={imageUrl || "/placeholder.svg"}
+                  src={imageUrl}
                   alt={firstAuction?.product?.title || "Catalog Preview"}
                   fill
                   className={`object-contain transition-opacity duration-300 ${
-                    isImageLoaded ? 'opacity-100' : 'opacity-0'
+                    isImageLoaded ? "opacity-100" : "opacity-0"
                   }`}
-                  onError={() => {
-                    console.error("Image load error for:", imageUrl);
+                  onError={(e) => {
+                    console.error("Image load error for CatalogCard:", imageUrl, e);
                     setImageError(true);
                   }}
-                  onLoad={() => setIsImageLoaded(true)}
+                  onLoad={() => {
+                    console.log("Image loaded successfully for CatalogCard:", imageUrl);
+                    setIsImageLoaded(true);
+                  }}
                   unoptimized={true}
                   loading="lazy"
                 />
@@ -63,10 +72,12 @@ const CatalogCard = ({ catalog, onClick }) => {
               Total Auctions: {catalog.auctions.length}
             </p>
             <p className="text-sm text-gray-600">
-              Live Auctions: {catalog.auctions.filter(a => a.status === "ACTIVE" && a.auctionType === "LIVE").length}
+              Live Auctions: {catalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length}
             </p>
           </div>
         </>
+      ) : (
+        <p className="text-sm text-gray-500">No auctions available</p>
       )}
     </div>
   );
