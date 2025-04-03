@@ -185,16 +185,14 @@ const AuctionControls = ({
             Add Competitive Bid
           </button>
           <button
-            onClick={() => handleSetMode(auctionMode === "online" ? "competitor" : "online")}
-            className={`px-4 py-2 rounded ${
-              auctionMode === "online" ? "bg-gray-200 text-gray-700" : "bg-blue-600 text-white hover:bg-blue-700"
-            } cursor-pointer`}
+            onClick={() => handleAdminAction("NEXT_LOT")}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
           >
-            {auctionMode === "online" ? "Switch to Competitor" : "Switch to Online"}
+            Next Lot
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => handleAdminAction("PASS")}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 cursor-pointer"
@@ -206,12 +204,6 @@ const AuctionControls = ({
             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer"
           >
             Sold
-          </button>
-          <button
-            onClick={() => handleAdminAction("NEXT_LOT")}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
-          >
-            Next Lot
           </button>
         </div>
 

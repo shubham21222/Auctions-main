@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Clock, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import LoginModal from "@/app/components/LoginModal";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 
 export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
@@ -18,6 +19,13 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+  const cardRef = useRef(null);
+
+  // 3D effect values
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useTransform(y, [-100, 100], [30, -30]);
+  const rotateY = useTransform(x, [-100, 100], [-30, 30]);
 
   const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
   const startDate = new Date(auction.startDateRaw);
@@ -64,10 +72,31 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const timeDiffInDays = endDate ? (endDate - new Date()) / (1000 * 60 * 60 * 24) : Infinity;
   const timerColor = timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
 
+  const handleMouseMove = (event) => {
+    const rect = cardRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const rotateXValue = (event.clientY - centerY) / 10;
+    const rotateYValue = (event.clientX - centerX) / 10;
+
+    x.set(rotateYValue);
+    y.set(rotateXValue);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
   const handleBidNowClick = () => {
     if (isEnded) {
       toast.info(`This auction has ended. Winner: ${auction.winner || "N/A"}`);
-      router.push(`/catalog/${auction.id}`);
+      window.open(
+        `/catalog/${auction.id}`,
+        '_blank',
+        'width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes'
+      );
       return;
     }
 
@@ -83,7 +112,11 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
-    router.push(`/catalog/${auction.id}`);
+    window.open(
+      `/catalog/${auction.id}`,
+      '_blank',
+      'width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes'
+    );
   };
 
   const handleOpenSignup = () => {
@@ -93,9 +126,22 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
 
   return (
     <>
-      <Card className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] min-h-0">
+      <motion.div
+        ref={cardRef}
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+          transform: "perspective(1000px)",
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] min-h-0"
+      >
         <div className="absolute right-4 top-4 z-10">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => setIsLiked(!isLiked)}
             className="rounded-full bg-white/80 p-2 backdrop-blur-sm transition-all hover:scale-110"
           >
@@ -104,20 +150,27 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                 isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
               }`}
             />
-          </button>
+          </motion.button>
         </div>
         <CardHeader className="p-0">
           <div className="relative aspect-[4/3] overflow-hidden">
-            <Image
-              src={auction.images[currentImage] || "/placeholder.svg"}
-              alt={auction.title}
-              fill
-              className="object-cover transition-all duration-700 group-hover:scale-105"
-            />
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Image
+                src={auction.images[currentImage] || "/placeholder.svg"}
+                alt={auction.title}
+                fill
+                className="object-cover transition-all duration-700 group-hover:scale-105"
+              />
+            </motion.div>
             <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-6">
               {auction.images.map((image, index) => (
-                <button
+                <motion.button
                   key={index}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setCurrentImage(index)}
                   className={`relative h-16 w-16 overflow-hidden rounded-md transition-all hover:scale-105 ${
                     currentImage === index
@@ -131,7 +184,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                     fill
                     className="object-cover"
                   />
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -152,9 +205,12 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
               {isLive ? "Live" : isTimed ? "Timed" : auction.auctionType}
             </Badge>
           </div>
-          <h3 className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold">
+          <motion.h3 
+            className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold"
+            whileHover={{ scale: 1.02 }}
+          >
             {auction.title}
-          </h3>
+          </motion.h3>
           <div className="mt-2 text-sm text-muted-foreground">
             <span className="font-medium text-luxury-charcoal">Catalog:</span> {auction.catalogName}
           </div>
@@ -175,12 +231,15 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
             </div>
           )}
           {auction.currentBid && (
-            <div className="mt-4 flex items-baseline gap-2">
+            <motion.div 
+              className="mt-4 flex items-baseline gap-2"
+              whileHover={{ scale: 1.02 }}
+            >
               <span className="text-sm text-muted-foreground">Current Bid:</span>
               <span className="text-lg font-semibold text-luxury-charcoal">
                 ${auction.currentBid.toLocaleString()}
               </span>
-            </div>
+            </motion.div>
           )}
           {isEnded && (
             <div className="mt-4 text-center text-red-500 font-semibold">
@@ -189,19 +248,24 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           )}
         </CardContent>
         <CardFooter className="p-6 pt-0">
-          <Button
-            className="group/btn relative w-full overflow-hidden bg-black transition-all hover:bg-luxury-gold"
-            size="lg"
-            onClick={handleBidNowClick}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <span className="relative z-10 flex items-center text-white gap-2">
-              Bid Now
-              <span className="text-sm opacity-70">→</span>
-            </span>
-            <div className="absolute inset-0 -z-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] bg-[0%_0%] transition-all duration-500 group-hover/btn:bg-[100%_100%]" />
-          </Button>
+            <Button
+              className="group/btn relative w-full overflow-hidden bg-black transition-all hover:bg-luxury-gold"
+              size="lg"
+              onClick={handleBidNowClick}
+            >
+              <span className="relative z-10 flex items-center text-white gap-2">
+                Bid Now
+                <span className="text-sm opacity-70">→</span>
+              </span>
+              <div className="absolute inset-0 -z-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] bg-[0%_0%] transition-all duration-500 group-hover/btn:bg-[100%_100%]" />
+            </Button>
+          </motion.div>
         </CardFooter>
-      </Card>
+      </motion.div>
 
       <LoginModal
         isOpen={isLoginModalOpen}

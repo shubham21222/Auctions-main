@@ -24,14 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import config from "@/app/config_BASE_URL";
+import BidHistoryModal from "./components/BidHistoryModal";
 
 const EndedAuctionsPage = () => {
   const [winners, setWinners] = useState([]);
@@ -46,6 +40,7 @@ const EndedAuctionsPage = () => {
   const token = auth?.token;
 
   const shippingStatuses = [
+    { value: "PENDING", label: "Pending", color: "bg-gray-100 text-gray-800" },
     { value: "SHIPPED", label: "Shipped", color: "bg-blue-100 text-blue-800" },
     { value: "DELIVERED", label: "Delivered", color: "bg-green-100 text-green-800" },
     { value: "CANCELED", label: "Canceled", color: "bg-red-100 text-red-800" },
@@ -54,10 +49,10 @@ const EndedAuctionsPage = () => {
   ];
 
   useEffect(() => {
-    const fetchWinners = async () => {
+    const fetchAuctions = async () => {
       try {
         const response = await axios.get(
-          `${config.baseURL}/v1/api/auction/getWinners`,
+          `${config.baseURL}/v1/api/auction/bulk`,
           {
             headers: {
               Authorization: `${token}`,
@@ -65,22 +60,29 @@ const EndedAuctionsPage = () => {
           }
         );
 
-        if (response.data.success) {
-          setWinners(response.data.winners);
+        if (response.data.status) {
+          // Flatten the catalogs array and filter for ended auctions
+          const allAuctions = response.data.items.catalogs.flatMap(
+            (catalog) => catalog.auctions
+          );
+          const endedAuctions = allAuctions.filter(
+            (auction) => auction.status === "ENDED"
+          );
+          setWinners(endedAuctions);
         } else {
-          setError("Failed to fetch winners");
-          toast.error("Failed to fetch winners");
+          setError("Failed to fetch auctions");
+          toast.error("Failed to fetch auctions");
         }
       } catch (err) {
         setError(err.message);
-        toast.error("Error fetching winners");
+        toast.error("Error fetching auctions");
       } finally {
         setLoading(false);
       }
     };
 
     if (token) {
-      fetchWinners();
+      fetchAuctions();
     }
   }, [token]);
 
@@ -179,7 +181,7 @@ const EndedAuctionsPage = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Ended Auctions</h1>
         <Badge variant="secondary" className="text-sm">
-          Total Winners: {winners.length}
+          Total Auctions: {winners.length}
         </Badge>
       </div>
 
@@ -193,7 +195,6 @@ const EndedAuctionsPage = () => {
                   <TableHead>Winner</TableHead>
                   <TableHead>Winning Bid</TableHead>
                   <TableHead>Bid Time</TableHead>
-                  <TableHead>IP Address</TableHead>
                   <TableHead>Shipping Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -236,31 +237,26 @@ const EndedAuctionsPage = () => {
                     <TableCell>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {winner.winner.name}
+                          {winner.winner?.name || "No winner"}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {winner.winner.email}
+                          {winner.winner?.email || "N/A"}
                         </p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="font-semibold text-green-600">
-                        ${winner.winningBid.bidAmount}
+                        ${winner.currentBid}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-gray-600">
-                        {format(new Date(winner.winningBid.bidTime), "PPp")}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600">
-                        {winner.winningBid.ipAddress}
+                        {format(new Date(winner.endDate), "PPp")}
                       </span>
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={winner.shipping_status || "SHIPPED"}
+                        value={winner.shipping_status || "PENDING"}
                         onValueChange={(value) => handleStatusUpdate(winner._id, value)}
                         disabled={updating}
                         onClick={(e) => e.stopPropagation()}
@@ -287,7 +283,7 @@ const EndedAuctionsPage = () => {
                 ))}
                 {winners.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <p className="text-gray-500">No ended auctions found</p>
                     </TableCell>
                   </TableRow>
@@ -298,84 +294,12 @@ const EndedAuctionsPage = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-5xl my-8">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
-              Bid History - {selectedAuction?.product.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-700 mb-2">Auction Details</h3>
-                <p className="text-sm text-gray-600">Starting Price: ${selectedAuction?.product.price}</p>
-                <p className="text-sm text-gray-600">Current Bid: ${selectedAuction?.currentBid}</p>
-                <p className="text-sm text-gray-600">Total Bids: {selectedAuction?.bids?.length || 0}</p>
-                <p className="text-sm text-gray-600">Lot Number: {selectedAuction?.lotNumber}</p>
-                <p className="text-sm text-gray-600">Category: {selectedAuction?.category?.name}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-700 mb-2">Winner Details</h3>
-                <p className="text-sm text-gray-600">Name: {selectedAuction?.winner?.name}</p>
-                <p className="text-sm text-gray-600">Email: {selectedAuction?.winner?.email}</p>
-                <p className="text-sm text-gray-600">Winning Time: {selectedAuction?.winnerBidTime ? format(new Date(selectedAuction.winnerBidTime), "PPp") : "N/A"}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-gray-700">Bid History</h3>
-              <div className="max-h-[400px] overflow-y-auto">
-                {loadingBids ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                  </div>
-                ) : selectedAuction?.bids?.length > 0 ? (
-                  selectedAuction.bids.map((bid, index) => (
-                    <div
-                      key={bid._id}
-                      className={`p-4 rounded-lg border ${
-                        bid.bidAmount === selectedAuction.currentBid
-                          ? "bg-green-50 border-green-200"
-                          : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            Bid #{selectedAuction.bids.length - index}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Amount: ${bid.bidAmount}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Time: {format(new Date(bid.bidTime), "PPp")}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Bidder: {bid.bidder.name.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Email: {bid.bidder.name.email}
-                          </p>
-                        </div>
-                        {bid.bidAmount === selectedAuction.currentBid && (
-                          <Badge className="bg-green-100 text-green-800">
-                            Winning Bid
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No bid history available
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <BidHistoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedAuction={selectedAuction}
+        loadingBids={loadingBids}
+      />
     </div>
   );
 };

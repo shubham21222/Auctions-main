@@ -326,59 +326,55 @@ export default function CatalogPage() {
   return (
     <>
       <Header />
-      {auction && (
-        <CatalogCarousel
-          catalogName={auction.catalog}
-          auctions={allAuctions.filter((a) => a.catalog === auction.catalog && a._id !== auction._id)}
-          currentTime={new Date()}
-          onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
-        />
-      )}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-luxury-gold opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600 opacity-10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="fixed top-24 right-6 z-50 w-80 max-h-[50vh] overflow-y-auto scrollbar-thin scrollbar-thumb-luxury-gold scrollbar-track-gray-800">
-          {notifications.map((notification) => (
-            <Notification key={notification.id} type={notification.type} message={notification.message} />
-          ))}
-        </div>
-
-        <div className="container mx-auto px-6 py-2 mt-[80px] relative z-10">
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden border border-luxury-gold/20"
-          >
-            <CatalogHeader
-              productName={headerData.productName}
-              auctionEndDate={headerData.endDate}
-              lotNumber={headerData.lotNumber}
-              catalog={headerData.catalog}
-              status={headerData.status}
-            />
-            <div className="grid grid-cols-1 gap-10 p-8">
-              <CatalogDetails
-                product={product}
-                auction={auction}
-                loading={loading}
-                onBidNowClick={handlePlaceBid}
-                token={token}
-                notifications={notifications}
-                socket={socket}
-                messages={auction?.messages || []}
-                isJoined={isJoined}
-                setIsJoined={setIsJoined}
-                userId={userId}
+      <div className="flex min-h-screen bg-gray-50 mt-[70px]">
+        {auction && (
+          <CatalogCarousel
+            catalogName={auction.catalog}
+            auctions={allAuctions.filter((a) => a.catalog === auction.catalog && a._id !== auction._id)}
+            currentTime={new Date()}
+            onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
+          />
+        )}
+        
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          transition={{ duration: 0.8 }} 
+          className="flex-1 min-h-screen relative ml-[350px]"
+        >
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+            >
+              <CatalogHeader
+                productName={headerData.productName}
+                auctionEndDate={headerData.endDate}
+                lotNumber={headerData.lotNumber}
+                catalog={headerData.catalog}
+                status={headerData.status}
               />
-            </div>
-            <CatalogFooter />
-          </motion.div>
-        </div>
-      </motion.div>
+              
+              <div className="mt-6">
+                <CatalogDetails
+                  product={product}
+                  auction={auction}
+                  loading={loading}
+                  onBidNowClick={handlePlaceBid}
+                  token={token}
+                  notifications={notifications}
+                  socket={socket}
+                  messages={auction?.messages || []}
+                  isJoined={isJoined}
+                  setIsJoined={setIsJoined}
+                  userId={userId}
+                />
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
       <Footer />
     </>
   );

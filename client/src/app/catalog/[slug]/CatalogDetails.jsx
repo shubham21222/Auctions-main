@@ -11,6 +11,7 @@ import config from "@/app/config_BASE_URL";
 import BillingDetailsModal from "./BillingDetailsModal";
 import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
@@ -57,6 +58,7 @@ export default function CatalogDetails({
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const [loadedImages, setLoadedImages] = useState({});
   const isClerk = useSelector((state) => state.auth.isClerk);
 
   const fetchUserName = useCallback(
@@ -184,31 +186,7 @@ export default function CatalogDetails({
       return;
     }
 
-    if (hasBillingDetails === null || hasPaymentMethod === null) {
-      toast.error("Checking account details, please wait...");
-      return;
-    }
-
-    if (!hasBillingDetails) {
-      setIsBillingModalOpen(true);
-      toast.error("Please provide your billing details to join the auction.");
-      return;
-    }
-
-    if (!hasPaymentMethod) {
-      setIsPaymentModalOpen(true);
-      toast.error("Please add a payment method to join the auction.");
-      return;
-    }
-
     try {
-      if (!socket || !socket.connected) {
-        toast.error("Connection to auction server lost. Please refresh the page.");
-        return;
-      }
-
-      socket.emit("joinAuction", { auctionId: auction._id, userId });
-
       const response = await fetch(`${config.baseURL}/v1/api/auction/join`, {
         method: "POST",
         headers: {
@@ -225,7 +203,11 @@ export default function CatalogDetails({
 
       setIsJoined(true);
       toast.success("Successfully joined the auction!");
+      
+      if (socket && socket.connected) {
+        socket.emit("joinAuction", { auctionId: auction._id, userId });
       socket.emit("getAuctionData", { auctionId: auction._id });
+      }
     } catch (error) {
       console.error("Join Auction Error:", error);
       toast.error(error.message || "Failed to join auction.");
@@ -234,28 +216,9 @@ export default function CatalogDetails({
 
   const handleBidSubmit = (e) => {
     e.preventDefault();
-
-    if (hasBillingDetails === null || hasPaymentMethod === null) {
-      toast.error("Checking account details, please wait...");
-      return;
-    }
-
-    if (!hasBillingDetails) {
-      setIsBillingModalOpen(true);
-      toast.error("Please provide your billing details to place a bid.");
-      return;
-    }
-
-    if (!hasPaymentMethod) {
-      setIsPaymentModalOpen(true);
-      toast.error("Please add a payment method to place a bid.");
-      return;
-    }
-
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
     const nextBid = currentBid + bidIncrement;
-
     onBidNowClick(nextBid);
   };
 
@@ -271,7 +234,17 @@ export default function CatalogDetails({
   };
 
   const handleImageError = (index) => {
-    setImageErrors((prev) => ({ ...prev, [index]: true }));
+    if (!imageErrors[index]) {
+      console.log(`Image ${index} failed to load, marking as errored`);
+      setImageErrors((prev) => ({ ...prev, [index]: true }));
+    }
+  };
+
+  const handleImageLoad = (index) => {
+    if (!loadedImages[index]) {
+      console.log(`Image ${index} loaded successfully`);
+      setLoadedImages((prev) => ({ ...prev, [index]: true }));
+    }
   };
 
   const combinedHistory = [
@@ -293,263 +266,217 @@ export default function CatalogDetails({
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-10">
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div className="group relative bg-white rounded-lg shadow-md overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="relative aspect-square bg-gray-200 animate-shimmer" />
-            <div className="p-4 space-y-2">
-              <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
-              <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
-            </div>
-          </motion.div>
-        </div>
-      ) : product ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <motion.div initial={{ x: -50 }} animate={{ x: 0 }} className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="md:w-28 flex md:flex-col gap-3 overflow-x-auto md:overflow-x-visible">
+    <div className="flex gap-6 h-[calc(100vh-120px)]">
+      {/* Main Content - Left Side */}
+      <div className="flex-1 flex flex-col">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex flex-col gap-8 pb-6">
+              {/* Product Image */}
+              <div className="relative aspect-square rounded-lg overflow-hidden">
                 {productImages.length > 0 ? (
-                  productImages.map((image, index) => (
-                    <motion.div
-                      key={index}
-                      whileHover={{ scale: 1.05 }}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 ${
-                        selectedImageIndex === index ? "border-luxury-gold" : "border-gray-200"
-                      }`}
-                    >
-                      {imageErrors[index] ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm text-center p-2">
-                          Image not available
-                        </div>
-                      ) : (
-                        <Image
-                          src={image}
-                          alt={`${product.name || "Product"} image ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          onError={() => handleImageError(index)}
-                          priority={index === 0}
-                        />
-                      )}
-                    </motion.div>
-                  ))
+                  imageErrors[selectedImageIndex] ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
+                      <div className="text-center">
+                        <p>Image not available</p>
+                        <p className="text-xs mt-2">Please try another image</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Image
+                      src={productImages[selectedImageIndex]}
+                      alt={`${product?.name || "Product"} main image`}
+                      fill
+                      className="object-contain"
+                      priority={selectedImageIndex === 0}
+                      onError={() => handleImageError(selectedImageIndex)}
+                      onLoad={() => handleImageLoad(selectedImageIndex)}
+                      unoptimized={true}
+                    />
+                  )
                 ) : (
-                  <div className="relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 rounded-lg shadow-md bg-gray-100 flex items-center justify-center text-gray-500 text-sm text-center">
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
                     No images available
                   </div>
                 )}
               </div>
-              <div className="flex-1">
-                {productImages.length > 0 ? (
-                  <motion.div whileHover={{ scale: 1.02 }} className="relative aspect-[4/3] overflow-hidden rounded-xl shadow-lg border border-luxury-gold/20">
-                    {imageErrors[selectedImageIndex] ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-lg">Image not available</div>
-                    ) : (
-                      <>
+
+              {/* Thumbnails */}
+              {productImages.length > 1 && (
+                <div className="flex gap-4 overflow-x-auto py-2">
+                  {productImages.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => !imageErrors[index] && setSelectedImageIndex(index)}
+                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${
+                        selectedImageIndex === index ? "border-gray-900" : "border-gray-200"
+                      } ${imageErrors[index] ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      {imageErrors[index] ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                          <span className="text-xs text-gray-500">Error</span>
+                        </div>
+                      ) : (
                         <Image
-                          src={productImages[selectedImageIndex]}
-                          alt={`${product.name || "Product"} main image`}
+                          src={image}
+                          alt={`Thumbnail ${index + 1}`}
                           fill
                           className="object-cover"
-                          priority
-                          onError={() => handleImageError(selectedImageIndex)}
+                          onError={() => handleImageError(index)}
+                          onLoad={() => handleImageLoad(index)}
+                          unoptimized={true}
                         />
-                        <div className="absolute bottom-4 right-4 bg-luxury-gold/80 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                          {selectedImageIndex + 1} / {productImages.length}
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                ) : (
-                  <div className="relative aspect-[4/3] rounded-xl shadow-lg border border-luxury-gold/20 bg-gray-100 flex items-center justify-center text-gray-500 text-lg">No images available</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Product Info */}
+              <div className="space-y-6 px-2">
+                <div className="space-y-4">
+                  <h1 className="text-2xl font-bold text-gray-900">{product?.name}</h1>
+                  <div className="prose prose-gray max-w-none">
+                    <p className="text-gray-600 whitespace-pre-wrap">{renderHTML(product?.description)}</p>
+                  </div>
+                </div>
+
+                {/* Additional Details if any */}
+                {product?.details && (
+                  <div className="space-y-4 border-t pt-6">
+                    <h2 className="text-xl font-semibold text-gray-900">Additional Details</h2>
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-600 whitespace-pre-wrap">{renderHTML(product?.details)}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
-          </motion.div>
-
-          <motion.div initial={{ x: 50 }} animate={{ x: 0 }} className="space-y-6">
-            <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
-              <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-luxury-gold" /> Product Description
-              </h3>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">{renderHTML(product.description)}</p>
-            </div>
-
-            {auction && (
-              <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
-                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Sparkles className="w-6 h-6 text-luxury-gold" /> Place Your Bid
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Current Bid</span>
-                    <span className="text-2xl font-bold text-luxury-gold">${(auction.currentBid || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Next Bid</span>
-                    <span className="text-lg font-semibold text-gray-900">${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Bid Increment</span>
-                    <span className="text-lg font-semibold text-gray-900">${getBidIncrement(auction.currentBid || 0).toLocaleString()}</span>
-                  </div>
-                  {!isJoined ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="terms"
-                          checked={termsAccepted}
-                          onChange={(e) => setTermsAccepted(e.target.checked)}
-                          className="h-5 w-5 text-luxury-gold border-gray-300 rounded focus:ring-luxury-gold"
-                        />
-                        <label htmlFor="terms" className="text-gray-600 text-sm">
-                          I agree to the <Link href="/terms" className="text-luxury-gold hover:underline">Terms and Conditions</Link>
-                        </label>
-                      </div>
-                      <Button
-                        onClick={handleJoinAuction}
-                        className="w-full bg-luxury-gold text-white hover:bg-luxury-gold/90 transition-all duration-300"
-                        disabled={!termsAccepted || hasBillingDetails === null || hasPaymentMethod === null}
-                      >
-                        Join Auction
-                      </Button>
-                    </div>
-                  ) : auction.status !== "ENDED" ? (
-                    <form onSubmit={handleBidSubmit} className="space-y-4">
-                      <div className="text-center text-gray-600">
-                        Click to place a bid of <span className="font-semibold text-luxury-gold">${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}</span>
-                      </div>
-                      <Button type="submit" className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300" disabled={auction.status === "ENDED"}>
-                        Place Bid
-                      </Button>
-                    </form>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </motion.div>
+          </div>
         </div>
-      ) : (
-        <p className="text-center text-gray-500 text-lg">No product data available.</p>
-      )}
 
-      {auction && (
-        <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-lg shadow-md border border-luxury-gold/10">
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-luxury-gold" /> Auction Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
+        {/* Sticky Bid Section */}
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 mt-auto">
+          <div className="max-w-3xl mx-auto space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Auction Type</span>
-                <span className="font-semibold text-gray-900">{auction.auctionType || "N/A"}</span>
+                  <span className="text-gray-600">Current Bid</span>
+                <span className="text-3xl font-bold text-gray-900">
+                  ${(auction?.currentBid || 0).toLocaleString()}
+                </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Status</span>
-                <span className={`font-semibold ${auction.status === "ACTIVE" ? "text-green-600" : "text-red-600"}`}>{auction.status || "N/A"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Lot Number</span>
-                <span className="font-semibold text-luxury-gold">{auction.lotNumber || "N/A"}</span>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Start Date</span>
-                <span className="font-semibold text-gray-900">{auction.startDate ? new Date(auction.startDate).toLocaleString() : "N/A"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">End Date</span>
-                <span className="font-semibold text-gray-900">{auction.endDate ? new Date(auction.endDate).toLocaleString() : "N/A"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Participants</span>
-                <span className="font-semibold text-gray-900">{Array.isArray(auction.participants) ? auction.participants.length : 0}</span>
-              </div>
-            </div>
-
-            {/* Messages Section */}
-            <div className="col-span-2 space-y-4">
-              <h4 className="text-lg font-semibold text-gray-800">Auction Messages</h4>
-              
-              {/* Admin Messages */}
-              {adminMessages.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-600">Admin Updates</h5>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {adminMessages.map((msg, index) => (
-                      <div key={index} className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-sm text-blue-800">{msg.message}</p>
-                        <p className="text-xs text-blue-600 mt-1">
-                          {new Date(msg.bidTime).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    ))}
+              {/* <div className="mt-2 text-sm text-gray-500 flex justify-between">
+                <span>Est. ${auction?.estimatedValue?.min?.toLocaleString()} - ${auction?.estimatedValue?.max?.toLocaleString()}</span>
+                <span>{auction?.bids?.length || 0} bids</span>
+              </div> */}
+                </div>
+                
+            {auction && auction.status === "ACTIVE" && (
+              <div className="space-y-3">
+                {!isJoined ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="terms"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                      />
+                      <label htmlFor="terms" className="text-sm text-gray-600">
+                        I agree to the terms and conditions of this auction
+                      </label>
+                    </div>
+                    <button
+                      onClick={handleJoinAuction}
+                      disabled={!termsAccepted}
+                      className={`w-full py-3 px-4 rounded-lg ${
+                        termsAccepted 
+                          ? 'bg-gray-900 text-white hover:bg-gray-800' 
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      } transition-colors`}
+                    >
+                      Join Auction to Bid
+                    </button>
                   </div>
+                ) : (
+                  <button
+                    onClick={handleBidSubmit}
+                    className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors"
+                  >
+                    Place Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
+                  </button>
+                )}
+                  </div>
+                )}
+              </div>
+            </div>
+        </div>
+
+      {/* Bid History Panel - Right Side */}
+      <div className="w-[350px] bg-white rounded-lg shadow-sm p-6">
+        <div className="h-full flex flex-col">
+          <h2 className="text-xl font-semibold mb-4">Bid History</h2>
+          
+          {/* Live Status */}
+          {auction?.status === "ACTIVE" && (
+            <div className="bg-green-50 text-green-800 px-4 py-2 rounded-lg mb-4 flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              Live Auction
                 </div>
               )}
 
-              {/* Clerk Messages */}
-              {clerkMessages.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-600">Clerk Updates</h5>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {clerkMessages.map((msg, index) => (
-                      <div key={index} className="bg-green-50 p-3 rounded-lg">
-                        <p className="text-sm text-green-800">{msg.message}</p>
-                        <p className="text-xs text-green-600 mt-1">
-                          {new Date(msg.bidTime).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Bid History */}
-              {bidsWithUsernames.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-600">Bid History</h5>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {bidsWithUsernames.map((bid, index) => (
+          {/* Bid List */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-3">
+              {auction?.bids?.map((bid, index) => (
                       <div 
                         key={index} 
                         className={`p-3 rounded-lg ${
                           bid.bidder === userId 
-                            ? 'bg-luxury-gold/10' 
-                            : bid.isClerk 
-                              ? 'bg-green-50' 
-                              : 'bg-gray-50'
-                        }`}
-                      >
-                        <p className="text-sm">
-                          <span className="font-medium">
-                            {bid.bidderName || 'Anonymous'}
-                          </span>
-                          {bid.isClerk ? ' (Clerk)' : ''}
-                          {' placed a bid of '}
-                          <span className="font-bold text-luxury-gold">
+                      ? 'bg-gray-50 border border-gray-200' 
+                      : 'bg-white border border-gray-100'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-medium text-gray-900">
                             ${bid.bidAmount.toLocaleString()}
                           </span>
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(bid.bidTime).toLocaleTimeString()}
+                      <p className="text-sm text-gray-500 mt-1">
+                        {bid.bidderName || 'Anonymous'}
                         </p>
                       </div>
-                    ))}
+                    <span className="text-xs text-gray-400">
+                      {new Date(bid.bidTime).toLocaleTimeString()}
+                    </span>
                   </div>
+                </div>
+              ))}
+
+              {(!auction?.bids || auction.bids.length === 0) && (
+                <div className="text-center text-gray-500 py-4">
+                  No bids yet
                 </div>
               )}
             </div>
           </div>
-        </motion.div>
-      )}
+        </div>
+      </div>
 
-      <BillingDetailsModal isOpen={isBillingModalOpen} onClose={() => setIsBillingModalOpen(false)} onBillingUpdate={handleBillingUpdate} />
-      <PaymentMethodModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} onSuccess={handlePaymentSuccess} token={token} />
-    </motion.div>
+      {/* Modals */}
+      <BillingDetailsModal 
+        isOpen={isBillingModalOpen} 
+        onClose={() => setIsBillingModalOpen(false)} 
+        onBillingUpdate={handleBillingUpdate} 
+      />
+      <PaymentMethodModal 
+        isOpen={isPaymentModalOpen} 
+        onClose={() => setIsPaymentModalOpen(false)} 
+        onSuccess={handlePaymentSuccess}
+        token={token} 
+      />
+    </div>
   );
 }

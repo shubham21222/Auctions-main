@@ -1,11 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const CatalogCard = ({ catalog, onClick }) => {
   const [imageError, setImageError] = useState(false);
-  const firstAuction = catalog.auctions[0]; // Use first auction for preview
+  const [imageUrl, setImageUrl] = useState("");
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const firstAuction = catalog.auctions[0];
+
+  useEffect(() => {
+    if (firstAuction?.product?.image?.[0]) {
+      const url = firstAuction.product.image[0];
+      setImageUrl(url);
+      setImageError(false);
+      setIsImageLoaded(false);
+    }
+  }, [firstAuction]);
 
   return (
     <div
@@ -18,23 +29,43 @@ const CatalogCard = ({ catalog, onClick }) => {
           <div className="relative w-full h-[200px] mb-4 bg-gray-100 rounded-lg overflow-hidden">
             {imageError ? (
               <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
-                Image not available
+                <div className="text-center">
+                  <p>Image not available</p>
+                </div>
               </div>
             ) : (
-              <Image
-                src={firstAuction.product?.image?.[0] || "/placeholder.svg"}
-                alt={firstAuction.product?.title || "Catalog Preview"}
-                fill
-                className="object-contain"
-                onError={() => setImageError(true)}
-                priority
-              />
+              <>
+                <Image
+                  src={imageUrl || "/placeholder.svg"}
+                  alt={firstAuction?.product?.title || "Catalog Preview"}
+                  fill
+                  className={`object-contain transition-opacity duration-300 ${
+                    isImageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  onError={() => {
+                    console.error("Image load error for:", imageUrl);
+                    setImageError(true);
+                  }}
+                  onLoad={() => setIsImageLoaded(true)}
+                  unoptimized={true}
+                  loading="lazy"
+                />
+                {!isImageLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </>
             )}
           </div>
-          <p className="text-sm">Auctions: {catalog.auctions.length}</p>
-          <p className="text-sm">
-            Live Auctions: {catalog.auctions.filter(a => a.status === "ACTIVE" && a.auctionType === "LIVE").length}
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm text-gray-600">
+              Total Auctions: {catalog.auctions.length}
+            </p>
+            <p className="text-sm text-gray-600">
+              Live Auctions: {catalog.auctions.filter(a => a.status === "ACTIVE" && a.auctionType === "LIVE").length}
+            </p>
+          </div>
         </>
       )}
     </div>

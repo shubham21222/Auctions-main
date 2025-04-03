@@ -104,10 +104,11 @@ export function ProductCard({ image, name, price, slug }) {
       {/* Add the Toaster component for displaying notifications */}
       {/* <Toaster position="top-right" /> */}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -10 }}
+      <Link href={`/products/${slug}`}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -10 }}
         className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -156,7 +157,7 @@ export function ProductCard({ image, name, price, slug }) {
                 exit={{ opacity: 0, y: 20 }}
                 className="absolute bottom-0 left-0 right-0 p-4"
               >
-                <Link href={`/products/${slug}`}> {/* Navigate to the product page */}
+                <Link href={`/products/${slug}`}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -180,8 +181,9 @@ export function ProductCard({ image, name, price, slug }) {
             </span>
             <span className="text-sm text-gray-400">USD</span>
           </div>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      </Link>
     </>
   )
 }
