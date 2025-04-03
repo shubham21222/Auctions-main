@@ -56,7 +56,7 @@ const AdminLiveAuctionPage = () => {
   useEffect(() => {
     if (currentAuction) {
       const liveAuction = liveAuctions.find((a) => a.id === currentAuction._id);
-      if (liveAuction) {
+      if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(currentAuction)) { // Prevent redundant updates
         setCurrentAuction((prev) => ({
           ...prev,
           currentBid: liveAuction.currentBid,
@@ -79,9 +79,9 @@ const AdminLiveAuctionPage = () => {
       setJoinedRooms((prev) => new Set(prev).add(currentAuction._id));
     }
 
-    const handleWatcherUpdate = ({ auctionId, watchers }) => {
-      if (auctionId === currentAuction._id) {
-        setWatchers(watchers);
+    const handleWatcherUpdate = ({ auctionId, watchers: newWatchers }) => {
+      if (auctionId === currentAuction._id && newWatchers !== watchers) {
+        setWatchers(newWatchers);
       }
     };
 
@@ -132,7 +132,7 @@ const AdminLiveAuctionPage = () => {
     };
 
     return cleanup;
-  }, [socket, currentAuction?._id, joinAuction, getAuctionData, getBidIncrement]);
+  }, [socket, currentAuction?._id, joinAuction, getAuctionData, getBidIncrement, watchers]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -176,14 +176,12 @@ const AdminLiveAuctionPage = () => {
           toast.success("No more lots in this catalog.");
         }
       } else if (actionType === "SOLD") {
-        // Use the auction ID in the payload
         const auctionId = currentAuction._id;
 
         if (!auctionId) {
           throw new Error("Auction ID not found in current auction");
         }
 
-        // Call API to update auction status to "ENDED" with auction ID in payload
         const response = await fetch(`${config.baseURL}/v1/api/auction/update/${auctionId}`, {
           method: "POST",
           headers: {
@@ -191,8 +189,8 @@ const AdminLiveAuctionPage = () => {
             Authorization: `${token}`,
           },
           body: JSON.stringify({
-            auctionId: auctionId, // Pass auction ID in payload
-            status: "ENDED", // Set status to "ENDED"
+            auctionId: auctionId,
+            status: "ENDED",
           }),
         });
 
@@ -202,9 +200,7 @@ const AdminLiveAuctionPage = () => {
         }
 
         toast.success("Auction marked as sold and status updated to ENDED");
-        fetchAuctionData(); // Refresh data after updating
-      } else if (actionType === "PASS") {
-        fetchAuctionData(); // Refresh data after passing
+        fetchAuctionData();
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);
@@ -299,7 +295,7 @@ const AdminLiveAuctionPage = () => {
                 onBack={handleBackToCatalogs}
                 placeBid={placeBid}
                 getBidIncrement={getBidIncrement}
-                token={token} // Pass token to AuctionControls
+                token={token}
               />
             </div>
           </div>

@@ -72,7 +72,7 @@ export default function Dashboard() {
   const maxVisitors = Math.max(...visitorsValues) * 1.1; // Add some padding above max
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8 p-2">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

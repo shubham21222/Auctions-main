@@ -85,18 +85,22 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard/orders", icon: Truck, label: "Orders" },
     { href: "/Admin/Admin-dashboard/users", icon: Users, label: "Users" },
     { href: "/Admin/Admin-dashboard/Sellers", icon: UserCheck, label: "Sellers" },
-    // { href: "/Admin/Admin-dashboard/live-auctions", icon: UserCheck, label: "Live Auctions" },
     { href: "/Admin/Admin-dashboard/brands", icon: Store, label: "Brands" },
     { href: "/Admin/Admin-dashboard/artists", icon: Palette, label: "Artists" },
-    { href: "/Admin/Admin-dashboard/role-permissions", icon: UserCheck, label: "Role Permissions" },
-    { href: "/Admin/Admin-dashboard/register-for-role", icon: UserCheck, label: "Register For Role" },
-
+    // { href: "/Admin/Admin-dashboard/role-permissions", icon: UserCheck, label: "Roles" },
+    // { href: "/Admin/Admin-dashboard/register-for-role", icon: UserCheck, label: "Staff" },
   ];
 
   const auctionSubItems = [
     { href: "/Admin/Admin-dashboard/auctions", label: "Auctions" },
     { href: "/Admin/Admin-dashboard/live-auctions", label: "Live Auctions" },
     { href: "/Admin/Admin-dashboard/ended", label: "Ended Auctions" },
+  ];
+
+  const userSubItems = [
+    { href: "/Admin/Admin-dashboard/users", label: "Users" },
+    { href: "/Admin/Admin-dashboard/role-permissions", label: "Roles" },
+    { href: "/Admin/Admin-dashboard/register-for-role", label: "Staff" },
   ];
 
   return (
@@ -133,18 +137,59 @@ export default function DashboardLayout({ children }) {
 
         {/* Navigation */}
         <nav className="p-4 space-y-2">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <motion.div
-                whileHover={{ scale: 1.05, x: 5 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center w-full p-3 rounded-xl text-gray-200 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
-              >
-                <item.icon className="h-5 w-5 mr-3 text-indigo-300" />
-                {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
-              </motion.div>
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (item.href === "/Admin/Admin-dashboard/users") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <DropdownMenuTrigger asChild>
+                    <motion.div
+                      whileHover={{ scale: 1.05, x: 5 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center w-full p-3 rounded-xl text-gray-200 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
+                    >
+                      <Users className="h-5 w-5 mr-3 text-indigo-300" />
+                      {!isCollapsed && (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-sm font-medium">Users</span>
+                          <ChevronDown className="h-4 w-4 text-indigo-300" />
+                        </div>
+                      )}
+                    </motion.div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-full bg-gray-800 text-white shadow-lg rounded-lg p-2 border border-gray-700"
+                    align="start"
+                    side="bottom"
+                    sideOffset={5}
+                  >
+                    {userSubItems.map((subItem) => (
+                      <DropdownMenuItem
+                        key={subItem.href}
+                        asChild
+                        className="p-2 hover:bg-indigo-600 rounded-md transition-all duration-200"
+                      >
+                        <Link href={subItem.href}>
+                          <span className="text-sm">{subItem.label}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+            return (
+              <Link key={item.href} href={item.href}>
+                <motion.div
+                  whileHover={{ scale: 1.05, x: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center w-full p-3 rounded-xl text-gray-200 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+                >
+                  <item.icon className="h-5 w-5 mr-3 text-indigo-300" />
+                  {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                </motion.div>
+              </Link>
+            );
+          })}
 
           {/* Auctions Dropdown */}
           <DropdownMenu>
@@ -205,7 +250,7 @@ export default function DashboardLayout({ children }) {
               size="icon"
               className="text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-200"
             >
-              <Bell className="h-5 w-5" />
+              {/* <Bell className="h-5 w-5" /> */}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -214,8 +259,10 @@ export default function DashboardLayout({ children }) {
                   className="relative h-10 w-10 rounded-full hover:bg-indigo-50 transition-all duration-200"
                 >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src="/avatars/01.png" alt="@username" />
-                    <AvatarFallback className="bg-indigo-500 text-white">AD</AvatarFallback>
+                    <AvatarImage src="/avatars/01.png" alt={auth?.user?.name} />
+                    <AvatarFallback className="bg-indigo-500 text-white">
+                      {auth?.user?.name?.charAt(0) || "A"}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -226,14 +273,14 @@ export default function DashboardLayout({ children }) {
               >
                 <DropdownMenuLabel className="font-normal p-2">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-semibold text-gray-800">Admin User</p>
-                    <p className="text-xs text-gray-500">admin@example.com</p>
+                    <p className="text-sm font-semibold text-gray-800">{auth?.user?.name || "Admin User"}</p>
+                    <p className="text-xs text-gray-500">{auth?.user?.email || "admin@example.com"}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-200" />
                 <DropdownMenuItem className="flex items-center p-2 hover:bg-indigo-50 rounded-md transition-all duration-200">
-                  <Settings className="mr-2 h-4 w-4 text-gray-600" />
-                  <span className="text-gray-800">Settings</span>
+                  {/* <Settings className="mr-2 h-4 w-4 text-gray-600" />
+                  <span className="text-gray-800">Settings</span> */}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleLogout}
@@ -251,7 +298,7 @@ export default function DashboardLayout({ children }) {
         {/* Main Content Area */}
         <main className="flex-1 p-6 overflow-auto bg-gray-50">
           <Card className="border-0 shadow-lg rounded-xl bg-white">
-            <CardContent className="p-6">{children}</CardContent>
+            <CardContent className="p-2">{children}</CardContent>
           </Card>
         </main>
       </div>

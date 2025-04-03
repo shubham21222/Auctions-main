@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
+import { useState, useCallback } from "react";
 
 const AuctionControls = ({
   currentAuction,
@@ -19,8 +20,29 @@ const AuctionControls = ({
   onBack,
   placeBid,
   getBidIncrement,
-  token, // Ensure token is received
+  token,
 }) => {
+  const [isPlacingBid, setIsPlacingBid] = useState(false);
+
+  const waitForSocketConnection = useCallback(
+    (callback, maxAttempts = 10, interval = 500) => {
+      let attempts = 0;
+      const checkConnection = () => {
+        if (socket && socket.connected) {
+          callback();
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(checkConnection, interval);
+        } else {
+          toast.error("Failed to reconnect to server. Please refresh the page.");
+          setIsPlacingBid(false);
+        }
+      };
+      checkConnection();
+    },
+    [socket]
+  );
+
   if (!currentAuction) return null;
 
   const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
@@ -37,39 +59,47 @@ const AuctionControls = ({
       toast.error("Socket or token not available.");
       return;
     }
-    if (!socket.connected) {
-      toast.error("Socket is not connected. Please refresh the page.");
-      return;
-    }
 
-    try {
-      console.log("Placing competitive bid via socket:", { auctionId: currentAuction._id, bidAmount: nextBid });
-      await placeBid(currentAuction._id, "competitor", nextBid);
+    setIsPlacingBid(true);
 
-      // Additional API call for competitive bid
-      console.log("Placing competitive bid via API:", { auctionId: currentAuction._id, bidAmount: nextBid });
-      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${token}`,
-        },
-        body: JSON.stringify({
-          auctionId: currentAuction._id,
-          bidAmount: nextBid.toString(),
-          bidType: "competitor", // Explicitly set bidType for API
-        }),
-      });
+    const placeBidWithSocket = async () => {
+      try {
+        console.log("Placing competitive bid via socket:", { auctionId: currentAuction._id, bidAmount: nextBid });
+        await placeBid(currentAuction._id, "competitor", nextBid);
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to place competitive bid via API");
+        console.log("Placing competitive bid via API:", { auctionId: currentAuction._id, bidAmount: nextBid });
+        const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+          body: JSON.stringify({
+            auctionId: currentAuction._id,
+            bidAmount: nextBid.toString(),
+            bidType: "competitor",
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to place competitive bid via API");
+        }
+
+        toast.success(`Competitive bid placed at $${nextBid.toLocaleString()}`);
+      } catch (error) {
+        console.error("Error placing competitive bid:", error);
+        toast.error(error.message || "Failed to place competitive bid");
+      } finally {
+        setIsPlacingBid(false);
       }
+    };
 
-      toast.success(`Competitive bid placed at $${nextBid.toLocaleString()}`);
-    } catch (error) {
-      console.error("Error placing competitive bid:", error);
-      toast.error(error.message || "Failed to place competitive bid");
+    if (!socket.connected) {
+      toast.warn("Socket disconnected. Attempting to reconnect...");
+      waitForSocketConnection(placeBidWithSocket);
+    } else {
+      placeBidWithSocket();
     }
   };
 
@@ -180,9 +210,10 @@ const AuctionControls = ({
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button
             onClick={handleAddCompetitorBid}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
+            disabled={isPlacingBid}
+            className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer ${isPlacingBid ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            Add Competitive Bid
+            {isPlacingBid ? "Placing Bid..." : "Add Competitive Bid"}
           </button>
           <button
             onClick={() => handleSetMode(auctionMode === "online" ? "competitor" : "online")}
@@ -196,7 +227,7 @@ const AuctionControls = ({
 
         <div className="grid grid-cols-3 gap-2">
           <button
-            onClick={() => handleAdminAction("PASS")}
+            onClick={() => handleAdminAction("NEXT_LOT")} // Changed from "PASS" to "NEXT_LOT"
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 cursor-pointer"
           >
             Pass
@@ -209,7 +240,7 @@ const AuctionControls = ({
           </button>
           <button
             onClick={() => handleAdminAction("NEXT_LOT")}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700 cursor-pointer"
           >
             Next Lot
           </button>
