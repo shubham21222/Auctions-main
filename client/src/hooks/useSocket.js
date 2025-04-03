@@ -29,7 +29,7 @@ export const useSocket = () => {
     const initializeSocket = () => {
       if (!userId || !token || socket) return;
 
-      socketIo = io(`${config.baseURL}`, {
+      socketIo = io("https://bid.nyelizabeth.com", {
         query: { userId },
         auth: { token, isAdmin: isAdmin || false },
         transports: ["websocket"],
@@ -184,7 +184,7 @@ export const useSocket = () => {
 
       const onAuctionData = (data) => {
         if (data._id === auctionId || data.auctionId === auctionId) {
-          console.log(`Received auction data for ${auctionId}:`, data);
+          // console.log(`Received auction data for ${auctionId}:`, data);
           socket.off("auctionData", onAuctionData);
           socket.off("auctionDataError", onError);
           resolve(data);
