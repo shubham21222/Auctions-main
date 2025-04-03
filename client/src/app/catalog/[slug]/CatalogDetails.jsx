@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
 import BillingDetailsModal from "./BillingDetailsModal";
@@ -53,6 +53,7 @@ export default function CatalogDetails({
   const [hasBillingDetails, setHasBillingDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const updatesRef = useRef(null);
 
   const fetchUserName = useCallback(
     async (id) => {
@@ -206,8 +207,14 @@ export default function CatalogDetails({
       bidTime: auction?.startDate || new Date(),
       sender: "System",
       bidType: "lot_open",
-    }
+    },
   ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime));
+
+  useEffect(() => {
+    if (updatesRef.current) {
+      updatesRef.current.scrollTop = updatesRef.current.scrollHeight;
+    }
+  }, [combinedHistory]);
 
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
@@ -231,7 +238,7 @@ export default function CatalogDetails({
                       className="object-contain transition-transform duration-300 hover:scale-105"
                       onError={(e) => {
                         console.error(`Failed to load image: ${productImages[selectedImageIndex]}`);
-                        setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
+                        setImageОшибки((prev) => ({ ...prev, [selectedImageIndex]: true }));
                       }}
                       onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
                     />
@@ -304,8 +311,8 @@ export default function CatalogDetails({
                       onClick={handleJoinAuction}
                       disabled={!termsAccepted}
                       className={`w-full py-6 text-lg font-medium transition-all duration-200 ${
-                        termsAccepted 
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        termsAccepted
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                           : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     >
@@ -313,8 +320,8 @@ export default function CatalogDetails({
                     </Button>
                   </div>
                 ) : (
-                  <Button 
-                    onClick={handleBidSubmit} 
+                  <Button
+                    onClick={handleBidSubmit}
                     className="w-full py-6 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
                   >
                     Place Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
@@ -326,8 +333,8 @@ export default function CatalogDetails({
         </div>
       </div>
 
-      <div className="w-[400px] bg-white rounded-xl shadow-sm">
-        <div className="h-full flex flex-col">
+      <div className="w-[400px]  border-slate-500 bg-white rounded-xl shadow-sm">
+        <div className="h-[500px] flex flex-col">
           <div className="p-6 border-b border-slate-200">
             <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
             {auction?.status === "ACTIVE" && (
@@ -338,14 +345,16 @@ export default function CatalogDetails({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-            {combinedHistory.map((entry, index) => (
+          <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
+            {combinedHistory.slice().reverse().map((entry, index) => (
               <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
                 {entry.type === "bid" ? (
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
-                      {/* <span className="text-sm text-slate-500">by {entry.bidderName || "Anonymous"}</span> */}
+                      <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
+                        {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
+                      </span>
                     </div>
                     <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
                   </div>

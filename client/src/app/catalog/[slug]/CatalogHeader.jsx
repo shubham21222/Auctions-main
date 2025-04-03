@@ -75,8 +75,8 @@ export default function CatalogHeader({
               transition={{ delay: 0.3 }}
               className="flex items-center gap-2 text-sm text-luxury-charcoal/80"
             >
-              <Clock className="h-4 w-4 text-luxury-gold" />
-              <span>Ends: {formatDate(auctionEndDate)}</span>
+              {/* <Clock className="h-4 w-4 text-luxury-gold" /> */}
+              {/* <span>Ends: {formatDate(auctionEndDate)}</span> */}
             </motion.div>
 
             <motion.div

@@ -8,7 +8,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const AuctionCard = ({ auction, currentTime, onSelectAuction }) => {
+const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) => {
   const [currentImage] = useState(0);
   const images = auction.product?.image || ["/placeholder.svg"];
 
@@ -39,8 +39,8 @@ const AuctionCard = ({ auction, currentTime, onSelectAuction }) => {
           <Badge variant="secondary" className="bg-slate-100 text-slate-800 font-medium">
             {auction.lotNumber}
           </Badge>
-          <Badge className={`${isLive ? "bg-emerald-600" : "bg-slate-600"} text-white font-medium`}>
-            {isLive ? "LIVE" : auction.status}
+          <Badge className={`${isLive && isFirstActive ? "bg-emerald-600" : "bg-slate-600"} text-white font-medium`}>
+            {isLive && isFirstActive ? "LIVE" : auction.status}
           </Badge>
         </div>
         <h3 className="text-base font-semibold text-slate-900 truncate mb-1">
@@ -72,6 +72,12 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
     return null;
   }
 
+  // Find the first active auction
+  const firstActiveAuctionId = auctions.find(auction => {
+    const startDate = new Date(auction.startDate);
+    return auction.status === "ACTIVE" && startDate <= currentTime;
+  })?._id;
+
   return (
     <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">
       <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
@@ -95,6 +101,7 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
               auction={auction}
               currentTime={currentTime}
               onSelectAuction={onSelectAuction}
+              isFirstActive={auction._id === firstActiveAuctionId}
             />
           ))}
         </div>
