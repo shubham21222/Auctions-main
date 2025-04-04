@@ -1995,7 +1995,7 @@ export const createBulkAuction = async (req, res) => {
         // ✅ Bulk insert auctions (Better Performance)
         const createdAuctions = await auctionModel.insertMany(auctions);
 
-        return created(res, `${createdAuctions.length} auctions created successfully.`, createdAuctions);
+        return created(res, `${createdAuctions.length} auctions created successfully.`);
     } catch (error) {
         console.error("Bulk auction creation error:", error);
         return unknownError(res, error.message);
