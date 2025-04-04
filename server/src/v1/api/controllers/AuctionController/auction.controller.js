@@ -1666,6 +1666,46 @@ export const getUserAuctions = async (req, res) => {
     }
 };
 
+
+export const deleteCatalog = async (req, res) => {
+    const { catalogs } = req.body; // Expecting an array of catalog names
+
+    if (!Array.isArray(catalogs) || catalogs.length === 0) {
+        return badRequest(res, "An array of catalog names is required.");
+    }
+
+    try {
+        // Step 1: Find all auctions with the specified catalogs
+        const auctionsToDelete = await auctionModel.find({ catalog: { $in: catalogs } });
+
+        if (auctionsToDelete.length === 0) {
+            return badRequest(res, "No catalogs found with the provided names.");
+        }
+
+        // Step 2: Extract auctionProduct and auctionCategory IDs
+        const auctionProductIds = auctionsToDelete.map(auction => auction.auctionProduct).filter(Boolean);
+        const auctionCategoryIds = auctionsToDelete.map(auction => auction.auctioncategory).filter(Boolean);
+
+        // Step 3: Delete related data
+        const productDeleteResult = await AuctionProduct.deleteMany({ _id: { $in: auctionProductIds } });
+        const categoryDeleteResult = await AuctionCategoryModel.deleteMany({ _id: { $in: auctionCategoryIds } });
+
+        // Step 4: Delete the auctions themselves
+        const auctionDeleteResult = await auctionModel.deleteMany({ catalog: { $in: catalogs } });
+
+        return success(res, "Successfully deleted", {
+            auctionsDeleted: auctionDeleteResult.deletedCount,
+            auctionProductsDeleted: productDeleteResult.deletedCount,
+            auctionCategoriesDeleted: categoryDeleteResult.deletedCount
+        });
+
+    } catch (error) {
+        console.error("Error deleting catalogs and related data:", error);
+        return unknownError(res, error.message);
+    }
+};
+
+
 // Dashboard //
 
 
