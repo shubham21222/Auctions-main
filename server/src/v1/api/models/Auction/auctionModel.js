@@ -7,6 +7,7 @@ const bidSchema = new mongoose.Schema({
     ipAddress:{type:String, required: false, default:""},
     paid: { type: Boolean, default: false }, // Tracks payment status
     Role:{ type: String},
+    bidType:{type: String, required: false}
 });
 
 const auctionSchema = new mongoose.Schema(
