@@ -1950,7 +1950,7 @@ export const createBulkAuction = async (req, res) => {
                 product = await AuctionProduct.create({
                     title: productData.title || "Untitled Product",
                     description: req.body.desciptions || "No description",
-                    price: product.price || 0,
+                    price: productData.price || 0,
                     estimateprice: productData.estimateprice || "N/A",
                     offerAmount: productData.offerAmount || 0,
                     onlinePrice: productData.onlinePrice || 0,
