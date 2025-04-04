@@ -25,14 +25,15 @@ app.use((req, res, next) => {
     return next(); // Skip express.json() for webhooks
   }
   // Increase JSON payload limit to 10MB
-  express.json({ limit: '10mb' })(req, res, next);
+  express.json({ limit: '100mb' })(req, res, next);
 });
 
 app.use(cors());
 app.options('*', cors());
 
 // Increase URL-encoded payload limit to 10MB
-app.use(urlencoded({ extended: false, limit: '10mb' }));
+// ✅ Increase URL-encoded payload limit to 100MB
+app.use(urlencoded({ extended: true, limit: '100mb' }));
 app.use(compression());
 
 // Serve uploaded files statically
