@@ -265,6 +265,49 @@ export const initializeSocket = (server) => {
       }
     });
 
+
+    // ✅ Updated remove_latest_bid Event Handler
+socket.on('remove_latest_bid', async ({ auctionId }) => {
+  try {
+      const auction = await Auction.findById(auctionId);
+      if (!auction || auction.bids.length === 0) {
+          return socket.emit("error", { message: "No bids to remove." });
+      }
+      const removedBid = auction.bids.pop();
+
+      const lastBid = auction.bids[auction.bids.length - 1] || null;
+      auction.currentBid = lastBid ? lastBid.bidAmount : 0;
+      auction.currentBidder = lastBid ? lastBid.bidder : null;
+
+      await auction.save();
+
+      io.in(auctionId).emit("latestBidRemoved", {
+          auctionId,
+          removedBid,
+          updatedBids: auction.bids,
+          currentBid: auction.currentBid,
+          currentBidder: auction.currentBidder
+      });
+
+      io.in(auctionId).emit("bidUpdate", {
+          auctionId,
+          bidAmount: auction.currentBid,
+          bidderId: auction.currentBidder,
+          minBidIncrement: auction.minBidIncrement,
+          bids: auction.bids,
+          bidType: lastBid?.bidType || "online",
+          Role: lastBid?.Role || "user",
+          timestamp: new Date()
+      });
+
+      console.log(`Latest bid removed from auction ${auctionId}`);
+  } catch (error) {
+      console.error("Error removing the latest bid:", error);
+      socket.emit("error", { message: "Failed to remove the latest bid." });
+  }
+});
+
+
     socket.on("getAuctionData", async ({ auctionId }) => {
       try {
         if (!mongoose.Types.ObjectId.isValid(auctionId)) {
