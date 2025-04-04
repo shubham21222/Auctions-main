@@ -17,6 +17,8 @@ import {
     invalid,
     onError
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
+import { sendEmail } from "../../Utils/sendEmail.js"
+import {generateEmailContent} from "../../Utils/generateEmailContent.js"
 import mongoose from "mongoose"
 
 
@@ -393,6 +395,24 @@ export const updateOrderStatus = async (req, res) => {
         if (!updatedOrder) {
             return notFound(res, "Order not found");
         }
+
+        if(paymentStatus === "SUCCEEDED"){
+            const user  = await User.findById(updatedOrder.user).select('email name mobile')
+            const products = await Product.find({_id: { $in: updatedOrder.products.map(product => product.product)}}).select('name offerAmount image')
+                // Send email to user
+
+        if(user && user.email ){
+              const emailContent = generateEmailContent(user, updatedOrder, products);
+
+                await sendEmail({
+                    to: user.email,
+                    subject: 'Order Placed Successfully',
+                    html: emailContent
+                });
+        }
+
+        }
+        
 
         return success(res, "Order status updated successfully", updatedOrder);
     } catch (error) {
