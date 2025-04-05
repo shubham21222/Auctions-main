@@ -1,6 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
@@ -10,7 +15,7 @@ import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import LoginModal from "@/app/components/LoginModal";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import BillingPaymentModal from "@/app/components/BillingPaymentModal";
 import config from "@/app/config_BASE_URL";
 
@@ -19,28 +24,46 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [isLiked, setIsLiked] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] = useState(false);
+  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] =
+    useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const cardRef = useRef(null);
   const auth = useSelector((state) => state.auth);
-  const { token, user } = auth;
+  const { token, user, billingDetails, paymentMethodId } = auth;
 
+  // 3D effect values
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotateX = useTransform(y, [-100, 100], [30, -30]);
   const rotateY = useTransform(x, [-100, 100], [-30, 30]);
 
+  // Add carousel interval ref
   const carouselInterval = useRef(null);
 
-  useEffect(() => {
-    if (!auction || auction.auctionType !== "TIMED" || !auction.endDateRaw) {
-      setTimeRemaining("N/A");
-      return;
-    }
+  const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
+  const startDate = new Date(auction.startDateRaw);
+  const isEnded =
+    auction.status === "ENDED" || (endDate && endDate < currentTime);
+  const isLive =
+    auction.status === "ACTIVE" &&
+    startDate <= currentTime &&
+    (!endDate || endDate > currentTime) &&
+    auction.auctionType === "LIVE";
+  const isTimed =
+    auction.status === "ACTIVE" &&
+    startDate <= currentTime &&
+    (!endDate || endDate > currentTime) &&
+    auction.auctionType === "TIMED";
 
+  // Calculate time remaining
+  useEffect(() => {
     const updateTimer = () => {
-      const endDate = new Date(auction.endDateRaw);
+      if (!endDate) {
+        setTimeRemaining("N/A");
+        return;
+      }
+
       const now = new Date();
       const timeDiff = endDate - now;
 
@@ -50,7 +73,9 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       }
 
       const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
       setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
@@ -59,46 +84,33 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     updateTimer();
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
-  }, [auction]);
+  }, [endDate]);
 
-  useEffect(() => {
-    if (!auction || auction.images.length <= 1) return;
-
-    carouselInterval.current = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % auction.images.length);
-    }, 3000);
-
-    return () => {
-      if (carouselInterval.current) {
-        clearInterval(carouselInterval.current);
-      }
-    };
-  }, [auction]);
-
-  const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
-  const startDate = auction.startDateRaw ? new Date(auction.startDateRaw) : null;
-  const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
-  const isLive =
-    auction.status === "ACTIVE" &&
-    startDate &&
-    startDate <= currentTime &&
-    (!endDate || endDate > currentTime) &&
-    auction.auctionType === "LIVE";
-  const isTimed =
-    auction.status === "ACTIVE" &&
-    startDate &&
-    startDate <= currentTime &&
-    endDate &&
-    endDate > currentTime &&
-    auction.auctionType === "TIMED";
-
-  const timeDiffInDays = endDate && auction.auctionType === "TIMED"
+  const timeDiffInDays = endDate
     ? (endDate - new Date()) / (1000 * 60 * 60 * 24)
     : Infinity;
-  const timerColor = timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
+  const timerColor =
+    timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
 
+  // Add useEffect for automatic carousel
+  useEffect(() => {
+    if (auction.images.length > 1) {
+      carouselInterval.current = setInterval(() => {
+        setCurrentImage((prev) => (prev + 1) % auction.images.length);
+      }, 3000); // Change image every 3 seconds
+
+      return () => {
+        if (carouselInterval.current) {
+          clearInterval(carouselInterval.current);
+        }
+      };
+    }
+  }, [auction.images.length]);
+
+  // Add function to handle manual image change
   const handleImageChange = (index) => {
     setCurrentImage(index);
+    // Reset the interval when manually changing images
     if (carouselInterval.current) {
       clearInterval(carouselInterval.current);
       carouselInterval.current = setInterval(() => {
@@ -125,13 +137,8 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   };
 
   const handleBidNowClick = async () => {
-    if (isEnded) {
-      toast.info(`This auction has ended. Winner: ${auction.winner || "N/A"}`);
-      window.open(
-        `/catalog/${auction.id}`,
-        "_blank",
-        "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
-      );
+    if (auction.status === "ended") {
+      toast.error("This auction has ended");
       return;
     }
 
@@ -140,13 +147,13 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
+    // Check wallet balance
     if (walletBalance < auction.currentBid) {
-      toast.error(
-        `Your wallet balance is less than $${auction.currentBid}. Please add balance to bid on this product.`
-      );
+      toast.error("Insufficient wallet balance");
       return;
     }
 
+    // Check if user has billing details and payment method from Redux state
     const hasBillingDetails = user?.BillingDetails?.length > 0 || auth?.billingDetails;
     const hasPaymentMethod = user?.paymentMethodId || auth?.paymentMethodId;
 
@@ -155,6 +162,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
+    // If user has both billing details and payment method, navigate to catalog
     window.open(
       `/catalog/${auction.id}`,
       "_blank",
@@ -179,14 +187,14 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm transition-all duration-500 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] min-h-0"
+        className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_8px_32px_rgba(212,175,55,0.2)] min-h-0"
       >
         <div className="absolute right-4 top-4 z-10">
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsLiked(!isLiked)}
-            className="rounded-full bg-white/80 p-2 backdrop-blur-sm transition-all hover:scale-110"
+            className="rounded-full bg-white/90 p-2.5 backdrop-blur-sm shadow-lg transition-all hover:scale-110"
           >
             <Heart
               className={`h-5 w-5 transition-colors ${
@@ -196,7 +204,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           </motion.button>
         </div>
         <CardHeader className="p-0">
-          <div className="relative aspect-[4/3] overflow-hidden">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
@@ -209,70 +217,76 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                 className="object-cover transition-all duration-700 group-hover:scale-105"
                 style={{ transform: "translateZ(0)" }}
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             </motion.div>
-            <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-6">
-              {auction.images.map((image, index) => (
-                <motion.button
-                  key={index}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setCurrentImage(index)}
-                  className={`relative h-16 w-16 overflow-hidden rounded-md transition-all hover:scale-105 ${
-                    currentImage === index
-                      ? "ring-2 ring-luxury-gold ring-offset-2"
-                      : "border-2 border-white/50 hover:border-white"
-                  }`}
-                >
-                  <Image
-                    src={image || "/placeholder.svg"}
-                    alt={`${auction.title} thumbnail ${index + 1}`}
-                    fill
-                    className="object-cover"
-                    style={{ transform: "translateZ(0)" }}
+
+            {/* Carousel Indicators */}
+            {auction.images.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                {auction.images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleImageChange(index)}
+                    className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                      currentImage === index
+                        ? "bg-luxury-gold w-4"
+                        : "bg-white/50 hover:bg-white/80"
+                    }`}
                   />
-                </motion.button>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="mb-2 flex items-center gap-2">
-            <Badge variant="secondary" className="bg-luxury-gold/10 text-luxury-gold">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge
+              variant="secondary"
+              className="bg-luxury-gold/10 text-luxury-gold border border-luxury-gold/20"
+            >
               {auction.lotNumber}
             </Badge>
             {auction.featured && (
-              <Badge className="bg-luxury-charcoal text-luxury-cream">Featured</Badge>
+              <Badge className="bg-luxury-charcoal/90 text-luxury-cream border border-luxury-charcoal/20">
+                Featured
+              </Badge>
             )}
             <Badge
               className={`${
-                isLive ? "bg-green-600" : isTimed ? "bg-blue-600" : "bg-gray-600"
-              } text-white`}
+                isLive
+                  ? "bg-green-600/90"
+                  : isTimed
+                  ? "bg-blue-600/90"
+                  : "bg-gray-600/90"
+              } text-white border border-white/20`}
             >
-              {auction.auctionType === "LIVE" ? "Live" : "Timed"}
+              {isLive ? "Live" : isTimed ? "Timed" : auction.auctionType}
             </Badge>
           </div>
           <motion.h3
-            className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold"
+            className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold line-clamp-2"
             whileHover={{ scale: 1.02 }}
           >
             {auction.title}
           </motion.h3>
           <div className="mt-2 text-sm text-muted-foreground">
-            <span className="font-medium text-luxury-charcoal">Catalog:</span> {auction.catalogName}
+            <span className="font-medium text-luxury-charcoal">Catalog:</span>{" "}
+            {auction.catalogName}
           </div>
-          {auction.auctionType === "TIMED" && endDate && (
+          {auction.auctionType === "TIMED" && (
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4 text-luxury-gold" />
               <span>
-                Ends: {endDate.toLocaleDateString("en-US", {
+                Ends:{" "}
+                {new Date(auction.endDateRaw).toLocaleDateString("en-US", {
                   month: "2-digit",
                   day: "2-digit",
-                  year: "numeric"
+                  year: "numeric",
                 })}
               </span>
             </div>
           )}
-          {auction.auctionType === "TIMED" && endDate && !isEnded && (
+          {auction.auctionType === "TIMED" && (
             <div className={`mt-2 text-sm font-medium ${timerColor}`}>
               <Clock className="h-4 w-4 inline mr-1" />
               Time Remaining: {timeRemaining}
@@ -283,7 +297,9 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
               className="mt-4 flex items-baseline gap-2"
               whileHover={{ scale: 1.02 }}
             >
-              <span className="text-sm text-muted-foreground">Current Bid:</span>
+              <span className="text-sm text-muted-foreground">
+                Current Bid:
+              </span>
               <span className="text-lg font-semibold text-luxury-charcoal">
                 ${auction.currentBid.toLocaleString()}
               </span>
@@ -299,15 +315,18 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            className="w-full"
           >
             <Button
-              className="group/btn relative w-full overflow-hidden bg-black transition-all hover:bg-luxury-gold"
+              className="group/btn relative w-full overflow-hidden bg-gradient-to-r from-luxury-charcoal to-luxury-charcoal/90 transition-all hover:from-luxury-gold hover:to-luxury-gold/90"
               size="lg"
               onClick={handleBidNowClick}
             >
               <span className="relative z-10 flex items-center text-white gap-2">
                 Bid Now
-                <span className="text-sm opacity-70">→</span>
+                <span className="text-sm opacity-70 group-hover/btn:translate-x-1 transition-transform">
+                  →
+                </span>
               </span>
               <div className="absolute inset-0 -z-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] bg-[0%_0%] transition-all duration-500 group-hover/btn:bg-[100%_100%]" />
             </Button>
@@ -320,11 +339,14 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         onClose={() => setIsLoginModalOpen(false)}
         onOpenSignup={handleOpenSignup}
       />
+
       <BillingPaymentModal
         isOpen={isBillingPaymentModalOpen}
         onClose={() => setIsBillingPaymentModalOpen(false)}
         onSuccess={() => {
-          toast.success("Billing details and payment method added successfully!");
+          toast.success(
+            "Billing details and payment method added successfully!"
+          );
           window.open(
             `/catalog/${auction.id}`,
             "_blank",
