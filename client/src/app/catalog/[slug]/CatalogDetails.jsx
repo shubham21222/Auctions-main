@@ -6,8 +6,6 @@ import toast from "react-hot-toast";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
-import BillingDetailsModal from "./BillingDetailsModal";
-import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
 
 const getBidIncrement = (currentBid) => {
@@ -48,10 +46,6 @@ export default function CatalogDetails({
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [hasBillingDetails, setHasBillingDetails] = useState(null);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
   const updatesRef = useRef(null);
 
@@ -77,49 +71,6 @@ export default function CatalogDetails({
     },
     [token, userCache]
   );
-
-  const checkUserDetails = useCallback(async () => {
-    if (!userId || !token) {
-      setHasBillingDetails(false);
-      setHasPaymentMethod(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${config.baseURL}/v1/api/auth/getUserById/${userId}`, {
-        method: "GET",
-        headers: { Authorization: `${token}` },
-      });
-      const data = await response.json();
-
-      if (response.ok && data.status) {
-        const hasBilling = Array.isArray(data.items?.BillingDetails) && data.items.BillingDetails.length > 0;
-        const hasPayment = data.items?.paymentMethodId !== null && data.items?.paymentMethodId !== undefined;
-
-        setHasBillingDetails(hasBilling);
-        setHasPaymentMethod(hasPayment);
-      } else {
-        setHasBillingDetails(false);
-        setHasPaymentMethod(false);
-      }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-      setHasBillingDetails(false);
-      setHasPaymentMethod(false);
-    }
-  }, [userId, token]);
-
-  useEffect(() => {
-    if (userId) checkUserDetails();
-  }, [userId, checkUserDetails]);
-
-  useEffect(() => {
-    if (hasBillingDetails === false && isJoined) {
-      setIsBillingModalOpen(true);
-    } else if (hasBillingDetails === true && hasPaymentMethod === false && isJoined) {
-      setIsPaymentModalOpen(true);
-    }
-  }, [hasBillingDetails, hasPaymentMethod, isJoined]);
 
   useEffect(() => {
     if (!auction?.bids) {
@@ -224,7 +175,7 @@ export default function CatalogDetails({
         <div className="flex-1 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="flex flex-col gap-8 pb-6">
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 shadow-md">
+              <div className="relative h-[500px] rounded-xl overflow-hidden bg-slate-100 shadow-md">
                 {productImages.length > 0 ? (
                   imageErrors[selectedImageIndex] ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
@@ -238,7 +189,7 @@ export default function CatalogDetails({
                       className="object-contain transition-transform duration-300 hover:scale-105"
                       onError={(e) => {
                         console.error(`Failed to load image: ${productImages[selectedImageIndex]}`);
-                        setImageОшибки((prev) => ({ ...prev, [selectedImageIndex]: true }));
+                        setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
                       }}
                       onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
                     />
@@ -274,13 +225,15 @@ export default function CatalogDetails({
 
               <div className="space-y-6 px-2">
                 <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
-                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">{renderHTML(product?.description)}</p>
+                <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                  {renderHTML(product?.description)}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg z-10">
           <div className="max-w-3xl mx-auto space-y-4">
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center">
@@ -333,7 +286,7 @@ export default function CatalogDetails({
         </div>
       </div>
 
-      <div className="w-[400px]  border-slate-500 bg-white rounded-xl shadow-sm">
+      <div className="w-[400px] border-slate-500 bg-white rounded-xl shadow-sm">
         <div className="h-[500px] flex flex-col">
           <div className="p-6 border-b border-slate-200">
             <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
@@ -382,18 +335,6 @@ export default function CatalogDetails({
           </div>
         </div>
       </div>
-
-      <BillingDetailsModal
-        isOpen={isBillingModalOpen}
-        onClose={() => setIsBillingModalOpen(false)}
-        onBillingUpdate={() => setHasBillingDetails(true)}
-      />
-      <PaymentMethodModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onSuccess={() => setHasPaymentMethod(true)}
-        token={token}
-      />
     </div>
   );
 }

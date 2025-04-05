@@ -10,45 +10,37 @@ import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import LoginModal from "@/app/components/LoginModal";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
+import BillingPaymentModal from "@/app/components/BillingPaymentModal";
+import config from "@/app/config_BASE_URL";
 
 export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const cardRef = useRef(null);
+  const auth = useSelector((state) => state.auth);
+  const { token, user } = auth;
 
-  // 3D effect values
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotateX = useTransform(y, [-100, 100], [30, -30]);
   const rotateY = useTransform(x, [-100, 100], [-30, 30]);
 
-  const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
-  const startDate = new Date(auction.startDateRaw);
-  const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
-  const isLive =
-    auction.status === "ACTIVE" &&
-    startDate <= currentTime &&
-    (!endDate || endDate > currentTime) &&
-    auction.auctionType === "LIVE";
-  const isTimed =
-    auction.status === "ACTIVE" &&
-    startDate <= currentTime &&
-    (!endDate || endDate > currentTime) &&
-    auction.auctionType === "TIMED";
+  const carouselInterval = useRef(null);
 
-  // Calculate time remaining
   useEffect(() => {
-    const updateTimer = () => {
-      if (!endDate) {
-        setTimeRemaining("N/A");
-        return;
-      }
+    if (!auction || auction.auctionType !== "TIMED" || !auction.endDateRaw) {
+      setTimeRemaining("N/A");
+      return;
+    }
 
+    const updateTimer = () => {
+      const endDate = new Date(auction.endDateRaw);
       const now = new Date();
       const timeDiff = endDate - now;
 
@@ -67,16 +59,59 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     updateTimer();
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
-  }, [endDate]);
+  }, [auction]);
 
-  const timeDiffInDays = endDate ? (endDate - new Date()) / (1000 * 60 * 60 * 24) : Infinity;
+  useEffect(() => {
+    if (!auction || auction.images.length <= 1) return;
+
+    carouselInterval.current = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % auction.images.length);
+    }, 3000);
+
+    return () => {
+      if (carouselInterval.current) {
+        clearInterval(carouselInterval.current);
+      }
+    };
+  }, [auction]);
+
+  const endDate = auction.endDateRaw ? new Date(auction.endDateRaw) : null;
+  const startDate = auction.startDateRaw ? new Date(auction.startDateRaw) : null;
+  const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
+  const isLive =
+    auction.status === "ACTIVE" &&
+    startDate &&
+    startDate <= currentTime &&
+    (!endDate || endDate > currentTime) &&
+    auction.auctionType === "LIVE";
+  const isTimed =
+    auction.status === "ACTIVE" &&
+    startDate &&
+    startDate <= currentTime &&
+    endDate &&
+    endDate > currentTime &&
+    auction.auctionType === "TIMED";
+
+  const timeDiffInDays = endDate && auction.auctionType === "TIMED"
+    ? (endDate - new Date()) / (1000 * 60 * 60 * 24)
+    : Infinity;
   const timerColor = timeDiffInDays < 1 && !isEnded ? "text-red-500" : "text-green-500";
+
+  const handleImageChange = (index) => {
+    setCurrentImage(index);
+    if (carouselInterval.current) {
+      clearInterval(carouselInterval.current);
+      carouselInterval.current = setInterval(() => {
+        setCurrentImage((prev) => (prev + 1) % auction.images.length);
+      }, 3000);
+    }
+  };
 
   const handleMouseMove = (event) => {
     const rect = cardRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     const rotateXValue = (event.clientY - centerY) / 10;
     const rotateYValue = (event.clientX - centerX) / 10;
 
@@ -89,13 +124,13 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
     y.set(0);
   };
 
-  const handleBidNowClick = () => {
+  const handleBidNowClick = async () => {
     if (isEnded) {
       toast.info(`This auction has ended. Winner: ${auction.winner || "N/A"}`);
       window.open(
         `/catalog/${auction.id}`,
-        '_blank',
-        'width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes'
+        "_blank",
+        "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
       );
       return;
     }
@@ -112,10 +147,18 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
+    const hasBillingDetails = user?.BillingDetails?.length > 0 || auth?.billingDetails;
+    const hasPaymentMethod = user?.paymentMethodId || auth?.paymentMethodId;
+
+    if (!hasBillingDetails || !hasPaymentMethod) {
+      setIsBillingPaymentModalOpen(true);
+      return;
+    }
+
     window.open(
       `/catalog/${auction.id}`,
-      '_blank',
-      'width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes'
+      "_blank",
+      "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
     );
   };
 
@@ -164,7 +207,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                 alt={auction.title}
                 fill
                 className="object-cover transition-all duration-700 group-hover:scale-105"
-                style={{ transform: 'translateZ(0)' }}
+                style={{ transform: "translateZ(0)" }}
               />
             </motion.div>
             <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-6">
@@ -185,7 +228,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                     alt={`${auction.title} thumbnail ${index + 1}`}
                     fill
                     className="object-cover"
-                    style={{ transform: 'translateZ(0)' }}
+                    style={{ transform: "translateZ(0)" }}
                   />
                 </motion.button>
               ))}
@@ -205,10 +248,10 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                 isLive ? "bg-green-600" : isTimed ? "bg-blue-600" : "bg-gray-600"
               } text-white`}
             >
-              {isLive ? "Live" : isTimed ? "Timed" : auction.auctionType}
+              {auction.auctionType === "LIVE" ? "Live" : "Timed"}
             </Badge>
           </div>
-          <motion.h3 
+          <motion.h3
             className="text-xl font-semibold tracking-tight text-luxury-charcoal transition-colors group-hover:text-luxury-gold"
             whileHover={{ scale: 1.02 }}
           >
@@ -217,24 +260,26 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
           <div className="mt-2 text-sm text-muted-foreground">
             <span className="font-medium text-luxury-charcoal">Catalog:</span> {auction.catalogName}
           </div>
-          {auction.auctionType === "TIMED" && (
+          {auction.auctionType === "TIMED" && endDate && (
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4 text-luxury-gold" />
-              <span>Ends: {new Date(auction.endDateRaw).toLocaleDateString('en-US', {
-                month: '2-digit',
-                day: '2-digit',
-                year: 'numeric'
-              })}</span>
+              <span>
+                Ends: {endDate.toLocaleDateString("en-US", {
+                  month: "2-digit",
+                  day: "2-digit",
+                  year: "numeric"
+                })}
+              </span>
             </div>
           )}
-          {auction.auctionType === "TIMED" && (
+          {auction.auctionType === "TIMED" && endDate && !isEnded && (
             <div className={`mt-2 text-sm font-medium ${timerColor}`}>
               <Clock className="h-4 w-4 inline mr-1" />
               Time Remaining: {timeRemaining}
             </div>
           )}
           {auction.currentBid && (
-            <motion.div 
+            <motion.div
               className="mt-4 flex items-baseline gap-2"
               whileHover={{ scale: 1.02 }}
             >
@@ -274,6 +319,20 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onOpenSignup={handleOpenSignup}
+      />
+      <BillingPaymentModal
+        isOpen={isBillingPaymentModalOpen}
+        onClose={() => setIsBillingPaymentModalOpen(false)}
+        onSuccess={() => {
+          toast.success("Billing details and payment method added successfully!");
+          window.open(
+            `/catalog/${auction.id}`,
+            "_blank",
+            "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
+          );
+        }}
+        token={token}
+        email={user?.email}
       />
     </>
   );

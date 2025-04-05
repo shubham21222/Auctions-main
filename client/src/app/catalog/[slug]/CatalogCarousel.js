@@ -68,15 +68,23 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
   
   const itemsRemaining = totalItems - endedAuctions;
 
-  if (totalItems === 0) {
-    return null;
-  }
-
   // Find the first active auction
   const firstActiveAuctionId = auctions.find(auction => {
     const startDate = new Date(auction.startDate);
     return auction.status === "ACTIVE" && startDate <= currentTime;
   })?._id;
+
+  // Return early if no auctions
+  if (totalItems === 0) {
+    return (
+      <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="text-2xl font-bold text-slate-900 mb-3">{catalogName}</div>
+          <div className="text-sm text-slate-600">No items available</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">

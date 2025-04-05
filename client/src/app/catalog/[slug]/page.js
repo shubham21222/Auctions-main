@@ -125,6 +125,7 @@ export default function CatalogPage() {
             }))
           );
           console.log("All Auctions Fetched:", auctions);
+          console.log("Catalog Names Available:", auctions.map(a => a.catalog).filter((v, i, a) => a.indexOf(v) === i));
           setAllAuctions(auctions);
         }
       }
@@ -226,7 +227,11 @@ export default function CatalogPage() {
 
     const handleNextLot = ({ auctionId: msgAuctionId, actionType }) => {
       if (msgAuctionId === auctionId && actionType === "NEXT_LOT") {
-        const currentCatalogAuctions = allAuctions.filter((a) => a.catalog === auction.catalog);
+        const currentCatalogAuctions = allAuctions.filter((a) => {
+          const normalizedAuctionCatalog = (a.catalog || '').trim().toLowerCase();
+          const normalizedCurrentCatalog = (auction.catalog || '').trim().toLowerCase();
+          return normalizedAuctionCatalog === normalizedCurrentCatalog;
+        });
         const currentIndex = currentCatalogAuctions.findIndex((a) => a._id === auctionId);
         if (currentIndex < currentCatalogAuctions.length - 1) {
           const nextAuctionId = currentCatalogAuctions[currentIndex + 1]._id;
@@ -298,7 +303,18 @@ export default function CatalogPage() {
         ) : auction && allAuctions.length > 0 ? (
           <CatalogCarousel
             catalogName={auction.catalog}
-            auctions={allAuctions.filter((a) => a.catalog === auction.catalog && a._id !== auction._id)}
+            auctions={allAuctions.filter((a) => {
+              const normalizedAuctionCatalog = (a.catalog || '').trim().toLowerCase();
+              const normalizedCurrentCatalog = (auction.catalog || '').trim().toLowerCase();
+              console.log('Comparing catalogs:', {
+                auctionCatalog: a.catalog,
+                currentCatalog: auction.catalog,
+                normalizedAuctionCatalog,
+                normalizedCurrentCatalog,
+                matches: normalizedAuctionCatalog === normalizedCurrentCatalog
+              });
+              return normalizedAuctionCatalog === normalizedCurrentCatalog && a._id !== auction._id;
+            })}
             currentTime={new Date()}
             onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
           />

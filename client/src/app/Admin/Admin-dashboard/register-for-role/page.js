@@ -16,7 +16,9 @@ const RegisterPage = () => {
     name: '',
     email: '',
     password: '',
-    role: ''
+    role: '',
+    useManualPassword: false, // New state for checkbox
+    temp_password: "true" // Default to true (temporary password) unless checkbox is checked
   });
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -50,8 +52,11 @@ const RegisterPage = () => {
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/^\S+@\S+\.\S+$/.test(formData.email)) newErrors.email = 'Email is invalid';
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 4) newErrors.password = 'Password must be at least 4 characters';
+    if (formData.useManualPassword && !formData.password) {
+      newErrors.password = 'Password is required when using manual entry';
+    } else if (formData.useManualPassword && formData.password.length < 4) {
+      newErrors.password = 'Password must be at least 4 characters';
+    }
     if (!formData.role) newErrors.role = 'Role is required';
 
     setErrors(newErrors);
@@ -66,21 +71,55 @@ const RegisterPage = () => {
     }));
   };
 
+  const handleCheckboxChange = (e) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      useManualPassword: checked,
+      temp_password: checked ? "false" : "true", // If checked, use manual password (temp_password: "false"); if unchecked, use temp password (temp_password: "true")
+      password: checked ? prev.password : '' // Reset password if switching to temp password
+    }));
+  };
+
+  const generateTemporaryPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let tempPass = "";
+    for (let i = 0; i < 12; i++) {
+      tempPass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return tempPass;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setLoading(true);
     try {
+      let finalPayload = {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        temp_password: formData.temp_password
+      };
+
+      if (formData.useManualPassword) {
+        finalPayload.password = formData.password; // Use manual password
+        toast.success("Registration successful! A welcome email will be sent with your chosen password.");
+      } else {
+        const tempPass = generateTemporaryPassword();
+        finalPayload.password = tempPass; // Use temporary password
+        toast.success("Registration successful! A temporary password has been generated and sent to your email.");
+      }
+
+      // Send registration request with temp_password in payload
       const response = await axios.post(
         `${config.baseURL}/v1/api/auth/register`,
-        formData,
+        finalPayload, // Send temp_password and password in payload
         { headers: { Authorization: `${token}` } }
       );
 
       if (response.data.success) {
-        toast.success('Registration successful!');
-        // router.push('/dashboard'); // Redirect after successful registration
       } else {
         toast.error(response.data.message || 'Registration failed');
       }
@@ -141,23 +180,39 @@ const RegisterPage = () => {
               {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+            <div className="flex items-center">
               <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className={`appearance-none block w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors duration-200`}
-                placeholder="Enter your password"
+                id="useManualPassword"
+                name="useManualPassword"
+                type="checkbox"
+                checked={formData.useManualPassword}
+                onChange={handleCheckboxChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
+              <label htmlFor="useManualPassword" className="ml-2 block text-sm text-gray-700">
+                Use manual password
+              </label>
             </div>
+
+            {formData.useManualPassword && (
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`appearance-none block w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors duration-200`}
+                  placeholder="Enter your password"
+                />
+                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
+              </div>
+            )}
 
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
@@ -212,17 +267,16 @@ const RegisterPage = () => {
           </div>
 
           <div className="mt-4">
-          <Link href="/members/login" target="_blank">
-            <button
-              type="button"
-              // onClick={() => router.push('/login')}
-              className="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-              </svg>
-              Login as Member
-            </button>
+            <Link href="/members/login" target="_blank">
+              <button
+                type="button"
+                className="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                Login as Member
+              </button>
             </Link>
           </div>
         </form>
