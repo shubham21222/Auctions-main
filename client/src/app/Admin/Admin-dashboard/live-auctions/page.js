@@ -251,9 +251,9 @@ const AdminLiveAuctionPage = () => {
         <div className="px-4 py-2">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold">LiveAuctioneers</h1>
+              <h1 className="text-xl font-bold">NY Elizabeth</h1>
               <div className="ml-8 text-sm">
-                <span>NY Elizabeth</span>
+                {/* <span>NY Elizabeth</span> */}
                 <span className="ml-2 text-blue-400">
                   {selectedCatalog && selectedCatalog.auctions.length > 0
                     ? Math.round(
