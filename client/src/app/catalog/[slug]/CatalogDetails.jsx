@@ -77,19 +77,57 @@ export default function CatalogDetails({
       setBidsWithUsernames([]);
       return;
     }
-
+  
     const updateBidsWithUsernames = async () => {
+      // Create a map to track unique bids by amount and approximate time
+      const uniqueBids = new Map();
+      
+      // First pass: group bids by amount and approximate time (within 1 second)
+      auction.bids.forEach(bid => {
+        const bidTime = new Date(bid.bidTime).getTime();
+        const key = `${bid.bidAmount}-${Math.floor(bidTime/1000)}`;
+        
+        // If we already have this bid, keep the one with more complete information
+        if (uniqueBids.has(key)) {
+          const existingBid = uniqueBids.get(key);
+          // Prefer bids with explicit bidType
+          if (!existingBid.bidType && bid.bidType) {
+            uniqueBids.set(key, bid);
+          }
+        } else {
+          uniqueBids.set(key, bid);
+        }
+      });
+      
+      // Process the deduplicated bids
       const updatedBids = await Promise.all(
-        auction.bids.map(async (bid) => {
+        Array.from(uniqueBids.values()).map(async (bid) => {
           const bidderName = await fetchUserName(bid.bidder);
-          return { ...bid, bidderName };
+          return { 
+            ...bid, 
+            bidderName,
+            bidType: bid.bidType || "online" // Ensure bidType is preserved, default to "online" if missing
+          };
         })
       );
-      setBidsWithUsernames(updatedBids);
+      
+      // Sort by time and remove any remaining duplicates
+      const finalBids = updatedBids
+        .sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime))
+        .filter((bid, index, array) => {
+          if (index === 0) return true;
+          const prevBid = array[index - 1];
+          const timeDiff = Math.abs(new Date(bid.bidTime) - new Date(prevBid.bidTime));
+          return !(bid.bidAmount === prevBid.bidAmount && timeDiff < 1000);
+        });
+      
+      console.log("CatalogDetails: Updated bids with usernames (deduplicated):", finalBids);
+      setBidsWithUsernames(finalBids);
     };
-
+  
     updateBidsWithUsernames();
   }, [auction?.bids, fetchUserName]);
+  
 
   const handleJoinAuction = async () => {
     if (!userId || !auction || !auction._id || !termsAccepted) {
@@ -137,35 +175,14 @@ export default function CatalogDetails({
     onBidNowClick(nextBid);
   };
 
-  const combinedHistory = [
-    ...bidsWithUsernames.map((bid) => ({
-      type: "bid",
-      bidderName: bid.bidderName,
-      bidAmount: bid.bidAmount,
-      bidTime: bid.bidTime,
-      bidType: bid.bidType,
-    })),
-    ...(messages || []).map((msg) => ({
-      type: "message",
-      message: msg.message || msg.actionType || "Update",
-      bidTime: msg.timestamp || new Date(),
-      sender: msg.sender || "Admin",
-      bidType: msg.bidType || "message",
-    })),
-    {
-      type: "lot",
-      message: `Lot ${auction?.lotNumber || "N/A"} is now open for bidding`,
-      bidTime: auction?.startDate || new Date(),
-      sender: "System",
-      bidType: "lot_open",
-    },
-  ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime));
+  // Use bidsWithUsernames directly for bid history, like admin
+  const bidHistory = [...bidsWithUsernames].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
 
   useEffect(() => {
     if (updatesRef.current) {
       updatesRef.current.scrollTop = updatesRef.current.scrollHeight;
     }
-  }, [combinedHistory]);
+  }, [bidHistory]);
 
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
@@ -299,42 +316,41 @@ export default function CatalogDetails({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
-            {combinedHistory.slice().reverse().map((entry, index) => (
-              <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
-                {entry.type === "bid" ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
-                      <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
-                        {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
+            {[...bidHistory, ...(auction?.messages || [])]
+              .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp))
+              .map((entry, index) => (
+                <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
+                  {entry.message ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-600 font-medium">{entry.message}</span>
+                        <span className="text-sm text-slate-500">({entry.sender || "Admin"})</span>
+                      </div>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                        {new Date(entry.timestamp || entry.bidTime).toLocaleTimeString()}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                ) : entry.type === "lot" ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-emerald-600 font-medium">{entry.message}</span>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
+                        <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
+                          {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                        {new Date(entry.bidTime).toLocaleTimeString()}
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-emerald-600">{entry.message}</span>
-                      <span className="text-xs text-slate-500">— {entry.sender}</span>
-                    </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-            {combinedHistory.length === 0 && (
-              <div className="text-center text-slate-500 py-4">No activity yet</div>
+                  )}
+                </div>
+              ))}
+            {(bidHistory.length === 0 && (!auction?.messages || auction.messages.length === 0)) && (
+              <div className="text-center text-slate-500 py-4">No updates yet</div>
             )}
           </div>
         </div>
       </div>
     </div>
   );
-}
+};

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 
-const AuctionDetails = memo(({ currentAuction, upcomingLots }) => {
+const AuctionDetails = memo(({ currentAuction, upcomingLots, onSelectLot }) => {
   const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
@@ -70,7 +70,11 @@ const AuctionDetails = memo(({ currentAuction, upcomingLots }) => {
         <div className="space-y-4 max-h-96 overflow-y-auto">
           {upcomingLots.length > 0 ? (
             upcomingLots.map((lot) => (
-              <div key={lot._id} className="flex gap-4">
+              <div 
+                key={lot._id} 
+                className="flex gap-4 p-3 rounded-lg border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors duration-200"
+                onClick={() => onSelectLot(lot)}
+              >
                 <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                   {lot.product?.image?.[0] ? (
                     <Image

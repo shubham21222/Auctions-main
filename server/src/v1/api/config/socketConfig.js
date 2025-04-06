@@ -14,40 +14,10 @@ export const initializeSocket = (server) => {
       origin: ["https://bid.nyelizabeth.com"],
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
-    // pingTimeout: 60000,
-    // pingInterval: 25000,
-    // connectTimeout: 10000,
-    // maxHttpBufferSize: 1e8,
-    // allowEIO3: true,
-    // transports: ['websocket', 'polling'],
   });
-
-  // Clean up disconnected sockets periodically
-  // setInterval(() => {
-  //   const connectedSockets = Object.keys(userSocketMap);
-  //   connectedSockets.forEach(userId => {
-  //     const socketId = userSocketMap[userId];
-  //     if (!io.sockets.sockets.get(socketId)) {
-  //       delete userSocketMap[userId];
-  //       console.log(`Cleaned up disconnected socket for user: ${userId}`);
-  //     }
-  //   });
-  // }, 30000);
 
   io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
-    // if (userId) {
-    //   // Clean up any existing socket for this user
-    //   if (userSocketMap[userId]) {
-    //     const oldSocket = io.sockets.sockets.get(userSocketMap[userId]);
-    //     if (oldSocket) {
-    //       oldSocket.disconnect(true);
-    //     }
-    //   }
-    //   userSocketMap[userId] = socket.id;
-    //   console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
-    // }
-
     if (userId) {
       userSocketMap[userId] = socket.id;
       console.log(`User connected: ${userId} (Socket ID: ${socket.id})`);
@@ -67,7 +37,6 @@ export const initializeSocket = (server) => {
 
         auctionModes[auctionId] = mode;
         console.log(`Auction ${auctionId} mode set to: ${mode}`);
-
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -78,21 +47,14 @@ export const initializeSocket = (server) => {
     socket.on("sendMessage", async ({ auctionId, message, userId }) => {
       try {
         const user = await User.findById(userId);
-        if (!user) {
-          return socket.emit("error", { message: "User not found." });
-        }
-        if (user.role !== "ADMIN") {
+        if (!user || user.role !== "ADMIN") {
           return socket.emit("error", { message: "Unauthorized: Only admins can send messages." });
         }
 
         io.to(auctionId).emit("auctionMessage", {
           auctionId,
           message,
-          sender: {
-            id: userId,
-            name: user.name,
-            role: user.role,
-          },
+          sender: { id: userId, name: user.name, role: user.role },
           timestamp: new Date(),
         });
       } catch (error) {
@@ -108,16 +70,29 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Unauthorized: Only admins can perform actions." });
         }
 
-        io.to(auctionId).emit("auctionMessage", {
-          auctionId,
-          actionType,
-          sender: {
-            id: userId,
-            name: user.name,
-            role: user.role,
-          },
-          timestamp: new Date(),
-        });
+        const auction = await Auction.findById(auctionId);
+        if (!auction) {
+          return socket.emit("error", { message: "Auction not found." });
+        }
+
+        if (actionType === "RESERVE_NOT_MET") {
+          auction.reserveMet = false;
+          await auction.save();
+          io.to(auctionId).emit("auctionMessage", {
+            auctionId,
+            actionType,
+            message: "Reserve not met.",
+            sender: { id: userId, name: user.name, role: user.role },
+            timestamp: new Date(),
+          });
+        } else {
+          io.to(auctionId).emit("auctionMessage", {
+            auctionId,
+            actionType,
+            sender: { id: userId, name: user.name, role: user.role },
+            timestamp: new Date(),
+          });
+        }
       } catch (error) {
         console.error("Error processing admin action:", error);
         socket.emit("error", { message: "Failed to process admin action." });
@@ -171,12 +146,9 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Admins cannot place online bids." });
         }
 
-        const currentMode = auctionModes[auctionId] || "online";
+        const currentMode = auctionModes[auctionId] || "competitor";
         if (bidType === "competitor" && currentMode !== "competitor") {
           return socket.emit("error", { message: "Auction is not in competitor bid mode." });
-        }
-        if (bidType === "online" && currentMode !== "online") {
-          return socket.emit("error", { message: "Auction is not in online bid mode." });
         }
 
         let ipAddress = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
@@ -207,7 +179,6 @@ export const initializeSocket = (server) => {
         const bidIncrement = getBidIncrement(currentBid);
         let finalBidAmount = bidAmount || (currentBid + bidIncrement);
 
-        // Ensure the bid is higher than the current bid
         if (finalBidAmount <= currentBid) {
           return socket.emit("error", { message: "Your bid must be higher than the current bid." });
         }
@@ -217,17 +188,29 @@ export const initializeSocket = (server) => {
           .sort({ price: -1 });
         const requiredIncrement = bidRule ? bidRule.increment : bidIncrement;
 
-        // Adjust final bid to meet minimum increment if necessary
         finalBidAmount = Math.ceil(finalBidAmount / requiredIncrement) * requiredIncrement;
 
-        auction.bids.push({
+        const latestBid = auction.bids[auction.bids.length - 1];
+        if (
+          latestBid &&
+          latestBid.bidAmount === finalBidAmount &&
+          latestBid.bidder.toString() === bidderId &&
+          Math.abs(new Date() - new Date(latestBid.bidTime)) < 1000
+        ) {
+          console.log(`Duplicate bid rejected: ${finalBidAmount} by ${bidderId} at ${latestBid.bidTime}`);
+          return socket.emit("error", { message: "Duplicate bid detected." });
+        }
+
+        const newBid = {
           bidder: bidderId,
           bidAmount: finalBidAmount,
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role: user.role
-        });
+          Role: user.role,
+        };
+
+        auction.bids.push(newBid);
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
         auction.minBidIncrement = requiredIncrement;
@@ -244,7 +227,7 @@ export const initializeSocket = (server) => {
           bids: auction.bids,
           bidType: bidType || "online",
           Role: user.role,
-          timestamp: new Date()
+          timestamp: newBid.bidTime,
         });
 
         const lastBidderId =
@@ -265,31 +248,29 @@ export const initializeSocket = (server) => {
       }
     });
 
-
-    // ✅ Updated remove_latest_bid Event Handler
-socket.on('remove_latest_bid', async ({ auctionId }) => {
-  try {
-      const auction = await Auction.findById(auctionId);
-      if (!auction || auction.bids.length === 0) {
+    socket.on("remove_latest_bid", async ({ auctionId }) => {
+      try {
+        const auction = await Auction.findById(auctionId);
+        if (!auction || auction.bids.length === 0) {
           return socket.emit("error", { message: "No bids to remove." });
-      }
-      const removedBid = auction.bids.pop();
+        }
+        const removedBid = auction.bids.pop();
 
-      const lastBid = auction.bids[auction.bids.length - 1] || null;
-      auction.currentBid = lastBid ? lastBid.bidAmount : 0;
-      auction.currentBidder = lastBid ? lastBid.bidder : null;
+        const lastBid = auction.bids[auction.bids.length - 1] || null;
+        auction.currentBid = lastBid ? lastBid.bidAmount : 0;
+        auction.currentBidder = lastBid ? lastBid.bidder : null;
 
-      await auction.save();
+        await auction.save();
 
-      io.in(auctionId).emit("latestBidRemoved", {
+        io.in(auctionId).emit("latestBidRemoved", {
           auctionId,
           removedBid,
           updatedBids: auction.bids,
           currentBid: auction.currentBid,
-          currentBidder: auction.currentBidder
-      });
+          currentBidder: auction.currentBidder,
+        });
 
-      io.in(auctionId).emit("bidUpdate", {
+        io.in(auctionId).emit("bidUpdate", {
           auctionId,
           bidAmount: auction.currentBid,
           bidderId: auction.currentBidder,
@@ -297,16 +278,15 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
           bids: auction.bids,
           bidType: lastBid?.bidType || "online",
           Role: lastBid?.Role || "user",
-          timestamp: new Date()
-      });
+          timestamp: new Date(),
+        });
 
-      console.log(`Latest bid removed from auction ${auctionId}`);
-  } catch (error) {
-      console.error("Error removing the latest bid:", error);
-      socket.emit("error", { message: "Failed to remove the latest bid." });
-  }
-});
-
+        console.log(`Latest bid removed from auction ${auctionId}`);
+      } catch (error) {
+        console.error("Error removing the latest bid:", error);
+        socket.emit("error", { message: "Failed to remove the latest bid." });
+      }
+    });
 
     socket.on("getAuctionData", async ({ auctionId }) => {
       try {
@@ -380,7 +360,20 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
               winner: 1,
               minBidIncrement: 1,
               lotNumber: 1,
-              bids: 1,
+              bids: {
+                $map: {
+                  input: "$bids",
+                  as: "bid",
+                  in: {
+                    bidder: "$$bid.bidder",
+                    bidAmount: "$$bid.bidAmount",
+                    bidTime: "$$bid.bidTime",
+                    bidType: "$$bid.bidType", // Ensure bidType is included
+                    Role: "$$bid.Role",
+                    ipAddress: "$$bid.ipAddress",
+                  },
+                },
+              },
               winnerBidTime: 1,
               auctionType: 1,
               participants: {
@@ -394,6 +387,7 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
                   },
                 },
               },
+              reserveMet: 1,
             },
           },
         ]);
@@ -415,14 +409,14 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
         const auction = await Auction.findById(auctionId);
         if (!auction || auction.status === "ENDED") return;
 
-        if (auction.bids.length === 0) {
+        if (auction.bids.length === 0 || !auction.reserveMet) {
           auction.status = "ENDED";
           await auction.save();
-          console.log(`Auction ${auctionId} ended with no bids`);
+          console.log(`Auction ${auctionId} ended with no winner`);
           return io.emit("auctionEnded", {
             auctionId,
             winner: null,
-            message: "Auction ended with no bids.",
+            message: "Auction ended with no winner.",
           });
         }
 
@@ -460,7 +454,6 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
         console.log(`User ${userId} disconnected. Reason: ${reason}`);
         delete userSocketMap[userId];
 
-        // Clean up auction watchers
         for (let auctionId in auctionWatchers) {
           if (auctionWatchers[auctionId].has(userId)) {
             auctionWatchers[auctionId].delete(userId);
@@ -471,7 +464,6 @@ socket.on('remove_latest_bid', async ({ auctionId }) => {
           }
         }
 
-        // Clean up auction modes if no watchers
         for (let auctionId in auctionWatchers) {
           if (auctionWatchers[auctionId].size === 0) {
             delete auctionWatchers[auctionId];
