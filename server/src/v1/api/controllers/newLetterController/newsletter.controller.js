@@ -34,7 +34,7 @@ export const createNewsletter = async (req, res) => {
                   <p style="font-size: 16px; color: #555;">
                     Stay tuned—our next auction is just around the corner!
                   </p>
-                  <a href="https://your-auction-site.com/auctions" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 6px;">
+                  <a href="https://bid.nyelizabeth.com/" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 6px;">
                     🔥 Browse Live Auctions
                   </a>
                   <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
