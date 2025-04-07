@@ -6,8 +6,6 @@ import toast from "react-hot-toast";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
-import BillingDetailsModal from "./BillingDetailsModal";
-import PaymentMethodModal from "./PaymentMethodModal ";
 import { motion } from "framer-motion";
 
 const getBidIncrement = (currentBid) => {
@@ -48,10 +46,6 @@ export default function CatalogDetails({
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [hasBillingDetails, setHasBillingDetails] = useState(null);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
   const updatesRef = useRef(null);
 
@@ -78,67 +72,62 @@ export default function CatalogDetails({
     [token, userCache]
   );
 
-  const checkUserDetails = useCallback(async () => {
-    if (!userId || !token) {
-      setHasBillingDetails(false);
-      setHasPaymentMethod(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${config.baseURL}/v1/api/auth/getUserById/${userId}`, {
-        method: "GET",
-        headers: { Authorization: `${token}` },
-      });
-      const data = await response.json();
-
-      if (response.ok && data.status) {
-        const hasBilling = Array.isArray(data.items?.BillingDetails) && data.items.BillingDetails.length > 0;
-        const hasPayment = data.items?.paymentMethodId !== null && data.items?.paymentMethodId !== undefined;
-
-        setHasBillingDetails(hasBilling);
-        setHasPaymentMethod(hasPayment);
-      } else {
-        setHasBillingDetails(false);
-        setHasPaymentMethod(false);
-      }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-      setHasBillingDetails(false);
-      setHasPaymentMethod(false);
-    }
-  }, [userId, token]);
-
-  useEffect(() => {
-    if (userId) checkUserDetails();
-  }, [userId, checkUserDetails]);
-
-  useEffect(() => {
-    if (hasBillingDetails === false && isJoined) {
-      setIsBillingModalOpen(true);
-    } else if (hasBillingDetails === true && hasPaymentMethod === false && isJoined) {
-      setIsPaymentModalOpen(true);
-    }
-  }, [hasBillingDetails, hasPaymentMethod, isJoined]);
-
   useEffect(() => {
     if (!auction?.bids) {
       setBidsWithUsernames([]);
       return;
     }
-
+  
     const updateBidsWithUsernames = async () => {
+      // Create a map to track unique bids by amount and approximate time
+      const uniqueBids = new Map();
+      
+      // First pass: group bids by amount and approximate time (within 1 second)
+      auction.bids.forEach(bid => {
+        const bidTime = new Date(bid.bidTime).getTime();
+        const key = `${bid.bidAmount}-${Math.floor(bidTime/1000)}`;
+        
+        // If we already have this bid, keep the one with more complete information
+        if (uniqueBids.has(key)) {
+          const existingBid = uniqueBids.get(key);
+          // Prefer bids with explicit bidType
+          if (!existingBid.bidType && bid.bidType) {
+            uniqueBids.set(key, bid);
+          }
+        } else {
+          uniqueBids.set(key, bid);
+        }
+      });
+      
+      // Process the deduplicated bids
       const updatedBids = await Promise.all(
-        auction.bids.map(async (bid) => {
+        Array.from(uniqueBids.values()).map(async (bid) => {
           const bidderName = await fetchUserName(bid.bidder);
-          return { ...bid, bidderName };
+          return { 
+            ...bid, 
+            bidderName,
+            bidType: bid.bidType || "online" // Ensure bidType is preserved, default to "online" if missing
+          };
         })
       );
-      setBidsWithUsernames(updatedBids);
+      
+      // Sort by time and remove any remaining duplicates
+      const finalBids = updatedBids
+        .sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime))
+        .filter((bid, index, array) => {
+          if (index === 0) return true;
+          const prevBid = array[index - 1];
+          const timeDiff = Math.abs(new Date(bid.bidTime) - new Date(prevBid.bidTime));
+          return !(bid.bidAmount === prevBid.bidAmount && timeDiff < 1000);
+        });
+      
+      console.log("CatalogDetails: Updated bids with usernames (deduplicated):", finalBids);
+      setBidsWithUsernames(finalBids);
     };
-
+  
     updateBidsWithUsernames();
   }, [auction?.bids, fetchUserName]);
+  
 
   const handleJoinAuction = async () => {
     if (!userId || !auction || !auction._id || !termsAccepted) {
@@ -186,35 +175,14 @@ export default function CatalogDetails({
     onBidNowClick(nextBid);
   };
 
-  const combinedHistory = [
-    ...bidsWithUsernames.map((bid) => ({
-      type: "bid",
-      bidderName: bid.bidderName,
-      bidAmount: bid.bidAmount,
-      bidTime: bid.bidTime,
-      bidType: bid.bidType,
-    })),
-    ...(messages || []).map((msg) => ({
-      type: "message",
-      message: msg.message || msg.actionType || "Update",
-      bidTime: msg.timestamp || new Date(),
-      sender: msg.sender || "Admin",
-      bidType: msg.bidType || "message",
-    })),
-    {
-      type: "lot",
-      message: `Lot ${auction?.lotNumber || "N/A"} is now open for bidding`,
-      bidTime: auction?.startDate || new Date(),
-      sender: "System",
-      bidType: "lot_open",
-    },
-  ].sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime));
+  // Use bidsWithUsernames directly for bid history, like admin
+  const bidHistory = [...bidsWithUsernames].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
 
   useEffect(() => {
     if (updatesRef.current) {
       updatesRef.current.scrollTop = updatesRef.current.scrollHeight;
     }
-  }, [combinedHistory]);
+  }, [bidHistory]);
 
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
@@ -224,7 +192,7 @@ export default function CatalogDetails({
         <div className="flex-1 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="flex flex-col gap-8 pb-6">
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 shadow-md">
+              <div className="relative h-[500px] rounded-xl overflow-hidden bg-slate-100 shadow-md">
                 {productImages.length > 0 ? (
                   imageErrors[selectedImageIndex] ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
@@ -238,7 +206,7 @@ export default function CatalogDetails({
                       className="object-contain transition-transform duration-300 hover:scale-105"
                       onError={(e) => {
                         console.error(`Failed to load image: ${productImages[selectedImageIndex]}`);
-                        setImageОшибки((prev) => ({ ...prev, [selectedImageIndex]: true }));
+                        setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
                       }}
                       onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
                     />
@@ -274,13 +242,15 @@ export default function CatalogDetails({
 
               <div className="space-y-6 px-2">
                 <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
-                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">{renderHTML(product?.description)}</p>
+                <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                  {renderHTML(product?.description)}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg z-10">
           <div className="max-w-3xl mx-auto space-y-4">
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center">
@@ -333,7 +303,7 @@ export default function CatalogDetails({
         </div>
       </div>
 
-      <div className="w-[400px]  border-slate-500 bg-white rounded-xl shadow-sm">
+      <div className="w-[400px] border-slate-500 bg-white rounded-xl shadow-sm">
         <div className="h-[500px] flex flex-col">
           <div className="p-6 border-b border-slate-200">
             <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
@@ -346,54 +316,41 @@ export default function CatalogDetails({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
-            {combinedHistory.slice().reverse().map((entry, index) => (
-              <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
-                {entry.type === "bid" ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
-                      <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
-                        {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
+            {[...bidHistory, ...(auction?.messages || [])]
+              .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp))
+              .map((entry, index) => (
+                <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
+                  {entry.message ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-600 font-medium">{entry.message}</span>
+                        <span className="text-sm text-slate-500">({entry.sender || "Admin"})</span>
+                      </div>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                        {new Date(entry.timestamp || entry.bidTime).toLocaleTimeString()}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                ) : entry.type === "lot" ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-emerald-600 font-medium">{entry.message}</span>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
+                        <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
+                          {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                        {new Date(entry.bidTime).toLocaleTimeString()}
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-emerald-600">{entry.message}</span>
-                      <span className="text-xs text-slate-500">— {entry.sender}</span>
-                    </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(entry.bidTime).toLocaleTimeString()}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-            {combinedHistory.length === 0 && (
-              <div className="text-center text-slate-500 py-4">No activity yet</div>
+                  )}
+                </div>
+              ))}
+            {(bidHistory.length === 0 && (!auction?.messages || auction.messages.length === 0)) && (
+              <div className="text-center text-slate-500 py-4">No updates yet</div>
             )}
           </div>
         </div>
       </div>
-
-      <BillingDetailsModal
-        isOpen={isBillingModalOpen}
-        onClose={() => setIsBillingModalOpen(false)}
-        onBillingUpdate={() => setHasBillingDetails(true)}
-      />
-      <PaymentMethodModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onSuccess={() => setHasPaymentMethod(true)}
-        token={token}
-      />
     </div>
   );
-}
+};

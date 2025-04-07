@@ -11,7 +11,8 @@ import AuctionControls from "./AuctionControls";
 
 const AdminLiveAuctionPage = () => {
   const token = useSelector((state) => state.auth.token);
-  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes, placeBid, getBidIncrement, liveAuctions } = useSocket();
+  const userId = useSelector((state) => state.auth._id);
+  const { socket, joinAuction, getAuctionData, sendMessage, performAdminAction, updateAuctionMode, auctionModes, placeBid, getBidIncrement, liveAuctions, subscribeToEvents } = useSocket();
   const [catalogs, setCatalogs] = useState([]);
   const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [currentAuction, setCurrentAuction] = useState(null);
@@ -57,13 +58,16 @@ const AdminLiveAuctionPage = () => {
     if (currentAuction) {
       const liveAuction = liveAuctions.find((a) => a.id === currentAuction._id);
       if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(currentAuction)) {
+        console.log("Syncing currentAuction with liveAuctions:", liveAuction);
         setCurrentAuction((prev) => ({
           ...prev,
           currentBid: liveAuction.currentBid,
           bids: liveAuction.bids || prev.bids,
           messages: liveAuction.messages || prev.messages || [],
+          watchers: liveAuction.watchers || prev.watchers || 0,
         }));
         setBidHistory(liveAuction.bids || []);
+        setWatchers(liveAuction.watchers || 0);
       }
     }
   }, [liveAuctions, currentAuction?._id]);
@@ -75,64 +79,65 @@ const AdminLiveAuctionPage = () => {
 
     if (!joinedRooms.has(currentAuction._id)) {
       joinAuction(currentAuction._id);
-      getAuctionData(currentAuction._id);
+      getAuctionData(currentAuction._id)
+        .then((data) => console.log("Admin: Fetched initial auction data:", data))
+        .catch((err) => console.error("Admin: Error fetching initial auction data:", err));
       setJoinedRooms((prev) => new Set(prev).add(currentAuction._id));
     }
 
-    const handleWatcherUpdate = ({ auctionId, watchers: newWatchers }) => {
-      if (auctionId === currentAuction._id && newWatchers !== watchers) {
-        setWatchers(newWatchers);
-      }
-    };
+    const unsubscribe = subscribeToEvents(currentAuction._id, {
+      onBidUpdate: ({ auctionId, bidAmount, bidderId, bidType, timestamp, minBidIncrement, bids }) => {
+        console.log("Admin: Received bidUpdate:", { auctionId, bidAmount, bidType });
+        if (auctionId === currentAuction._id) {
+          setBidHistory(bids || []);
+          setCurrentAuction((prev) => ({
+            ...prev,
+            currentBid: bidAmount,
+            currentBidder: bidderId,
+            minBidIncrement,
+            bids: bids || prev.bids,
+          }));
+        }
+      },
+      onAuctionMessage: ({ auctionId, message, actionType, sender, timestamp, bidType }) => {
+        console.log("Admin: Received auctionMessage:", { auctionId, message, actionType });
+        if (auctionId === currentAuction._id) {
+          setBidHistory((prev) => [
+            ...prev,
+            {
+              message: message || actionType,
+              bidTime: timestamp || new Date(),
+              sender: typeof sender === "object" ? sender.name || "Admin" : "Admin",
+              bidType: bidType || (message ? "message" : actionType),
+              bidAmount: 0,
+            },
+          ]);
+        }
+      },
+      onWatcherUpdate: ({ auctionId, watchers }) => {
+        console.log("Admin: Received watcherUpdate:", { auctionId, watchers });
+        if (auctionId === currentAuction._id) {
+          setWatchers(watchers);
+        }
+      },
+      onLatestBidRemoved: ({ auctionId, updatedBids, currentBid, currentBidder }) => {
+        console.log("Admin: Received latestBidRemoved:", { auctionId, currentBid });
+        if (auctionId === currentAuction._id) {
+          setBidHistory(updatedBids || []);
+          setCurrentAuction((prev) => ({
+            ...prev,
+            currentBid,
+            currentBidder,
+            bids: updatedBids,
+          }));
+        }
+      },
+    });
 
-    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidType }) => {
-      if (auctionId === currentAuction._id) {
-        const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
-        setBidHistory((prev) => [
-          ...prev,
-          {
-            message: message || actionType,
-            bidTime: timestamp || new Date(),
-            sender: senderName,
-            bidType: bidType || (message ? "message" : actionType),
-            bidAmount: 0,
-          },
-        ]);
-      }
-    };
-
-    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bidType, timestamp }) => {
-      if (auctionId === currentAuction._id) {
-        setBidHistory((prev) => [
-          ...prev,
-          {
-            bidAmount,
-            bidType,
-            bidder: bidderId,
-            bidTime: timestamp || new Date(),
-            sender: "Admin",
-          },
-        ]);
-        setCurrentAuction((prev) => ({
-          ...prev,
-          currentBid: bidAmount,
-          bids: [...(prev.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
-        }));
-      }
-    };
-
-    socket.on("watcherUpdate", handleWatcherUpdate);
-    socket.on("auctionMessage", handleAuctionMessage);
-    socket.on("bidUpdate", handleBidUpdate);
-
-    cleanup = () => {
-      socket.off("watcherUpdate", handleWatcherUpdate);
-      socket.off("auctionMessage", handleAuctionMessage);
-      socket.off("bidUpdate", handleBidUpdate);
-    };
+    cleanup = () => unsubscribe();
 
     return cleanup;
-  }, [socket, currentAuction?._id, joinAuction, getAuctionData, watchers]);
+  }, [socket, currentAuction?._id, joinAuction, getAuctionData, watchers, subscribeToEvents]);
 
   const handleCatalogSelect = (catalog) => {
     setSelectedCatalog(catalog);
@@ -146,7 +151,7 @@ const AdminLiveAuctionPage = () => {
       setCurrentAuction(null);
       setBidHistory([]);
       setWatchers(0);
-      toast.info("No live auctions available in this catalog.");
+      toast.error("No live auctions available in this catalog.");
     }
   };
 
@@ -156,7 +161,20 @@ const AdminLiveAuctionPage = () => {
       return;
     }
     try {
-      sendMessage(currentAuction._id, actionType);
+      if (actionType === "RETRACT") {
+        if (!socket) {
+          toast.error("Socket connection not available.");
+          return;
+        }
+        socket.emit("remove_latest_bid", { auctionId: currentAuction._id });
+        toast("Latest bid retracted. Note: Retraction is subject to auction rules.", { type: "warning" });
+      } else if (actionType === "RESERVE_NOT_MET") {
+        performAdminAction(currentAuction._id, actionType);
+        toast("Reserve not met: Minimum price not reached, item may not sell.", { type: "info" });
+      } else {
+        performAdminAction(currentAuction._id, actionType);
+      }
+
       if (actionType === "NEXT_LOT") {
         const liveAuctions = selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE");
         const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
@@ -186,7 +204,7 @@ const AdminLiveAuctionPage = () => {
             Authorization: `${token}`,
           },
           body: JSON.stringify({
-            auctionId: auctionId,
+            auctionId,
             status: "ENDED",
           }),
         });
@@ -228,31 +246,29 @@ const AdminLiveAuctionPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-black text-white border-b">
-        <div className="container mx-auto px-4 py-2">
+    <div className="min-h-screen bg-white">
+      <div className="bg-black text-white">
+        <div className="px-4 py-2">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">NY Elizabeth</h1>
-              <div className="flex items-center gap-2 text-sm">
-                <span>NY Elizabeth</span>
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold">NY Elizabeth</h1>
+              <div className="ml-8 text-sm">
+                {/* <span>NY Elizabeth</span> */}
+                <span className="ml-2 text-blue-400">
+                  {selectedCatalog && selectedCatalog.auctions.length > 0
+                    ? Math.round(
+                        ((selectedCatalog.auctions.length -
+                          selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length) /
+                          selectedCatalog.auctions.length) *
+                          100
+                      )
+                    : 0}% Complete
+                </span>
               </div>
             </div>
             <div className="text-right">
               <div className="text-sm">
-                {selectedCatalog
-                  ? `${selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length} of ${selectedCatalog.auctions.length} Lots`
-                  : "0 of 0 Lots"}
-              </div>
-              <div className="text-sm">
-                {selectedCatalog && selectedCatalog.auctions.length > 0
-                  ? Math.round(
-                      ((selectedCatalog.auctions.length -
-                        selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE").length) /
-                        selectedCatalog.auctions.length) *
-                        100
-                    )
-                  : 0}%
+                {currentAuction ? `${currentAuction.lotNumber || ''} of ${selectedCatalog?.auctions.length || 0} Lots Remaining` : ''}
               </div>
               <div className="text-sm">Online: {watchers}</div>
             </div>
@@ -260,7 +276,7 @@ const AdminLiveAuctionPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-4">
+      <div className="px-4 py-2">
         {!selectedCatalog ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {catalogs.map((catalog) => (
@@ -275,11 +291,24 @@ const AdminLiveAuctionPage = () => {
                 upcomingLots={selectedCatalog.auctions.filter(
                   (a) => a.status === "ACTIVE" && a.auctionType === "LIVE" && a._id !== currentAuction?._id
                 )}
+                onSelectLot={(lot) => {
+                  setCurrentAuction(lot);
+                  setBidHistory(lot.bids || []);
+                  setWatchers(0);
+                  setJoinedRooms((prev) => {
+                    const newSet = new Set(prev);
+                    if (currentAuction?._id) {
+                      newSet.delete(currentAuction._id);
+                    }
+                    return newSet;
+                  });
+                }}
               />
             </div>
             <div>
               <AuctionControls
                 currentAuction={currentAuction}
+                setCurrentAuction={setCurrentAuction}
                 bidHistory={bidHistory}
                 handleAdminAction={handleAdminAction}
                 handleSendMessage={handleSendMessage}
@@ -288,11 +317,13 @@ const AdminLiveAuctionPage = () => {
                 watchers={watchers}
                 socket={socket}
                 setAuctionMode={(mode) => updateAuctionMode(currentAuction?._id, mode)}
-                auctionMode={currentAuction ? auctionModes[currentAuction._id] || "online" : "online"}
+                auctionMode={currentAuction ? auctionModes[currentAuction._id] || "competitor" : "competitor"}
                 onBack={handleBackToCatalogs}
                 placeBid={placeBid}
                 getBidIncrement={getBidIncrement}
+                getAuctionData={getAuctionData}
                 token={token}
+                userId={userId}
               />
             </div>
           </div>

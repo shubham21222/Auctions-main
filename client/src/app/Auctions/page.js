@@ -137,7 +137,6 @@ export default function AuctionCalendar() {
     }
   };
 
-  // Effect for pagination
   useEffect(() => {
     const startIndex = (currentPage - 1) * auctionsPerPage;
     const endIndex = startIndex + auctionsPerPage;
@@ -145,16 +144,24 @@ export default function AuctionCalendar() {
     setDisplayedAuctions(paginatedAuctions);
   }, [allAuctions, currentPage, auctionsPerPage]);
 
-  // Effect for fetching auctions and updating time
   useEffect(() => {
     let isSubscribed = true;
+    let timeoutId;
 
     const fetchData = async () => {
       if (!isSubscribed) return;
-      await fetchAuctions();
+      setLoading(true);
+      try {
+        await fetchAuctions();
+      } finally {
+        if (isSubscribed) {
+          setLoading(false);
+        }
+      }
     };
 
-    fetchData();
+    // Debounce the fetch to prevent rapid re-fetches
+    timeoutId = setTimeout(fetchData, 300);
 
     const timeInterval = setInterval(() => {
       if (isSubscribed) {
@@ -164,6 +171,7 @@ export default function AuctionCalendar() {
 
     return () => {
       isSubscribed = false;
+      clearTimeout(timeoutId);
       clearInterval(timeInterval);
     };
   }, [token, filters, sortOption]);

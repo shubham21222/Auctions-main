@@ -122,7 +122,7 @@ export function AuctionFilters({ onFilterChange }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by title or lot number"
-          className="w-full border border-luxury-gold/20 p-2 rounded-md text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40"
+          className="w-full border border-luxury-gold/20 p-2.5 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40 transition-all bg-white/50 backdrop-blur-sm"
         />
       </div>
 
@@ -132,7 +132,7 @@ export function AuctionFilters({ onFilterChange }) {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="w-full border border-luxury-gold/20 p-2 rounded-md text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40"
+          className="w-full border border-luxury-gold/20 p-2.5 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40 transition-all bg-white/50 backdrop-blur-sm"
         />
       </div>
 
@@ -144,7 +144,7 @@ export function AuctionFilters({ onFilterChange }) {
             onValueChange={setPriceRange}
             max={100000}
             step={1000}
-            className="[&_[role=slider]]:border-luxury-gold bg-luxury-gold [&_[role=slider]]:bg-luxury-gold"
+            className="[&_[role=slider]]:border-luxury-gold bg-luxury-gold/20 [&_[role=slider]]:bg-luxury-gold"
           />
           <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
             <span>${priceRange[0].toLocaleString()}</span>
@@ -164,8 +164,11 @@ export function AuctionFilters({ onFilterChange }) {
                 onCheckedChange={(checked) =>
                   setAuctionTypes((prev) => ({ ...prev, [format]: checked }))
                 }
+                className="border-luxury-gold/20 data-[state=checked]:bg-luxury-gold"
               />
-              <Label htmlFor={format.toLowerCase().replace(" ", "-")}>{format}</Label>
+              <Label htmlFor={format.toLowerCase().replace(" ", "-")} className="text-luxury-charcoal">
+                {format}
+              </Label>
             </div>
           ))}
         </div>
@@ -183,8 +186,11 @@ export function AuctionFilters({ onFilterChange }) {
                   onCheckedChange={(checked) =>
                     setCatalogs((prev) => ({ ...prev, [catalog]: checked }))
                   }
+                  className="border-luxury-gold/20 data-[state=checked]:bg-luxury-gold"
                 />
-                <Label htmlFor={catalog.toLowerCase()}>{catalog}</Label>
+                <Label htmlFor={catalog.toLowerCase()} className="text-luxury-charcoal">
+                  {catalog}
+                </Label>
               </div>
             ))
           ) : (
@@ -202,8 +208,11 @@ export function AuctionFilters({ onFilterChange }) {
                 id={statusOption.toLowerCase()}
                 checked={status[statusOption]}
                 onCheckedChange={handleStatusChange(statusOption)}
+                className="border-luxury-gold/20 data-[state=checked]:bg-luxury-gold"
               />
-              <Label htmlFor={statusOption.toLowerCase()}>{statusOption}</Label>
+              <Label htmlFor={statusOption.toLowerCase()} className="text-luxury-charcoal">
+                {statusOption}
+              </Label>
             </div>
           ))}
         </div>
@@ -211,7 +220,7 @@ export function AuctionFilters({ onFilterChange }) {
 
       <Button
         variant="outline"
-        className="w-full border-luxury-gold/20 text-luxury-gold hover:border-luxury-gold/40 hover:bg-luxury-gold/5"
+        className="w-full border-luxury-gold/20 text-luxury-gold hover:border-luxury-gold/40 hover:bg-luxury-gold/5 transition-all"
         onClick={handleResetFilters}
       >
         Reset Filters

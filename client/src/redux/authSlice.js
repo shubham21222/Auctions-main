@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import CryptoJS from "crypto-js";
 import axios from "axios";
-import config from "../app/config_BASE_URL"; // Adjust path as needed
+import config from "../app/config_BASE_URL";
 
 const initialState = {
   token: null,
@@ -11,11 +11,14 @@ const initialState = {
   superAdminDetails: null,
   isLoggedIn: false,
   isBillingDetailsAvailable: false,
+  isPaymentMethodAdded: false,
   paymentDetails: null,
   items: {
     email: null,
     passwordResetToken: null,
   },
+  billingDetails: null,
+  paymentMethodId: null,
 };
 
 const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || "Shubham@9806265682";
@@ -34,35 +37,48 @@ const decryptValue = (encryptedValue) => {
   }
 };
 
-// Async thunk for registration
 export const registerUser = createAsyncThunk(
   "auth/registerUser",
-  async ({ email, password, name, billingDetails }, { rejectWithValue }) => {
+  async (userData, { rejectWithValue }) => {
     try {
-      const signupResponse = await axios.post(`${config.baseURL}/v1/api/auth/register`, {
-        email,
-        password,
-        name,
-        BillingDetails: Object.values(billingDetails).some(value => value) ? [billingDetails] : [],
-      });
+      console.log("Received userData in registerUser:", JSON.stringify(userData, null, 2));
+
+      const payload = {
+        email: userData.email,
+        password: userData.password,
+        name: userData.name,
+        temp_password: userData.temp_password || "false",
+        BillingDetails: userData.BillingDetails || undefined, // Changed to capital "B"
+      };
+
+      console.log("Payload sent to /register:", JSON.stringify(payload, null, 2));
+
+      const signupResponse = await axios.post(
+        `${config.baseURL}/v1/api/auth/register`,
+        payload
+      );
+
+      console.log("Signup response:", signupResponse.data);
 
       if (!signupResponse.data.success) {
         throw new Error(signupResponse.data.message || "Registration failed.");
       }
 
       const loginResponse = await axios.post(`${config.baseURL}/v1/api/auth/login`, {
-        email,
-        password,
+        email: userData.email,
+        password: userData.password,
       });
+
+      console.log("Login response:", loginResponse.data);
 
       if (!loginResponse.data.status || !loginResponse.data.items.success) {
         throw new Error(loginResponse.data.message || "Login failed after registration.");
       }
 
       const token = loginResponse.data.items.token;
-      const userData = loginResponse.data.items.user;
+      const userDetails = loginResponse.data.items.user;
 
-      if (!token || !userData) {
+      if (!token || !userDetails) {
         throw new Error("No token or user data received from login response.");
       }
 
@@ -72,8 +88,11 @@ export const registerUser = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      return { token, userData, verifyResponse: verifyResponse.data }; // Return data to be handled by reducers
+      console.log("Verify response:", verifyResponse.data);
+
+      return { token, userData: userDetails, verifyResponse: verifyResponse.data };
     } catch (err) {
+      console.error("Error in registerUser:", err);
       return rejectWithValue(err.message || "An error occurred during registration.");
     }
   }
@@ -90,6 +109,7 @@ export const authSlice = createSlice({
     removeToken: (state) => {
       state.token = null;
       state.isLoggedIn = false;
+      state.isPaymentMethodAdded = false;
     },
     setUser: (state, action) => {
       const userData = action.payload;
@@ -101,12 +121,14 @@ export const authSlice = createSlice({
       state._id = userData._id;
       state.isLoggedIn = true;
       state.isBillingDetailsAvailable = userData.BillingDetails && userData.BillingDetails.length > 0;
+      state.isPaymentMethodAdded = !!userData.paymentMethodId;
     },
     removeUser: (state) => {
       state.user = null;
       state._id = null;
       state.isLoggedIn = false;
       state.isBillingDetailsAvailable = false;
+      state.isPaymentMethodAdded = false;
     },
     setUserId: (state, action) => {
       state._id = action.payload;
@@ -146,9 +168,10 @@ export const authSlice = createSlice({
       }
     },
     updateBillingDetails: (state, action) => {
+      state.billingDetails = action.payload;
+      state.isBillingDetailsAvailable = !!action.payload;
       if (state.user) {
-        state.user.BillingDetails = [action.payload];
-        state.isBillingDetailsAvailable = true;
+        state.user.BillingDetails = action.payload ? [action.payload] : [];
       }
     },
     setPaymentDetails: (state, action) => {
@@ -156,6 +179,13 @@ export const authSlice = createSlice({
     },
     clearPaymentDetails: (state) => {
       state.paymentDetails = null;
+    },
+    updatePaymentMethod: (state, action) => {
+      state.paymentMethodId = action.payload;
+      state.isPaymentMethodAdded = !!action.payload;
+      if (state.user) {
+        state.user.paymentMethodId = action.payload;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -171,6 +201,9 @@ export const authSlice = createSlice({
         state._id = userData._id || null;
         state.items.email = userData.email || null;
         state.isLoggedIn = true;
+        state.billingDetails = userData.BillingDetails?.[0] || null;
+        state.paymentMethodId = userData.paymentMethodId || null;
+        state.isPaymentMethodAdded = !!userData.paymentMethodId;
 
         if (verifyResponse?.items && typeof verifyResponse.items === "object") {
           const verifiedUserData = verifyResponse.items;
@@ -180,6 +213,9 @@ export const authSlice = createSlice({
             BillingDetails: verifiedUserData.BillingDetails || [],
           };
           state.isBillingDetailsAvailable = verifiedUserData.BillingDetails && verifiedUserData.BillingDetails.length > 0;
+          state.billingDetails = verifiedUserData.BillingDetails?.[0] || null;
+          state.paymentMethodId = verifiedUserData.paymentMethodId || null;
+          state.isPaymentMethodAdded = !!verifiedUserData.paymentMethodId;
         }
       })
       .addCase(registerUser.rejected, (state, action) => {
@@ -207,6 +243,7 @@ export const {
   updateBillingDetails,
   setPaymentDetails,
   clearPaymentDetails,
+  updatePaymentMethod,
 } = authSlice.actions;
 
 export const selectIsLoggedIn = (state) => state.auth.isLoggedIn;
@@ -222,5 +259,6 @@ export const selectWalletBalance = (state) => {
 export const selectBillingDetails = (state) => state.auth.user?.BillingDetails || [];
 export const selectIsBillingDetailsAvailable = (state) => state.auth.isBillingDetailsAvailable;
 export const selectPaymentDetails = (state) => state.auth.paymentDetails;
+export const selectIsPaymentMethodAdded = (state) => state.auth.isPaymentMethodAdded;
 
 export default authSlice.reducer;

@@ -7,14 +7,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
-import { useDispatch } from "react-redux";
-import { registerUser } from "@/redux/authSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { registerUser, updatePaymentMethod } from "@/redux/authSlice";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe('pk_test_51QvrYjAyvNAmOwKWxkE96ErZaYGx3LcIivgG0OUWeUowZUupEuM7ir6fLdxhtssPtNQnruXmKMfjB9CDbA8KjG1u00thCR8WnJ');
+const stripePromise = loadStripe('pk_test_51PAs60SB7WwtOtybIdvkn8Cre8ZL9v5RJc61u8kzkKYZEsQbsMK6hLTZGIRoF0VKePdCk4iHQzh3Rxrd4sqaN1xM00NO4Zh4S6');
 
-const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
+const PaymentForm = ({ token, onSuccess, billingDetails, email, dispatch }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [cardholderName, setCardholderName] = useState("");
@@ -37,12 +37,12 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
         billing_details: {
           name: cardholderName,
           email: email,
-          phone: billingDetails.phone,
+          phone: billingDetails.phone || "",
           address: {
-            line1: billingDetails.streetAddress,
-            city: billingDetails.city,
-            state: billingDetails.state,
-            postal_code: billingDetails.zipcode,
+            line1: billingDetails.streetAddress || "",
+            city: billingDetails.city || "",
+            state: billingDetails.state || "",
+            postal_code: billingDetails.zipcode || "",
             country: 'US'
           }
         },
@@ -54,11 +54,13 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
         return;
       }
 
+      console.log("Sending payment method payload:", { paymentMethodId: paymentMethod.id, BillingDetails: { ...billingDetails, name: cardholderName, email } });
+
       const response = await axios.post(
         `${config.baseURL}/v1/api/auth/add-card`,
         { 
           paymentMethodId: paymentMethod.id,
-          billingDetails: {
+          BillingDetails: {  // Changed to capital "B"
             ...billingDetails,
             name: cardholderName,
             email: email
@@ -67,13 +69,17 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
         { headers: { Authorization: `${token}` } }
       );
 
+      console.log("Add card response:", response.data);
+
       if (response.data.status) {
         toast.success("Payment method added successfully!");
+        dispatch(updatePaymentMethod(paymentMethod.id));
         onSuccess();
       } else {
         setError(response.data.error || "Failed to add payment method");
       }
     } catch (err) {
+      console.error("Error in add-card:", err);
       setError(err.response?.data?.message || err.message || "Failed to connect to server");
     } finally {
       setLoading(false);
@@ -148,6 +154,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
     orderNotes: "",
   });
   const dispatch = useDispatch();
+  const reduxToken = useSelector((state) => state.auth.token);
 
   if (!isOpen) return null;
 
@@ -173,21 +180,24 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
         email,
         password,
         name,
+        temp_password: "false",
       };
 
-      // Only include billingDetails if skipBilling is false
       if (!skipBilling) {
-        userData.billingDetails = billingDetails;
+        userData.BillingDetails = billingDetails; // Changed to capital "B"
       }
 
-      const result = await dispatch(
-        registerUser(userData)
-      ).unwrap();
-      
+      console.log("Registration payload:", JSON.stringify(userData, null, 2));
+
+      const result = await dispatch(registerUser(userData)).unwrap();
+
+      console.log("Registration response:", result);
+
       setLocalToken(result.token);
       toast.success("Registration successful! Please add a payment method.");
       setStep(4);
     } catch (err) {
+      console.error("Registration error:", err);
       toast.error(err || "An error occurred during registration.");
     } finally {
       setLoading(false);
@@ -214,7 +224,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
 
   return (
     <> 
-      {/* <Toaster position="top-right" reverseOrder={false} /> */}
+      <Toaster position="top-right" reverseOrder={false} />
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -583,10 +593,11 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                     </p>
                     <Elements stripe={stripePromise}>
                       <PaymentForm 
-                        token={token} 
+                        token={token || reduxToken} 
                         onSuccess={handlePaymentSuccess}
                         billingDetails={billingDetails}
                         email={email}
+                        dispatch={dispatch}
                       />
                     </Elements>
                     <div className="flex justify-between mt-8">

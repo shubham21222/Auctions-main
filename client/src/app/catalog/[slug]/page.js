@@ -54,79 +54,74 @@ export default function CatalogPage() {
   const token = useSelector((state) => state.auth.token);
   const userId = useSelector((state) => state.auth._id);
   const router = useRouter();
-  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications } = useSocket();
+  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications, subscribeToEvents, getBidIncrement } = useSocket();
   const hasJoinedRef = useRef(new Set());
 
   const fetchAuctionData = useCallback(async () => {
-    if (!token || !auctionId) {
+    if (!token || !auctionId || !socket) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      const auctionResponse = await fetch(`${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`, {
+      // Use getAuctionData (Socket.IO) instead of HTTP API for consistency
+      const auctionData = await getAuctionData(auctionId);
+      console.log("Fetched Auction via Socket:", auctionData);
+
+      const auctionResult = {
+        ...auctionData,
+        messages: Array.isArray(auctionData.messages) ? auctionData.messages : [],
+        catalog: auctionData.category?.name || auctionData.catalog || "Uncategorized",
+        bids: Array.isArray(auctionData.bids) ? auctionData.bids : [],
+      };
+
+      setAuction(auctionResult);
+      setHeaderData({
+        productName: auctionResult.product?.title || "Unnamed Item",
+        lotNumber: auctionResult.lotNumber || "N/A",
+        catalog: auctionResult.catalog,
+        endDate: auctionResult.endDate,
+        status: auctionResult.status || "Loading",
+      });
+
+      setIsJoined(
+        Array.isArray(auctionResult.participants) && auctionResult.participants.some((p) => p._id === userId)
+      );
+
+      setProduct({
+        id: auctionResult.product?._id || "",
+        name: auctionResult.product?.title || "Unnamed Item",
+        images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
+        description: auctionResult.product?.description || "No additional description available.",
+        price: {
+          min: auctionResult.product?.price || 0,
+          max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
+        },
+      });
+
+      setLiveAuctions((prev) => {
+        const exists = prev.find((a) => a.id === auctionId);
+        return exists
+          ? prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a))
+          : [...prev, { ...auctionResult, id: auctionId }];
+      });
+
+      const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
         method: "GET",
         headers: { Authorization: `${token}` },
       });
-      if (!auctionResponse.ok) throw new Error("Failed to fetch auction");
-      const auctionData = await auctionResponse.json();
-      if (auctionData.status && auctionData.items) {
-        const auctionResult = {
-          ...auctionData.items,
-          messages: Array.isArray(auctionData.items.messages) ? auctionData.items.messages : [],
-          catalog: auctionData.items.category?.name || auctionData.items.catalog || "Uncategorized",
-        };
-
-        console.log("Fetched Auction:", auctionResult);
-
-        setAuction(auctionResult);
-        setHeaderData({
-          productName: auctionResult.product?.title || "Unnamed Item",
-          lotNumber: auctionResult.lotNumber || "N/A",
-          catalog: auctionResult.catalog,
-          endDate: auctionResult.endDate,
-          status: auctionResult.status || "Loading",
-        });
-
-        setIsJoined(
-          Array.isArray(auctionResult.participants) && auctionResult.participants.some((p) => p._id === userId)
+      if (!allAuctionsResponse.ok) throw new Error("Failed to fetch all auctions");
+      const allAuctionsData = await allAuctionsResponse.json();
+      if (allAuctionsData.status && allAuctionsData.items?.catalogs) {
+        const auctions = allAuctionsData.items.catalogs.flatMap((catalog) =>
+          catalog.auctions.map((auction) => ({
+            ...auction,
+            catalog: catalog.catalogName,
+          }))
         );
-
-        setProduct({
-          id: auctionResult.product?._id || "",
-          name: auctionResult.product?.title || "Unnamed Item",
-          images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
-          description: auctionResult.product?.description || "No additional description available.",
-          price: {
-            min: auctionResult.product?.price || 0,
-            max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
-          },
-        });
-
-        setLiveAuctions((prev) => {
-          const exists = prev.find((a) => a.id === auctionId);
-          return exists
-            ? prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a))
-            : [...prev, { ...auctionResult, id: auctionId }];
-        });
-
-        const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
-          method: "GET",
-          headers: { Authorization: `${token}` },
-        });
-        if (!allAuctionsResponse.ok) throw new Error("Failed to fetch all auctions");
-        const allAuctionsData = await allAuctionsResponse.json();
-        if (allAuctionsData.status && allAuctionsData.items?.catalogs) {
-          const auctions = allAuctionsData.items.catalogs.flatMap((catalog) =>
-            catalog.auctions.map((auction) => ({
-              ...auction,
-              catalog: catalog.catalogName,
-            }))
-          );
-          console.log("All Auctions Fetched:", auctions);
-          setAllAuctions(auctions);
-        }
+        console.log("All Auctions Fetched:", auctions);
+        setAllAuctions(auctions);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -134,7 +129,7 @@ export default function CatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [auctionId, token, setLiveAuctions, userId]);
+  }, [auctionId, token, socket, setLiveAuctions, userId, getAuctionData]);
 
   useEffect(() => {
     fetchAuctionData();
@@ -150,73 +145,128 @@ export default function CatalogPage() {
 
       getAuctionData(auctionId)
         .then((data) => {
-          console.log("Received initial auction data:", data);
+          console.log("Catalog: Received initial auction data:", data);
           setAuction((prev) => ({ ...prev, ...data }));
         })
         .catch((err) => {
-          console.error("Error fetching initial auction data:", err);
+          console.error("Catalog: Error fetching initial auction data:", err);
           toast.error("Failed to load auction data. Please try refreshing.");
         });
     }
 
-    const handleAuctionMessage = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType }) => {
-      console.log("Received auctionMessage in CatalogPage:", { msgAuctionId, message, actionType, sender, timestamp, bidType });
-      if (msgAuctionId === auctionId) {
-        const newMessage = {
-          message: message || actionType || "Update",
-          actionType,
-          sender: typeof sender === "object" ? sender.name || "Admin" : sender || "Admin",
-          timestamp: timestamp || new Date(),
-          bidType: bidType || "message",
-        };
-        setAuction((prev) => ({
-          ...prev,
-          messages: [...(prev?.messages || []), newMessage],
-        }));
-        toast.info(`Auction update: ${newMessage.message}`);
-      }
-    };
+    const unsubscribe = subscribeToEvents(auctionId, {
+      onBidUpdate: ({ auctionId: msgAuctionId, bidAmount, bidderId, bidType, timestamp, minBidIncrement, bids }) => {
+        console.log("Catalog: Received bidUpdate:", { msgAuctionId, bidAmount, bidType });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => {
+            // If server sent complete bids array, use it directly
+            if (Array.isArray(bids) && bids.length > 0) {
+              // Deduplicate the bids array
+              const deduplicatedBids = bids.reduce((acc, bid) => {
+                const existingBid = acc.find(b => 
+                  b.bidAmount === bid.bidAmount && 
+                  Math.abs(new Date(b.bidTime) - new Date(bid.bidTime)) < 3000
+                );
+                if (!existingBid) {
+                  acc.push(bid);
+                }
+                return acc;
+              }, []);
+              
+              return {
+                ...prev,
+                currentBid: bidAmount,
+                currentBidder: bidderId,
+                minBidIncrement,
+                bids: deduplicatedBids
+              };
+            }
+            
+            // Handle individual bid
+            const newBid = {
+              bidder: bidderId,
+              bidAmount,
+              bidTime: timestamp || new Date(),
+              bidType
+            };
+            
+            // Check for duplicates in existing bids
+            const isDuplicate = prev?.bids?.some(existingBid => {
+              const timeDiff = Math.abs(new Date(existingBid.bidTime) - new Date(newBid.bidTime));
+              return existingBid.bidAmount === bidAmount && timeDiff < 3000;
+            });
+            
+            const updatedBids = isDuplicate ? prev.bids : [...(prev?.bids || []), newBid];
+            
+            return {
+              ...prev,
+              currentBid: bidAmount,
+              currentBidder: bidderId,
+              minBidIncrement,
+              bids: updatedBids
+            };
+          });
+          
+          // Only show toast for new bids
+          toast.success(`New ${bidType} bid: $${bidAmount.toLocaleString()}`);
+        }
+      },
+      onAuctionMessage: ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType }) => {
+        console.log("Catalog: Received auctionMessage:", { msgAuctionId, message, actionType });
+        if (msgAuctionId === auctionId) {
+          const newMessage = {
+            message: message || actionType || "Update",
+            actionType,
+            sender: typeof sender === "object" ? sender.name || "Admin" : sender || "Admin",
+            timestamp: timestamp || new Date(),
+            bidType: bidType || "message",
+          };
+          
+          setAuction((prev) => ({
+            ...prev,
+            messages: [...(prev?.messages || []), newMessage],
+          }));
+          
+          // Show toast for admin messages
+          if (message || actionType) {
+            toast.info(`Auction update: ${message || actionType}`);
+          }
+        }
+      },
+      onWatcherUpdate: ({ auctionId: msgAuctionId, watchers }) => {
+        console.log("Catalog: Received watcherUpdate:", { msgAuctionId, watchers });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => ({ ...prev, watchers }));
+        }
+      },
+      onLatestBidRemoved: ({ auctionId: msgAuctionId, updatedBids, currentBid, currentBidder }) => {
+        console.log("Catalog: Received latestBidRemoved:", { msgAuctionId, currentBid });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => ({
+            ...prev,
+            currentBid,
+            currentBidder,
+            bids: updatedBids,
+          }));
+          toast.warning("Latest bid has been removed.");
+        }
+      },
+    });
 
-    const handleBidUpdate = (bidData) => {
-      console.log("Received bidUpdate in CatalogPage:", bidData);
-      if (bidData.auctionId === auctionId) {
-        setAuction((prev) => ({
-          ...prev,
-          currentBid: bidData.bidAmount,
-          bids: [
-            ...(prev?.bids || []),
-            {
-              bidder: bidData.bidderId,
-              bidAmount: bidData.bidAmount,
-              bidTime: bidData.timestamp || new Date(),
-              bidType: bidData.bidType,
-            },
-          ],
-        }));
-        toast.success(`New ${bidData.bidType} bid: $${bidData.bidAmount.toLocaleString()}`);
-      }
-    };
-
-    socket.on("auctionMessage", handleAuctionMessage);
-    socket.on("bidUpdate", handleBidUpdate);
-
-    return () => {
-      socket.off("auctionMessage", handleAuctionMessage);
-      socket.off("bidUpdate", handleBidUpdate);
-      console.log(`Cleaned up listeners for auction: ${auctionId}`);
-    };
-  }, [auctionId, socket, joinAuction, getAuctionData]);
+    return () => unsubscribe();
+  }, [auctionId, socket, joinAuction, getAuctionData, subscribeToEvents]);
 
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
     if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(auction)) {
-      console.log("Syncing auction with liveAuctions:", liveAuction);
+      console.log("Catalog: Syncing auction with liveAuctions:", liveAuction);
       setAuction((prev) => ({
         ...prev,
         currentBid: liveAuction.currentBid,
         bids: liveAuction.bids || prev?.bids || [],
         messages: liveAuction.messages || prev?.messages || [],
         status: liveAuction.status || prev?.status,
+        watchers: liveAuction.watchers || prev?.watchers || 0,
       }));
     }
   }, [liveAuctions, auctionId]);
@@ -225,8 +275,13 @@ export default function CatalogPage() {
     if (!socket || !auction || !allAuctions.length) return;
 
     const handleNextLot = ({ auctionId: msgAuctionId, actionType }) => {
+      console.log("Catalog: Received auctionMessage for NEXT_LOT:", { msgAuctionId, actionType });
       if (msgAuctionId === auctionId && actionType === "NEXT_LOT") {
-        const currentCatalogAuctions = allAuctions.filter((a) => a.catalog === auction.catalog);
+        const currentCatalogAuctions = allAuctions.filter((a) => {
+          const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
+          const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
+          return normalizedAuctionCatalog === normalizedCurrentCatalog;
+        });
         const currentIndex = currentCatalogAuctions.findIndex((a) => a._id === auctionId);
         if (currentIndex < currentCatalogAuctions.length - 1) {
           const nextAuctionId = currentCatalogAuctions[currentIndex + 1]._id;
@@ -253,8 +308,25 @@ export default function CatalogPage() {
       toast.error("Please log in to place a bid");
       return;
     }
-
+  
     try {
+      const auctionData = await getAuctionData(auction._id);
+      const currentBid = auctionData.currentBid || 0;
+      const bidIncrement = getBidIncrement(currentBid);
+      const nextBid = currentBid + bidIncrement;
+  
+      console.log(`Calculated nextBid: $${nextBid} based on currentBid: $${currentBid}`);
+  
+      // First place bid via socket for immediate UI update
+      const success = await placeBid(auction._id, "online", nextBid);
+      if (!success) {
+        throw new Error("Failed to place bid via socket");
+      }
+  
+      console.log(`Catalog: Online bid placed via socket for auction ${auction._id}: $${nextBid}`);
+      
+      // Then record the bid via API (but don't update UI again)
+      // This is just for persistence and server-side validation
       const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
         method: "POST",
         headers: {
@@ -263,24 +335,20 @@ export default function CatalogPage() {
         },
         body: JSON.stringify({
           auctionId: auction._id,
-          bidAmount,
+          bidAmount: nextBid,
           bidType: "online",
         }),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to place bid");
+        console.warn("API bid placement returned error, but socket bid was accepted:", errorData);
+        // Don't throw error here since socket bid was successful
       }
-
-      setAuction((prev) => ({
-        ...prev,
-        currentBid: bidAmount,
-        bids: [...(prev.bids || []), { bidder: userId, bidAmount, bidTime: new Date(), bidType: "online" }],
-      }));
-      toast.success(`Bid of $${bidAmount.toLocaleString()} placed successfully!`);
+  
+      // Toast is already shown by the bidUpdate handler
     } catch (error) {
-      console.error("Place Bid Error:", error);
+      console.error("Catalog: Place Bid Error:", error);
       toast.error(error.message || "Failed to place bid");
     }
   };
@@ -298,7 +366,11 @@ export default function CatalogPage() {
         ) : auction && allAuctions.length > 0 ? (
           <CatalogCarousel
             catalogName={auction.catalog}
-            auctions={allAuctions.filter((a) => a.catalog === auction.catalog && a._id !== auction._id)}
+            auctions={allAuctions.filter((a) => {
+              const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
+              const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
+              return normalizedAuctionCatalog === normalizedCurrentCatalog && a._id !== auction._id;
+            })}
             currentTime={new Date()}
             onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
           />
@@ -348,4 +420,4 @@ export default function CatalogPage() {
       </div>
     </>
   );
-}
+};
