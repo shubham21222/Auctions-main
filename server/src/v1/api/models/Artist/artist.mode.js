@@ -26,6 +26,12 @@ const artistSchema = new mongoose.Schema({
         default: ""
    }],
 
+   videos:[{
+    type: String,
+    required: false,
+    default: ""
+   }],
+
    createdBy:{
        type: mongoose.Schema.Types.ObjectId,
        ref: "User",

@@ -11,6 +11,7 @@ import artist from "./routes/Artist/artist.routes.js"
 import brands from "./routes/brands/brands.routes.js";
 import rolePermissions from "./routes/RolePermission/role-permissions.route.js";
 import userRoute from "./routes/User/user.route.js";
+import newsLetter from "./routes/newsletter/newsletter.routes.js";
 
 const router = Router();
 
@@ -62,7 +63,9 @@ router.use("/role", rolePermissions);
 
 router.use("/user", userRoute);
 
+// Add API routes here for NewsLetter //
 
+router.use("/newsletter", newsLetter);
 
 
 
