@@ -476,7 +476,7 @@ export const getbulkAuctions = async (req, res) => {
         }
 
         if(payment_status){
-            matchStage.payment_status = shipping_status
+            matchStage.payment_status = payment_status
         }
 
         if (shipping_status){
@@ -546,6 +546,49 @@ export const getbulkAuctions = async (req, res) => {
                     as: 'bidderDetails'
                 }
             },
+
+            {
+                $lookup: {
+                  from: "users",
+                  let: { bidderIds: "$bidLogs.bidder" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $in: [
+                            "$_id",
+                            {
+                              $map: {
+                                input: {
+                                  $filter: {
+                                    input: { $ifNull: ["$$bidderIds", []] },
+                                    as: "bidderId",
+                                    cond: {
+                                      $and: [
+                                        { $ne: ["$$bidderId", null] },
+                                        { $ne: ["$$bidderId", ""] },
+                                        { $eq: [{ $strLenCP: "$$bidderId" }, 24] }
+                                      ]
+                                    }
+                                  }
+                                },
+                                as: "bidderId",
+                                in: { $toObjectId: "$$bidderId" }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      $project: { _id: 1, name: 1, email: 1 }
+                    }
+                  ],
+                  as: "bidderlogsdetails"
+                }
+              },
+              
+              
             {
                 $addFields: {
                     bids: {
@@ -662,6 +705,50 @@ export const getbulkAuctions = async (req, res) => {
                             }
                         }
                     },
+                    bidLogs: {
+                        $map: {
+                          input: "$bidLogs",
+                          as: "bid",
+                          in: {
+                            $cond: [
+                              { $and: [ { $ne: ["$$bid.msg", null] }, { $ne: ["$$bid.msg", ""] } ] },
+                              {
+                                msg: "$$bid.msg"
+                              },
+                              {
+                                bidAmount: "$$bid.bidAmount",
+                                bidTime: "$$bid.bidTime",
+                                bidder: {
+                                    $arrayElemAt: [
+                                      {
+                                        $filter: {
+                                          input: "$bidderlogsdetails",
+                                          as: "u",
+                                          cond: {
+                                            $eq: [
+                                              "$$u._id",
+                                              {
+                                                $cond: {
+                                                  if: { $and: [{ $ne: ["$$bid.bidder", null] }, { $ne: ["$$bid.bidder", ""] }] },
+                                                  then: { $toObjectId: "$$bid.bidder" },
+                                                  else: null,
+                                                },
+                                              },
+                                            ],
+                                          },
+                                        },
+                                      },
+                                      0,
+                                    ],
+                                  },
+                                  
+                                ipAddress: "$$bid.ipAddress"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      
                     winnerBidTime: 1,
                     auctionType: 1,
                     participants: {
