@@ -282,10 +282,21 @@ export const initializeSocket = (server) => {
         if (!auction || auction.bids.length === 0) {
           return socket.emit("error", { message: "No bids to remove." });
         }
+    
+        // If there's only one bid, don't remove it
+        if (auction.bids.length === 1) {
+          return socket.emit("error", { message: "Only one bid exists. Cannot remove it." });
+        }
+    
         const removedBid = auction.bids.pop();
-
+    
+        // Update currentBid and currentBidder
+        const lastBid = auction.bids[auction.bids.length - 1];
+        auction.currentBid = lastBid.bidAmount;
+        auction.currentBidder = lastBid.bidder;
+    
         await auction.save();
-
+    
         io.in(auctionId).emit("latestBidRemoved", {
           auctionId,
           removedBid,
@@ -293,7 +304,7 @@ export const initializeSocket = (server) => {
           currentBid: auction.currentBid,
           currentBidder: auction.currentBidder,
         });
-
+    
         io.in(auctionId).emit("bidUpdate", {
           auctionId,
           bidAmount: auction.currentBid,
@@ -304,13 +315,14 @@ export const initializeSocket = (server) => {
           Role: lastBid?.Role || "user",
           timestamp: new Date(),
         });
-
+    
         console.log(`Latest bid removed from auction ${auctionId}`);
       } catch (error) {
         console.error("Error removing the latest bid:", error);
         socket.emit("error", { message: "Failed to remove the latest bid." });
       }
     });
+    
 
     socket.on("getAuctionData", async ({ auctionId }) => {
       try {
