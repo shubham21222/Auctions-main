@@ -58,6 +58,7 @@ export const initializeSocket = (server) => {
           timestamp: new Date(),
         });
 
+        
         const auction = await Auction.findById(auctionId);
         if (auction) {
           auction.bidLogs.push({
