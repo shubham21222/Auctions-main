@@ -57,6 +57,19 @@ export const initializeSocket = (server) => {
           sender: { id: userId, name: user.name, role: user.role },
           timestamp: new Date(),
         });
+
+        const auction = await Auction.findById(auctionId);
+        if (auction) {
+          auction.bidLogs.push({
+            bidder: "",
+            bidAmount: "",
+            bidTime: new Date(),
+            ipAddress: "",
+            Role: "",
+            msg: message
+          });
+          await auction.save();
+        }
       } catch (error) {
         console.error("Error sending message:", error);
         socket.emit("error", { message: "Failed to send message." });
@@ -209,6 +222,15 @@ export const initializeSocket = (server) => {
           bidType: bidType || "online",
           Role: user.role,
         };
+
+        auction.bidLogs.push({
+          bidder: bidderId.toString(),
+          bidAmount: finalBidAmount.toString(),
+          bidTime: new Date(),
+          ipAddress: ipAddress,
+          Role: user.role,
+          msg: ""
+        });
 
         auction.bids.push(newBid);
         auction.currentBid = finalBidAmount;

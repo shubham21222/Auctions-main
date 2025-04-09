@@ -10,6 +10,16 @@ const bidSchema = new mongoose.Schema({
     bidType:{type: String, required: false}
 });
 
+
+const bidSchemalogs = new mongoose.Schema({
+    bidder: { type: String, default: "" },
+    bidAmount: { type: String, default: "" },
+    bidTime: { type: Date },
+    ipAddress: { type: String, default: "" },
+    Role: { type: String, default: "" },
+    msg: { type: String, default: "" }
+})
+
 const auctionSchema = new mongoose.Schema(
     {
         product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: false , default: null },
@@ -24,6 +34,7 @@ const auctionSchema = new mongoose.Schema(
         startDate: { type: Date, default: Date.now, required: true },
         endDate: { type: Date, required: false , default:null },
         bids: [bidSchema],
+        bidLogs: [bidSchemalogs],
         winner: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
         winnerBidTime: { type: Date },
         minBidIncrement: { type: Number, default: 0 }, // Optional
