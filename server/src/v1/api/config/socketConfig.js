@@ -298,16 +298,16 @@ export const initializeSocket = (server) => {
           currentBidder: auction.currentBidder,
         });
 
-        io.in(auctionId).emit("bidUpdate", {
-          auctionId,
-          bidAmount: auction.currentBid,
-          bidderId: auction.currentBidder,
-          minBidIncrement: auction.minBidIncrement,
-          bids: auction.bids,
-          bidType: lastBid?.bidType || "online",
-          Role: lastBid?.Role || "user",
-          timestamp: new Date(),
-        });
+        // io.in(auctionId).emit("bidUpdate", {
+        //   auctionId,
+        //   bidAmount: auction.currentBid,
+        //   bidderId: auction.currentBidder,
+        //   minBidIncrement: auction.minBidIncrement,
+        //   bids: auction.bids,
+        //   bidType: lastBid?.bidType || "online",
+        //   Role: lastBid?.Role || "user",
+        //   timestamp: new Date(),
+        // });
 
         console.log(`Latest bid removed from auction ${auctionId}`);
       } catch (error) {
