@@ -297,13 +297,13 @@ export const initializeSocket = (server) => {
     
         await auction.save();
     
-        io.in(auctionId).emit("latestBidRemoved", {
-          auctionId,
-          removedBid,
-          updatedBids: auction.bids,
-          currentBid: auction.currentBid,
-          currentBidder: auction.currentBidder,
-        });
+        // io.in(auctionId).emit("latestBidRemoved", {
+        //   auctionId,
+        //   removedBid,
+        //   updatedBids: auction.bids,
+        //   currentBid: auction.currentBid,
+        //   currentBidder: auction.currentBidder,
+        // });
     
         io.in(auctionId).emit("bidUpdate", {
           auctionId,
