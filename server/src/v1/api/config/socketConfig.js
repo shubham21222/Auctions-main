@@ -284,10 +284,6 @@ export const initializeSocket = (server) => {
         }
         const removedBid = auction.bids.pop();
 
-        const lastBid = auction.bids[auction.bids.length - 1] || null;
-        auction.currentBid = lastBid ? lastBid.bidAmount : 0;
-        auction.currentBidder = lastBid ? lastBid.bidder : null;
-
         await auction.save();
 
         io.in(auctionId).emit("latestBidRemoved", {
