@@ -64,11 +64,6 @@ export const initializeSocket = (server) => {
         const auction = await Auction.findById(auctionId);
         if (auction) {
           auction.bidLogs.push({
-            bidder: "",
-            bidAmount: "",
-            bidTime: new Date(),
-            ipAddress: "",
-            Role: "",
             msg: message
           });
           await auction.save();
@@ -107,6 +102,10 @@ export const initializeSocket = (server) => {
             actionType,
             sender: { id: userId, name: user.name, role: user.role },
             timestamp: new Date(),
+          });
+
+          auction.bidLogs.push({
+            msg:actionType 
           });
         }
       } catch (error) {
