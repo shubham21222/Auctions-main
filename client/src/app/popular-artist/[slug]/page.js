@@ -7,6 +7,8 @@ import Image from "next/image";
 import Footer from "@/app/components/Footer";
 import Header from "@/app/components/Header";
 import config from "@/app/config_BASE_URL"; 
+import { Play, ChevronLeft, ChevronRight } from "lucide-react";
+
 const ArtistDetail = () => {
   const params = useParams();
   const [artist, setArtist] = useState(null);
@@ -14,6 +16,7 @@ const ArtistDetail = () => {
   const [error, setError] = useState(null);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     if (params && params.slug) {
@@ -76,9 +79,25 @@ const ArtistDetail = () => {
     : [];
 
   // Handle images safely
-  const artistImage = Array.isArray(artist.images) && artist.images.length > 0 
-    ? artist.images[0] 
-    : "https://via.placeholder.com/600";
+  const artistImages = Array.isArray(artist?.images) && artist.images.length > 0 
+    ? artist.images 
+    : ["https://via.placeholder.com/600"];
+
+  const artistVideos = Array.isArray(artist?.videos) && artist.videos.length > 0 
+    ? artist.videos 
+    : [];
+
+  const nextImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === artistImages.length - 1 ? 0 : prevIndex + 1
+    );
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === 0 ? artistImages.length - 1 : prevIndex - 1
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800">
@@ -86,10 +105,10 @@ const ArtistDetail = () => {
       <main className="container mx-auto px-4 py-16 mt-[80px]">
         {/* Hero Section with Image and Summary */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {/* Left: Full Image */}
-          <div className="relative w-full h-[400px] md:h-[600px]">
+          {/* Left: Image Gallery */}
+          <div className="relative w-full h-[400px] md:h-[600px] group">
             <Image
-              src={artistImage}
+              src={artistImages[currentImageIndex]}
               alt={artist.artistName}
               layout="fill"
               objectFit="cover"
@@ -100,6 +119,35 @@ const ArtistDetail = () => {
                 {artist.artistName}
               </h1>
             </div>
+            
+            {/* Image Navigation */}
+            {artistImages.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {artistImages.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                        index === currentImageIndex ? 'bg-white w-4' : 'bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right: Summary */}
@@ -112,6 +160,30 @@ const ArtistDetail = () => {
             </p>
           </div>
         </section>
+
+        {/* Video Section */}
+        {artistVideos.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-6 border-b-2 border-yellow-500 pb-2">
+              Videos
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {artistVideos.map((video, index) => (
+                <div key={index} className="relative aspect-video rounded-xl overflow-hidden shadow-lg group">
+                  <iframe
+                    src={video}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <Play className="w-12 h-12 text-white" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Detailed Biography Section */}
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
