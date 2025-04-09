@@ -97,6 +97,13 @@ export const initializeSocket = (server) => {
             timestamp: new Date(),
           });
         } else {
+
+          auction.bidLogs.push({
+            msg: actionType,
+          });
+
+          await auction.save();
+
           io.to(auctionId).emit("auctionMessage", {
             auctionId,
             actionType,
@@ -104,9 +111,6 @@ export const initializeSocket = (server) => {
             timestamp: new Date(),
           });
 
-          auction.bidLogs.push({
-            msg:actionType 
-          });
         }
       } catch (error) {
         console.error("Error processing admin action:", error);
