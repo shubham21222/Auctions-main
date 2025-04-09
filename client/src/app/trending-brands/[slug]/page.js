@@ -7,11 +7,14 @@ import Image from "next/image";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import config from "@/app/config_BASE_URL";
+import { Play, ChevronLeft, ChevronRight } from "lucide-react";
+
 const BrandDetail = () => {
   const params = useParams();
   const [brand, setBrand] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
@@ -34,6 +37,18 @@ const BrandDetail = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === brand.images.length - 1 ? 0 : prevIndex + 1
+    );
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === 0 ? brand.images.length - 1 : prevIndex - 1
+    );
   };
 
   if (loading) {
@@ -77,9 +92,9 @@ const BrandDetail = () => {
       <Header />
       <main className="container mx-auto px-4 py-16 mt-[80px]">
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <div className="relative w-full h-[400px] md:h-[600px]">
+          <div className="relative w-full h-[400px] md:h-[600px] group">
             <Image
-              src={brand.images[0] || "https://via.placeholder.com/600"} // Use first image
+              src={brand.images[currentImageIndex] || "https://via.placeholder.com/600"}
               alt={brand.brandName}
               layout="fill"
               objectFit="cover"
@@ -90,6 +105,35 @@ const BrandDetail = () => {
                 {brand.brandName.replace(/-/g, " ")}
               </h1>
             </div>
+            
+            {/* Image Navigation */}
+            {brand.images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {brand.images.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                        index === currentImageIndex ? 'bg-white w-4' : 'bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 flex flex-col justify-center">
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4 border-b-2 border-yellow-500 pb-2">
@@ -100,6 +144,31 @@ const BrandDetail = () => {
             </p>
           </div>
         </section>
+
+        {/* Video Section */}
+        {brand.videos && brand.videos.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-6 border-b-2 border-yellow-500 pb-2">
+              Videos
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {brand.videos.map((video, index) => (
+                <div key={index} className="relative aspect-video rounded-xl overflow-hidden shadow-lg group">
+                  <iframe
+                    src={video}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <Play className="w-12 h-12 text-white" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 mb-12">
           <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-6 border-b-2 border-yellow-500 pb-2">
             Detailed Biography
@@ -121,24 +190,28 @@ const BrandDetail = () => {
             )}
           </div>
         </section>
+
+        {/* Gallery Section */}
         {brand.images.length > 1 && (
           <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
             <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-6 border-b-2 border-yellow-500 pb-2">
               Gallery
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {brand.images.slice(1).map((image, index) => ( // Skip first image used in hero
+              {brand.images.map((image, index) => (
                 <div
                   key={index}
-                  className="relative w-full h-[200px] rounded-lg overflow-hidden shadow-md"
+                  className="relative w-full h-[200px] rounded-lg overflow-hidden shadow-md cursor-pointer group"
+                  onClick={() => setCurrentImageIndex(index)}
                 >
                   <Image
                     src={image}
                     alt={`Gallery image ${index + 1} for ${brand.brandName}`}
                     layout="fill"
                     objectFit="cover"
-                    className="transition-transform duration-500 hover:scale-110"
+                    className="transition-transform duration-500 group-hover:scale-110"
                   />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
               ))}
             </div>
