@@ -45,6 +45,8 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("sendMessage", async ({ auctionId, message, userId }) => {
+
+      console.log("message" , message)
       try {
         const user = await User.findById(userId);
         if (!user || user.role !== "ADMIN") {
@@ -58,7 +60,7 @@ export const initializeSocket = (server) => {
           timestamp: new Date(),
         });
 
-        
+
         const auction = await Auction.findById(auctionId);
         if (auction) {
           auction.bidLogs.push({
