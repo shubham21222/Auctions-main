@@ -24,8 +24,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [isLiked, setIsLiked] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] =
-    useState(false);
+  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const cardRef = useRef(null);
@@ -153,7 +152,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
-    // Check if user has billing details and payment method from Redux state
+    // Check if user has both billing details and payment method
     const hasBillingDetails = user?.BillingDetails?.length > 0 || auth?.billingDetails;
     const hasPaymentMethod = user?.paymentMethodId || auth?.paymentMethodId;
 
@@ -162,7 +161,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
-    // If user has both billing details and payment method, navigate to catalog
+    // If both are present, open catalog
     window.open(
       `/catalog/${auction.id}`,
       "_blank",
@@ -344,9 +343,8 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         isOpen={isBillingPaymentModalOpen}
         onClose={() => setIsBillingPaymentModalOpen(false)}
         onSuccess={() => {
-          toast.success(
-            "Billing details and payment method added successfully!"
-          );
+          // Only open catalog after both billing and payment are confirmed
+          toast.success("Billing and payment details added successfully!");
           window.open(
             `/catalog/${auction.id}`,
             "_blank",

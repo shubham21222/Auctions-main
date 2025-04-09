@@ -10,7 +10,7 @@ import config from "../config_BASE_URL";
 
 const stripePromise = loadStripe('pk_test_51PAs60SB7WwtOtybIdvkn8Cre8ZL9v5RJc61u8kzkKYZEsQbsMK6hLTZGIRoF0VKePdCk4iHQzh3Rxrd4sqaN1xM00NO4Zh4S6');
 
-const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
+const PaymentForm = ({ token, onSuccess, billingDetails, email, onClose }) => {
   const stripe = useStripe();
   const elements = useElements();
   const dispatch = useDispatch();
@@ -51,7 +51,7 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
         return;
       }
 
-      // Save payment method to backend using the correct API endpoint
+      // Save payment method to backend
       const response = await fetch(`${config.baseURL}/v1/api/auth/add-card`, {
         method: 'POST',
         headers: {
@@ -72,8 +72,9 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email }) => {
       if (data.status) {
         // Update payment method in Redux store
         dispatch(updatePaymentMethod(paymentMethod.id));
-        toast.success(data.message || "Card added successfully!");
-        onSuccess();
+        toast.success(data.message || "Payment method added successfully!");
+        onSuccess(); // Call onSuccess only after both steps are complete
+        onClose(); // Close the modal
       } else {
         throw new Error(data.message || 'Failed to save payment method');
       }
@@ -149,8 +150,8 @@ const BillingPaymentModal = ({ isOpen, onClose, onSuccess, token, email }) => {
     }
   }, [isOpen, user]);
 
-  // Don't show modal if payment method is already added
-  if (!isOpen || isPaymentMethodAdded) return null;
+  // Don't show modal if payment method is already added and billing details exist
+  if (!isOpen || (isPaymentMethodAdded && user?.BillingDetails?.length > 0)) return null;
 
   const handleBillingChange = (e) => {
     const { name, value } = e.target;
@@ -162,7 +163,7 @@ const BillingPaymentModal = ({ isOpen, onClose, onSuccess, token, email }) => {
 
   const handleBillingSubmit = async () => {
     try {
-      // Save billing details to backend using the correct API endpoint
+      // Save billing details to backend
       const response = await fetch(`${config.baseURL}/v1/api/auth/UpdateBillingAddress`, {
         method: 'POST',
         headers: {
@@ -179,10 +180,12 @@ const BillingPaymentModal = ({ isOpen, onClose, onSuccess, token, email }) => {
       }
 
       const data = await response.json();
-      if (data.success) {
+
+      if (data.status) {
         // Update billing details in Redux store
         dispatch(updateBillingDetails(billingDetails));
-        setStep(2);
+        toast.success(data.message || "Billing details updated successfully!");
+        setStep(2); // Move to payment method step
       } else {
         throw new Error(data.message || 'Failed to save billing details');
       }
@@ -349,12 +352,10 @@ const BillingPaymentModal = ({ isOpen, onClose, onSuccess, token, email }) => {
               <Elements stripe={stripePromise}>
                 <PaymentForm
                   token={token}
-                  onSuccess={() => {
-                    onSuccess();
-                    onClose();
-                  }}
+                  onSuccess={onSuccess} // Call onSuccess only when payment is added
                   billingDetails={billingDetails}
                   email={email}
+                  onClose={onClose} // Pass onClose to close the modal
                 />
               </Elements>
             )}
@@ -365,4 +366,4 @@ const BillingPaymentModal = ({ isOpen, onClose, onSuccess, token, email }) => {
   );
 };
 
-export default BillingPaymentModal; 
+export default BillingPaymentModal;
