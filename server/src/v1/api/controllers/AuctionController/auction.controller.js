@@ -794,19 +794,20 @@ export const getbulkAuctions = async (req, res) => {
 
 // Update action via catalog and lot number //
 
-
 export const updateCatalog = async (req, res) => {
     try {
         const { catalog, lotNumber } = req.body;
 
-        if (!catalog || !lotNumber) {
-            return badRequest(res, "Please provide all required fields.");
+        if (!catalog || typeof lotNumber !== 'number') {
+            return badRequest(res, "Please provide a valid catalog and lotNumber.");
         }
 
-        const findAuction = await auctionModel.findOne({ catalog, lotNumber });
+        const updatedLotNumber = lotNumber - 1;
+
+        const findAuction = await auctionModel.findOne({ catalog, lotNumber: updatedLotNumber });
 
         if (!findAuction) {
-            return notFound(res, "Auction not found.");
+            return notFound(res, `Auction not found for lotNumber ${updatedLotNumber}.`);
         }
 
         const updateAuction = await auctionModel.findOneAndUpdate(
@@ -819,12 +820,13 @@ export const updateCatalog = async (req, res) => {
             { new: true }
         );
 
-        return success(res, "Auction updated successfully", updateAuction);
+        return success(res, `Auction with lotNumber ${updatedLotNumber} updated successfully`, updateAuction);
 
     } catch (error) {
         return unknownError(res, error.message);
     }
 };
+
 
 
 
