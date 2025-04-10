@@ -19,6 +19,8 @@ import {
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
 import { sendEmail } from "../../Utils/sendEmail.js"
 import {generateEmailContent} from "../../Utils/generateEmailContent.js"
+import { generateOrderPdfBuffer } from "../../config/generateOrderPdfBuffer.js"
+
 import mongoose from "mongoose"
 
 
@@ -392,22 +394,32 @@ export const updateOrderStatus = async (req, res) => {
             { new: true } // Return the updated document
         );
 
+
         if (!updatedOrder) {
             return notFound(res, "Order not found");
         }
 
         if(paymentStatus === "SUCCEEDED"){
-            const user  = await User.findById(updatedOrder.user).select('email name mobile')
-            const products = await Product.find({_id: { $in: updatedOrder.products.map(product => product.product)}}).select('name offerAmount image')
+            const user  = await User.findById(updatedOrder.user)
+            const products = await Product.find({_id: { $in: updatedOrder.products.map(product => product.product)}})
                 // Send email to user
 
         if(user && user.email ){
               const emailContent = generateEmailContent(user, updatedOrder, products);
 
+              const pdfBuffer = await generateOrderPdfBuffer(user, updatedOrder, products);
+
                 await sendEmail({
                     to: user.email,
                     subject: 'Order Placed Successfully',
-                    html: emailContent
+                    html: emailContent,
+                    attachments: [
+                        {
+                            filename: `invoice-${updatedOrder.invoiceNumber || updatedOrder._id}.pdf`,
+                            content: pdfBuffer,
+                            contentType: 'application/pdf'
+                        }
+                    ]
                 });
         }
 

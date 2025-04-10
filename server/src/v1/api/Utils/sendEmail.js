@@ -37,6 +37,7 @@ const transporter = nodemailer.createTransport({
         to: options.to,
         subject: options.subject,
         html: options.html,
+        attachments: options.attachments || [] // 🔥 this was missing
       };
   
   

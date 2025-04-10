@@ -1,42 +1,32 @@
 export const generateEmailContent = (user, updatedOrder, products) => {
     return `
-        <h1 style="color: #4CAF50;">Order Confirmation - Thank You for Your Purchase!</h1>
-        <p>Dear ${user.name},</p>
-
-        <p>We are thrilled to confirm your order! Here are the details:</p>
-
-        <ul>
-            <li><strong>Order ID:</strong> ${updatedOrder.OrderId}</li>
-            <li><strong>Total Amount:</strong> $${updatedOrder.totalAmount}</li>
-            <li><strong>Payment Status:</strong> ${updatedOrder.paymentStatus}</li>
-            <li><strong>Order Date:</strong> ${new Date(updatedOrder.createdAt).toLocaleDateString()}</li>
-        </ul>
-
-        <h2>📝 Products Ordered</h2>
-        <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-            <thead>
-                <tr>
-                    <th>Image</th>
-                    <th>Product Name</th>
-                    <th>Remark</th>
-                    <th>Offer Amount (in $)</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${products.map(p => `
-                    <tr>
-                        <td><img src="${p.image}" alt="${p.name}" style="width: 100px; height: auto;"></td>
-                        <td>${p.name || "Unnamed Product"}</td>
-                        <td>${updatedOrder.products.find(prod => prod.product.toString() === p._id.toString())?.Remark || "No Remark Provided"}</td>
-                        <td>${(p.offerAmount / 100).toFixed(2)}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-
-        <p>Thank you for choosing us. We hope to serve you again soon!</p>
-
-        <p>Best regards,<br>
-        Your Company Name</p>
+      <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+        <h2 style="color: #4CAF50;">✅ Order Confirmation</h2>
+        <p>Hi <strong>${user.name}</strong>,</p>
+  
+        <p>Thank you for your purchase! We're excited to share your order details:</p>
+  
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <p><strong>Order ID:</strong> ${updatedOrder.OrderId}</p>
+          <p><strong>Total Amount:</strong> $${updatedOrder.totalAmount.toFixed(2)}</p>
+          <p><strong>Payment Status:</strong> ${updatedOrder.paymentStatus}</p>
+          <p><strong>Order Date:</strong> ${new Date(updatedOrder.createdAt).toLocaleDateString()}</p>
+        </div>
+  
+        <h3 style="margin-bottom: 10px;">🛍️ Products Ordered:</h3>
+        ${products.map(p => {
+          const orderProduct = updatedOrder.products.find(prod => prod.product.toString() === p._id.toString());
+          return `
+            <div style="display: flex; align-items: center; margin-bottom: 15px; border: 1px solid #eee; border-radius: 6px; padding: 10px;">
+              <img src="${p.image[0]}" alt="${p.title}" style="width: 80px; height: auto; border-radius: 5px; margin-right: 15px;" />
+              <div>
+                <p style="margin: 0; font-size: 16px;"><strong>${p.title || "Unnamed Product"}</strong></p>
+              </div>
+            </div>
+          `;
+        }).join('')}
+        <p style="margin-top: 30px;">Warm regards,<br><strong>The NY Elizabeth Team</strong></p>
+      </div>
     `;
-}
+  };
+  
