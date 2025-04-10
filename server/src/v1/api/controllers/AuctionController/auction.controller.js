@@ -792,6 +792,41 @@ export const getbulkAuctions = async (req, res) => {
     }
 };
 
+// Update action via catalog and lot number //
+
+
+export const updateCatalog = async (req, res) => {
+    try {
+        const { catalog, lotNumber } = req.body;
+
+        if (!catalog || !lotNumber) {
+            return badRequest(res, "Please provide all required fields.");
+        }
+
+        const findAuction = await auctionModel.findOne({ catalog, lotNumber });
+
+        if (!findAuction) {
+            return notFound(res, "Auction not found.");
+        }
+
+        const updateAuction = await auctionModel.findOneAndUpdate(
+            { _id: findAuction._id },
+            {
+                status: "ACTIVE",
+                Emailsend: false,
+                winner: null
+            },
+            { new: true }
+        );
+
+        return success(res, "Auction updated successfully", updateAuction);
+
+    } catch (error) {
+        return unknownError(res, error.message);
+    }
+};
+
+
 
 
 // get auction by id //

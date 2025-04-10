@@ -20,7 +20,8 @@ import {
     getbulkAuctions,
     getbulkAuctionById,
     getWinners,
-    deleteCatalog
+    deleteCatalog,
+    updateCatalog
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
@@ -78,6 +79,8 @@ router.get("/getUserAuctions" , IsAuthenticated , getUserAuctions)
 
 router.get("/getDashboardStats" , IsAuthenticated , authorizeBackendRole , getDashboardStats)
 
+router.post("/updateCatalog" , IsAuthenticated , authorizeBackendRole , updateCatalog)
+
 // router.post("/stripe-webhook" , express.raw({type: 'application/json'}) , stripeWebhook)
 
 
@@ -90,5 +93,7 @@ router.get("/getBidIncrement" , getBidIncrement)
 router.get("/getWinners" , getWinners)
 
 router.post("/deleteCatalog" ,  IsAuthenticated , authorizeBackendRole  ,deleteCatalog)
+
+
 
 export default router;
