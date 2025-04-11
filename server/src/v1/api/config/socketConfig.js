@@ -26,8 +26,8 @@ export const initializeSocket = (server) => {
     socket.on("setAuctionMode", async ({ auctionId, mode, userId }) => {
       try {
         const user = await User.findById(userId);
-        if (!user || user.role !== "ADMIN") {
-          return socket.emit("error", { message: "Unauthorized: Only admins can set auction mode." });
+        if (!user || !["ADMIN", "clerk"].includes(user.role)) {
+          return socket.emit("error", { message: "Unauthorized: Only admins or clerks can set auction mode." });
         }
 
         const auction = await Auction.findById(auctionId);
@@ -36,7 +36,7 @@ export const initializeSocket = (server) => {
         }
 
         auctionModes[auctionId] = mode;
-        console.log(`Auction ${auctionId} mode set to: ${mode}`);
+        console.log(`Auction ${auctionId} mode set to: ${mode} by ${user.role}`);
         io.to(auctionId).emit("auctionModeUpdate", { auctionId, mode });
       } catch (error) {
         console.error("Error setting auction mode:", error);
@@ -45,12 +45,11 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("sendMessage", async ({ auctionId, message, userId }) => {
-
-      console.log("message" , message)
+      console.log("message", message);
       try {
         const user = await User.findById(userId);
-        if (!user || user.role !== "ADMIN") {
-          return socket.emit("error", { message: "Unauthorized: Only admins can send messages." });
+        if (!user || !["ADMIN", "clerk"].includes(user.role)) {
+          return socket.emit("error", { message: "Unauthorized: Only admins or clerks can send messages." });
         }
 
         io.to(auctionId).emit("auctionMessage", {
@@ -60,11 +59,10 @@ export const initializeSocket = (server) => {
           timestamp: new Date(),
         });
 
-
         const auction = await Auction.findById(auctionId);
         if (auction) {
           auction.bidLogs.push({
-            msg: message
+            msg: message,
           });
           await auction.save();
         }
@@ -77,8 +75,8 @@ export const initializeSocket = (server) => {
     socket.on("adminAction", async ({ auctionId, actionType, userId }) => {
       try {
         const user = await User.findById(userId);
-        if (!user || user.role !== "ADMIN") {
-          return socket.emit("error", { message: "Unauthorized: Only admins can perform actions." });
+        if (!user || !["ADMIN", "clerk"].includes(user.role)) {
+          return socket.emit("error", { message: "Unauthorized: Only admins or clerks can perform actions." });
         }
 
         const auction = await Auction.findById(auctionId);
@@ -97,7 +95,6 @@ export const initializeSocket = (server) => {
             timestamp: new Date(),
           });
         } else {
-
           auction.bidLogs.push({
             msg: actionType,
           });
@@ -110,7 +107,6 @@ export const initializeSocket = (server) => {
             sender: { id: userId, name: user.name, role: user.role },
             timestamp: new Date(),
           });
-
         }
       } catch (error) {
         console.error("Error processing admin action:", error);
@@ -158,11 +154,12 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "User not found." });
         }
 
-        if (bidType === "competitor" && user.role !== "ADMIN") {
-          return socket.emit("error", { message: "Only admins can place competitor bids." });
+        // Check if the user is authorized to place a competitor bid
+        if (bidType === "competitor" && !["ADMIN", "clerk"].includes(user.role)) {
+          return socket.emit("error", { message: "Only admins or clerks can place competitor bids." });
         }
-        if (bidType === "online" && user.role === "ADMIN") {
-          return socket.emit("error", { message: "Admins cannot place online bids." });
+        if (bidType === "online" && ["ADMIN", "clerk"].includes(user.role)) {
+          return socket.emit("error", { message: "Admins and clerks cannot place online bids." });
         }
 
         const currentMode = auctionModes[auctionId] || "competitor";
@@ -226,7 +223,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role: user.role,
+          Role: user.role, // Store the user's role with the bid
         };
 
         auction.bidLogs.push({
@@ -235,7 +232,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           Role: user.role,
-          msg: ""
+          msg: "",
         });
 
         auction.bids.push(newBid);
@@ -282,8 +279,8 @@ export const initializeSocket = (server) => {
         if (!auction || auction.bids.length === 0) {
           return socket.emit("error", { message: "No bids to remove." });
         }
-        const removedBid = auction.bids.pop();
 
+        const removedBid = auction.bids.pop();
         const lastBid = auction.bids[auction.bids.length - 1] || null;
         auction.currentBid = lastBid ? lastBid.bidAmount : 0;
         auction.currentBidder = lastBid ? lastBid.bidder : null;
@@ -297,17 +294,6 @@ export const initializeSocket = (server) => {
           currentBid: auction.currentBid,
           currentBidder: auction.currentBidder,
         });
-
-        // io.in(auctionId).emit("bidUpdate", {
-        //   auctionId,
-        //   bidAmount: auction.currentBid,
-        //   bidderId: auction.currentBidder,
-        //   minBidIncrement: auction.minBidIncrement,
-        //   bids: auction.bids,
-        //   bidType: lastBid?.bidType || "online",
-        //   Role: lastBid?.Role || "user",
-        //   timestamp: new Date(),
-        // });
 
         console.log(`Latest bid removed from auction ${auctionId}`);
       } catch (error) {

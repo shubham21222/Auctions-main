@@ -6,6 +6,8 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { format } from "date-fns";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 import {
   Table,
   TableBody,
@@ -156,6 +158,169 @@ const EndedAuctionsPage = () => {
     }
   };
 
+  const exportToPDF = async (auction) => {
+    try {
+      const response = await axios.get(
+        `${config.baseURL}/v1/api/auction/bulkgetbyId/${auction._id}`,
+        {
+          headers: {
+            Authorization: `${token}`,
+          },
+        }
+      );
+
+      if (response.data.status) {
+        const auctionData = response.data.items;
+        const doc = new jsPDF();
+
+        // Add title
+        doc.setFontSize(16);
+        doc.text(`Bid History - ${auctionData.product?.title || 'Untitled Auction'}`, 14, 20);
+
+        // Add auction details
+        doc.setFontSize(12);
+        doc.text(`Lot Number: ${auctionData.lotNumber || 'N/A'}`, 14, 30);
+        doc.text(`Starting Price: $${auctionData.startingBid || '0'}`, 14, 40);
+        doc.text(`Current Bid: $${auctionData.currentBid || '0'}`, 14, 50);
+        doc.text(`Total Bids: ${auctionData.bids?.length || 0}`, 14, 60);
+        doc.text(`Total Bid Logs: ${auctionData.bidLogs?.length || 0}`, 14, 70);
+
+        // Add winner details if exists
+        if (auctionData.winner) {
+          doc.text(`Winner: ${auctionData.winner.name || 'N/A'}`, 14, 80);
+          doc.text(`Email: ${auctionData.winner.email || 'N/A'}`, 14, 90);
+          doc.text(`Winning Time: ${auctionData.winnerBidTime ? format(new Date(auctionData.winnerBidTime), "PPp") : 'N/A'}`, 14, 100);
+        }
+
+        let y = 110;
+
+        // Add bids table if exists
+        if (auctionData.bids?.length > 0) {
+          doc.setFontSize(14);
+          doc.text("Bids", 14, y);
+          y += 10;
+
+          // Table headers
+          const headers = ["Bid #", "Amount", "Time", "Bidder", "Email"];
+          const columnWidths = [20, 30, 50, 40, 50];
+
+          // Draw table header
+          doc.setFillColor(59, 130, 246);
+          doc.setTextColor(255, 255, 255);
+          headers.forEach((header, i) => {
+            doc.rect(14 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y, columnWidths[i], 10, 'F');
+            doc.text(header, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+          });
+          y += 10;
+
+          // Draw table rows
+          doc.setTextColor(0, 0, 0);
+          auctionData.bids.forEach((bid, index) => {
+            const bidderName = bid.bidder?.name || 'Unknown';
+            const bidderEmail = bid.bidder?.email || 'N/A';
+            
+            const row = [
+              auctionData.bids.length - index,
+              `$${bid.bidAmount || '0'}`,
+              bid.bidTime ? format(new Date(bid.bidTime), "PPp") : 'N/A',
+              bidderName,
+              bidderEmail
+            ];
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+              doc.setFillColor(245, 245, 245);
+              doc.rect(14, y, columnWidths.reduce((a, b) => a + b, 0), 10, 'F');
+            }
+
+            row.forEach((cell, i) => {
+              const text = cell.toString();
+              const maxWidth = columnWidths[i] - 6;
+              if (doc.getTextWidth(text) > maxWidth) {
+                const lines = doc.splitTextToSize(text, maxWidth);
+                lines.forEach((line, lineIndex) => {
+                  doc.text(line, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7 + (lineIndex * 5));
+                });
+                y += (lines.length - 1) * 5;
+              } else {
+                doc.text(text, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+              }
+            });
+            y += 10;
+          });
+          y += 10;
+        }
+
+        // Add bid logs table if exists
+        if (auctionData.bidLogs?.length > 0) {
+          doc.setFontSize(14);
+          doc.text("Bid Logs", 14, y);
+          y += 10;
+
+          // Table headers for bid logs
+          const logHeaders = ["Log #", "Action", "Amount", "Time", "User"];
+          const logColumnWidths = [20, 40, 30, 50, 40];
+
+          // Draw table header
+          doc.setFillColor(59, 130, 246);
+          doc.setTextColor(255, 255, 255);
+          logHeaders.forEach((header, i) => {
+            doc.rect(14 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y, logColumnWidths[i], 10, 'F');
+            doc.text(header, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+          });
+          y += 10;
+
+          // Draw table rows
+          doc.setTextColor(0, 0, 0);
+          auctionData.bidLogs.forEach((log, index) => {
+            const row = [
+              auctionData.bidLogs.length - index,
+              log.action || 'N/A',
+              log.amount ? `$${log.amount}` : 'N/A',
+              log.timestamp ? format(new Date(log.timestamp), "PPp") : 'N/A',
+              log.user?.name || 'Unknown'
+            ];
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+              doc.setFillColor(245, 245, 245);
+              doc.rect(14, y, logColumnWidths.reduce((a, b) => a + b, 0), 10, 'F');
+            }
+
+            row.forEach((cell, i) => {
+              const text = cell.toString();
+              const maxWidth = logColumnWidths[i] - 6;
+              if (doc.getTextWidth(text) > maxWidth) {
+                const lines = doc.splitTextToSize(text, maxWidth);
+                lines.forEach((line, lineIndex) => {
+                  doc.text(line, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7 + (lineIndex * 5));
+                });
+                y += (lines.length - 1) * 5;
+              } else {
+                doc.text(text, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+              }
+            });
+            y += 10;
+          });
+        }
+
+        // Add message if no bids or logs
+        if (!auctionData.bids?.length && !auctionData.bidLogs?.length) {
+          doc.setFontSize(12);
+          doc.text("No bid history or logs available", 14, y);
+        }
+
+        // Save the PDF
+        doc.save(`bid-history-${auctionData.lotNumber || 'unknown'}.pdf`);
+      } else {
+        toast.error("Failed to fetch auction details");
+      }
+    } catch (err) {
+      toast.error("Error generating PDF");
+      console.error("Error generating PDF:", err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -196,6 +361,7 @@ const EndedAuctionsPage = () => {
                   <TableHead>Winning Bid</TableHead>
                   <TableHead>Bid Time</TableHead>
                   <TableHead>Shipping Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -278,6 +444,17 @@ const EndedAuctionsPage = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exportToPDF(winner);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Export PDF
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))}

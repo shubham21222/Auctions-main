@@ -1,57 +1,57 @@
 export const PERMISSIONS = {
     "dashboard": [
-        "view dashboard"
+        "dashboard"
     ],
     "products": [
-        "view products",
+        "products",
         // "create products",
         // "edit products",
         // "delete products"
     ],
     "private_sales": [
-        "view private sales",
+        "private sales",
         // "add private sale items",
         // "edit private sale items",
         // "delete private sale items"
     ],
     "categories": [
-        "view categories",
+        "categories",
         // "create categories",
         // "edit categories",
         // "delete categories"
     ],
     "orders": [
-        "view orders"
+        "orders"
     ],
     "users": [
-        "view users",
+        "users",
         // "create users",
         // "edit users",
         // "delete users"
     ],
     "sellers": [
-        "view sellers",
+        "sellers",
         // "approve sellers",
         // "delete sellers"
     ],
     "brands": [
-        "view brands",
+        "brands",
         // "create brands",
         // "edit brands",
         // "delete brands"
     ],
     "artists": [
-        "view artists",
+        "artists",
         // "create artists",
         // "edit artists",
         // "delete artists"
     ],
     "actions": [
-        "view actions",
+        "actions",
         // "update actions"
     ],
     "auctions": [
-        "view auctions",
+        "auctions",
         // "create auctions",
         // "edit auctions",
         // "delete auctions"

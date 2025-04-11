@@ -86,17 +86,17 @@ export default function DashboardLayout({ children }) {
   };
 
   const navItems = [
-    { href: "/members/dashboard", icon: Home, label: "Dashboard", permission: "view dashboard" },
-    { href: "/members/dashboard/buy-now", icon: Package, label: "Buy Now", permission: "view products" },
-    { href: "/members/dashboard/private-sales", icon: DollarSign, label: "Private Sales", permission: "view private sales" },
-    { href: "/members/dashboard/categories", icon: Tag, label: "Categories", permission: "view categories" },
-    { href: "/members/dashboard/orders", icon: Truck, label: "Orders", permission: "view orders" },
-    { href: "/members/dashboard/users", icon: Users, label: "Users", permission: "view users" },
-    { href: "/members/dashboard/Sellers", icon: UserCheck, label: "Sellers", permission: "view sellers" },
-    { href: "/members/dashboard/brands", icon: Store, label: "Brands", permission: "view brands" },
-    { href: "/members/dashboard/artists", icon: Palette, label: "Artists", permission: "view artists" },
-    { href: "/members/dashboard/actions", icon: Activity, label: "Actions", permission: "view actions" },
-    { href: "/members/dashboard/auctions", icon: Gavel, label: "Auctions", permission: "view auctions" },
+    { href: "/members/dashboard", icon: Home, label: "Dashboard", permission: "dashboard" },
+    { href: "/members/dashboard/buy-now", icon: Package, label: "Buy Now", permission: "products" },
+    { href: "/members/dashboard/private-sales", icon: DollarSign, label: "Private Sales", permission: "private sales" },
+    { href: "/members/dashboard/categories", icon: Tag, label: "Categories", permission: "categories" },
+    { href: "/members/dashboard/orders", icon: Truck, label: "Orders", permission: "orders" },
+    { href: "/members/dashboard/users", icon: Users, label: "Users", permission: "users" },
+    { href: "/members/dashboard/Sellers", icon: UserCheck, label: "Sellers", permission: "sellers" },
+    { href: "/members/dashboard/brands", icon: Store, label: "Brands", permission: "brands" },
+    { href: "/members/dashboard/artists", icon: Palette, label: "Artists", permission: "artists" },
+    { href: "/members/dashboard/actions", icon: Activity, label: "Actions", permission: "actions" },
+    { href: "/members/dashboard/auctions", icon: Gavel, label: "Auctions", permission: "auctions" },
     { href: "/members/dashboard/live-auctions", icon: Airplay, label: "Live Auctions", permission: "manage live auctions" },
   ].filter((item) => permissions.includes(item.permission));
 
@@ -212,7 +212,7 @@ export default function DashboardLayout({ children }) {
         <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/50">
           <Card className="border-0 shadow-lg rounded-2xl bg-white">
             <CardContent className="p-8">
-              {permissions.includes("view dashboard") ? (
+              {permissions.includes("dashboard") ? (
                 children
               ) : (
                 <div className="text-center py-12">

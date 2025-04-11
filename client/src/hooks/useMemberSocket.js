@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
+
+const normalizeId = (id) => {
+  if (!id) return "";
+  return typeof id === "object" ? id.toString() : id.toString();
+};
 
 export const useMemberSocket = () => {
   const [socket, setSocket] = useState(null);
@@ -14,7 +19,8 @@ export const useMemberSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
-  const isClerk = useSelector((state) => state.auth.isClerk);
+  const userRole = useSelector((state) => state.auth.user?.role);
+  const permissions = useSelector((state) => state.auth.user?.permissions || []);
   const userName = useSelector((state) => state.auth.name);
 
   const addNotification = useCallback((type, message) => {
@@ -25,199 +31,100 @@ export const useMemberSocket = () => {
     }, 5000);
   }, []);
 
-  useEffect(() => {
-    let socketIo = null;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
-    const RECONNECT_DELAY = 2000;
-
-    const initializeSocket = () => {
-      if (!userId || !token) return;
-
-      // If socket exists and is connected, don't create a new one
-      if (socket && socket.connected) {
-        console.log("Socket already connected:", socket.id);
+  const updateAuctionMode = useCallback((auctionId, mode) => {
+    if (socket && auctionId && mode) {
+      console.log(`Attempting to set auction ${auctionId} mode to: ${mode} as ${userRole}, permissions:`, permissions);
+      if (userRole !== "clerk") {
+        console.error("You don't have permission to set auction mode");
+        addNotification("error", "You don't have permission to set auction mode");
         return;
       }
 
-      // If socket exists but disconnected, try to reconnect
-      if (socket && !socket.connected) {
-        console.log("Attempting to reconnect socket...");
-        socket.connect();
-        return;
-      }
-
-      // Create new socket connection
-      socketIo = io(`${config.baseURL}`, {
-        query: { userId },
-        auth: { token, isClerk },
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-        reconnectionDelay: RECONNECT_DELAY,
-        autoConnect: true,
-        forceNew: true,
-        timeout: 10000,
-        withCredentials: true,
+      socket.emit("setAuctionMode", {
+        auctionId: normalizeId(auctionId),
+        mode,
+        userId,
+        role: userRole,
+        permissions,
+      }, (response) => {
+        if (response && response.error) {
+          console.error("Error setting auction mode:", response.error);
+          addNotification("error", `Failed to set auction mode: ${response.error.message}`);
+          return;
+        }
+        console.log(`Successfully set auction ${auctionId} mode to: ${mode}`);
+      setAuctionModes((prev) => ({
+        ...prev,
+        [normalizeId(auctionId)]: mode,
+      }));
       });
-
-      const eventHandlers = {
-        connect: () => {
-          console.log("Connected to Socket.IO server:", socketIo.id);
-          setIsConnected(true);
-          reconnectAttempts = 0;
-          addNotification("success", "Connected to auction server!");
-        },
-        disconnect: (reason) => {
-          console.log("Disconnected from Socket.IO server:", reason);
-          setIsConnected(false);
-          if (reason === "io server disconnect") {
-            // Server initiated disconnect, try to reconnect
-            socketIo.connect();
-          }
-        },
-        connect_error: (err) => {
-          console.error("Socket connection error:", err.message);
-          setIsConnected(false);
-          if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
-            setTimeout(() => {
-              console.log(`Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
-              socketIo.connect();
-            }, RECONNECT_DELAY);
-          } else {
-            addNotification("error", "Connection lost. Please refresh the page.");
-          }
-        },
-        reconnect: (attemptNumber) => {
-          console.log(`Reconnected after ${attemptNumber} attempts`);
-          setIsConnected(true);
-          reconnectAttempts = 0;
-          addNotification("success", "Reconnected to auction server!");
-        },
-        reconnect_error: (error) => {
-          console.error("Reconnection error:", error);
-        },
-        reconnect_failed: () => {
-          console.error("Failed to reconnect");
-          addNotification("error", "Connection failed. Please refresh the page.");
-        },
-        auctionData: (data) => {
-          console.log("Received auctionData:", data);
-          setLiveAuctions((prev) => {
-            const auctionId = data._id || data.auctionId;
-            if (!auctionId) {
-              console.error("Auction ID missing in auctionData:", data);
-              return prev;
-            }
-            const exists = prev.find((a) => a.id === auctionId);
-            return exists
-              ? prev.map((a) => (a.id === auctionId ? { ...a, ...data, id: auctionId } : a))
-              : [...prev, { ...data, id: auctionId }];
-          });
-        },
-        bidUpdate: ({ auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp }) => {
-          console.log("Received bidUpdate:", { auctionId, bidAmount, bidderId, minBidIncrement, bids, bidType, timestamp });
-          setLiveAuctions((prev) => {
-            return prev.map((auction) => {
-              if (auction.id === auctionId) {
-                return {
-                  ...auction,
-                  currentBid: bidAmount,
-                  currentBidder: bidderId,
-                  minBidIncrement: minBidIncrement || auction.minBidIncrement,
-                  bids: bids || [...(auction.bids || []), { bidder: bidderId, bidAmount, bidTime: timestamp || new Date(), bidType }],
-                };
-              }
-              return auction;
-            });
-          });
-        },
-        auctionMessage: ({ auctionId, message, actionType, sender, timestamp }) => {
-          console.log("Received auctionMessage:", { auctionId, message, actionType, sender, timestamp });
-          const displayMessage = message || (actionType ? actionType : "Update");
-          addNotification("info", displayMessage);
-          setLiveAuctions((prev) => {
-            return prev.map((auction) => {
-              if (auction.id === auctionId) {
-                const senderName = typeof sender === "object" ? sender.name || "Admin" : "Admin";
-                return {
-                  ...auction,
-                  messages: [
-                    ...(auction.messages || []),
-                    { message: displayMessage, actionType, sender: senderName, timestamp: timestamp || new Date(), type: "message" },
-                  ],
-                };
-              }
-              return auction;
-            });
-          });
-        },
-        auctionEnded: ({ auctionId, winner, message }) => {
-          console.log("Received auctionEnded:", { auctionId, winner });
-          setLiveAuctions((prev) =>
-            prev.map((auction) =>
-              auction.id === auctionId ? { ...auction, status: "ENDED", winner: winner || null } : auction
-            )
-          );
-          addNotification("info", message);
-        },
-        watcherUpdate: ({ auctionId, watchers }) => {
-          console.log("Received watcherUpdate:", { auctionId, watchers });
-          setLiveAuctions((prev) =>
-            prev.map((auction) => (auction.id === auctionId ? { ...auction, watchers } : auction))
-          );
-        },
-        outbidNotification: ({ message, auctionId }) => {
-          console.log("Received outbidNotification:", { message, auctionId });
-          addNotification("warning", `${message} on auction ${auctionId}`);
-        },
-        winnerNotification: ({ message, auctionId, finalBid }) => {
-          console.log("Received winnerNotification:", { message, auctionId, finalBid });
-          addNotification("success", `${message} - Final Bid: $${finalBid}`);
-        },
-        error: ({ message }) => {
-          console.error("Socket error:", message);
-          addNotification("error", `Error: ${message}`);
-        },
-        auctionModeUpdate: ({ auctionId, mode }) => {
-          console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
-          setAuctionModes((prev) => ({
-            ...prev,
-            [auctionId]: mode,
-          }));
-        },
-      };
-
-      Object.entries(eventHandlers).forEach(([event, handler]) => {
-        socketIo.on(event, handler);
-      });
-
-      setSocket(socketIo);
-    };
-
-    initializeSocket();
-
-    return () => {
-      if (socketIo) {
-        socketIo.disconnect();
-      }
-    };
-  }, [userId, token, isClerk, addNotification]);
+    }
+  }, [socket, userId, userRole, permissions, addNotification]);
 
   const joinAuction = useCallback((auctionId) => {
     if (socket && auctionId) {
-      socket.emit("joinAuction", { auctionId, userId, isClerk });
-      console.log(`Joined auction ${auctionId}`);
+      socket.emit("joinAuction", { auctionId: normalizeId(auctionId), userId, role: userRole });
+      console.log(`Joined auction room: ${auctionId} as ${userRole}`);
     }
-  }, [socket, userId, isClerk]);
+  }, [socket, userId, userRole]);
 
   const getAuctionData = useCallback((auctionId) => {
-    if (socket && auctionId) {
-      socket.emit("getAuctionData", { auctionId, userId, isClerk });
-      console.log(`Requested data for auction ${auctionId}`);
-    }
-  }, [socket, userId, isClerk]);
+    return new Promise((resolve, reject) => {
+      if (!socket || !auctionId) {
+        reject(new Error("Socket or auctionId not available"));
+        return;
+      }
+
+      if (!socket.connected) {
+        socket.connect();
+        console.log("Socket was disconnected, attempting to reconnect...");
+      }
+
+      let retryCount = 0;
+      const maxRetries = 3;
+      const timeoutDuration = 30000;
+
+      const tryGetAuctionData = () => {
+        console.log(`Attempting to get auction data (attempt ${retryCount + 1}/${maxRetries})`);
+
+      socket.emit("getAuctionData", { auctionId: normalizeId(auctionId) });
+
+        const timeoutId = setTimeout(() => {
+          socket.off("auctionData", onAuctionData);
+          socket.off("auctionDataError", onError);
+          
+          if (retryCount < maxRetries - 1) {
+            console.log(`Attempt ${retryCount + 1} timed out, retrying...`);
+            retryCount++;
+            tryGetAuctionData();
+          } else {
+            reject(new Error(`Timeout waiting for auction data after ${maxRetries} attempts`));
+          }
+        }, timeoutDuration);
+
+        const onAuctionData = (data) => {
+          if (normalizeId(data._id) === normalizeId(auctionId) || normalizeId(data.auctionId) === normalizeId(auctionId)) {
+            clearTimeout(timeoutId);
+          socket.off("auctionData", onAuctionData);
+          socket.off("auctionDataError", onError);
+          resolve(data);
+        }
+      };
+
+      const onError = (error) => {
+          clearTimeout(timeoutId);
+        socket.off("auctionData", onAuctionData);
+        socket.off("auctionDataError", onError);
+        reject(error);
+      };
+
+      socket.on("auctionData", onAuctionData);
+      socket.on("auctionDataError", onError);
+      };
+
+      tryGetAuctionData();
+    });
+  }, [socket]);
 
   const getBidIncrement = useCallback((currentBid) => {
     if (currentBid >= 1000000) return 50000;
@@ -236,217 +143,583 @@ export const useMemberSocket = () => {
   }, []);
 
   const placeBid = useCallback(async (auctionId, bidType = "online", bidAmount) => {
-    if (!socket) {
-      toast.error("Socket connection not initialized. Please refresh the page.");
-      return;
+    if (!socket || !auctionId || !userId) {
+      toast.error("Socket, auction ID, or user ID not available");
+      console.log("placeBid failed: Socket, auctionId, or userId missing");
+      return false;
     }
 
-    if (!socket.connected) {
-      toast.error("Connection lost. Attempting to reconnect...");
-      socket.connect();
-      return;
-    }
+    console.log("Attempting to place bid:", {
+      auctionId,
+      bidType,
+      bidAmount,
+      userRole,
+      userId,
+      socketConnected: socket.connected
+    });
 
-    try {
-      // Emit the bid through socket first
-      socket.emit("placeBid", { 
-        auctionId, 
-        userId: socket.id, 
-        bidType, 
-        bidAmount: bidAmount.toString() 
-      });
-
-      // Then make the API call
-      const bidResponse = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${token}`,
-        },
-        body: JSON.stringify({
-          auctionId,
-          bidAmount: bidAmount.toString(),
-          bidType: bidType,
-        }),
-      });
-
-      const data = await bidResponse.json();
-      if (!bidResponse.ok) {
-        throw new Error(data.message || "Failed to place bid");
+    // Client-side role validation
+    if (bidType === "competitor" && userRole !== "clerk") {
+      toast.error("Only clerks can place competitor bids");
+        return false;
       }
 
-      toast.success(`Bid placed successfully at $${bidAmount.toLocaleString()}`);
-    } catch (error) {
-      console.error("Error placing bid:", error);
-      toast.error(error.message || "Failed to place bid");
-    }
-  }, [socket, token]);
+    const maxRetries = 3;
+    let retryCount = 0;
 
-  const sendMessage = useCallback((auctionId, message) => {
-    if (!socket) {
-      toast.error("Socket connection not initialized. Please refresh the page.");
-      return;
-    }
+    const attemptBid = async () => {
+      try {
+        if (!socket.connected) {
+          console.log("Socket disconnected, attempting to reconnect...");
+          socket.connect();
+          await new Promise((resolve) => {
+            const checkConnection = () => {
+              if (socket.connected) {
+                resolve();
+              } else if (retryCount < maxRetries) {
+                setTimeout(checkConnection, 1000);
+              } else {
+                resolve();
+              }
+            };
+            checkConnection();
+          });
 
-    if (!socket.connected) {
-      toast.error("Connection lost. Attempting to reconnect...");
-      socket.connect();
-      return;
-    }
+          if (!socket.connected) {
+            throw new Error("Failed to reconnect socket");
+          }
+        }
+
+        const bidData = {
+        auctionId: normalizeId(auctionId),
+        userId,
+        bidType, 
+        bidAmount,
+          role: userRole?.toLowerCase() || "user"
+        };
+
+        console.log("Emitting placeBid with data:", bidData);
+
+        return new Promise((resolve, reject) => {
+          let bidConfirmed = false;
+          const timeoutDuration = 10000; // Reduced to 10 seconds per attempt
+
+          const timeoutId = setTimeout(() => {
+            if (!bidConfirmed) {
+              socket.off("bidUpdate");
+              socket.off("error");
+              if (retryCount < maxRetries - 1) {
+                console.log(`Bid attempt ${retryCount + 1} timed out, retrying...`);
+                retryCount++;
+                resolve(attemptBid());
+              } else {
+                reject(new Error("Bid placement timeout after all retries"));
+              }
+            }
+          }, timeoutDuration);
+
+          const handleBidUpdate = (data) => {
+            if (normalizeId(data.auctionId) === normalizeId(auctionId) &&
+                data.bidderId === userId) {
+              bidConfirmed = true;
+              clearTimeout(timeoutId);
+              socket.off("bidUpdate", handleBidUpdate);
+              socket.off("error", handleError);
+              console.log("Bid confirmed:", data);
+              resolve(true);
+            }
+          };
+
+          const handleError = (error) => {
+            bidConfirmed = true;
+            clearTimeout(timeoutId);
+            socket.off("bidUpdate", handleBidUpdate);
+            socket.off("error", handleError);
+            console.error("Bid error:", error);
+            reject(new Error(error.message || "Bid placement failed"));
+          };
+
+          socket.on("bidUpdate", handleBidUpdate);
+          socket.on("error", handleError);
+
+          socket.emit("placeBid", bidData, (response) => {
+            if (response && response.error) {
+              bidConfirmed = true;
+              clearTimeout(timeoutId);
+              socket.off("bidUpdate", handleBidUpdate);
+              socket.off("error", handleError);
+              console.error("Server rejected bid:", response.error);
+              reject(new Error(response.error.message || "Server rejected bid"));
+            }
+          });
+        });
+      } catch (error) {
+        if (retryCount < maxRetries - 1) {
+          console.log(`Attempt ${retryCount + 1} failed, retrying...`);
+          retryCount++;
+          return attemptBid();
+        }
+        throw error;
+      }
+    };
 
     try {
-      // Emit new message event
-      socket.emit("newMessage", {
-        auctionId,
-        message,
-        sender: {
-          _id: userId,
-          name: userName,
-          isClerk: isClerk,
-        },
-        timestamp: new Date(),
-      });
-
-      // Update local state
-      setLiveAuctions((prev) =>
-        prev.map((auction) =>
-          auction.id === auctionId
-            ? {
-                ...auction,
-                messages: [
-                  ...(auction.messages || []),
-                  {
-                    message,
-                    sender: {
-                      _id: userId,
-                      name: userName,
-                      isClerk: isClerk,
-                    },
-                    timestamp: new Date(),
-                  },
-                ],
-              }
-            : auction
-        )
-      );
-
-      // Also emit the message to the catalog page
-      socket.emit("auctionMessage", {
-        auctionId,
-        message,
-        sender: {
-          _id: userId,
-          name: userName,
-          isClerk: isClerk,
-        },
-        timestamp: new Date(),
-      });
-
-      toast.success("Message sent successfully!");
+      const result = await attemptBid();
+      return result;
     } catch (error) {
-      console.error("Send Message Error:", error);
-      toast.error("Failed to send message");
+      console.error("Error placing bid:", error);
+      addNotification("error", `Failed to place bid: ${error.message}`);
+      return false;
     }
-  }, [socket, userId, userName, isClerk, setLiveAuctions]);
+  }, [socket, userId, userRole, addNotification]);
+
+  const sendMessage = useCallback((auctionId, message) => {
+    if (!socket || !auctionId || !message) {
+      toast.error("Socket, auction ID, or message not available");
+      return;
+    }
+
+    console.log("Attempting to send message:", {
+      auctionId,
+      message,
+      userRole,
+      userId
+    });
+
+    // Check if user has permission to send messages
+    if (userRole !== "clerk" && userRole !== "admin") {
+      toast.error("You don't have permission to send messages");
+      return;
+    }
+
+      socket.emit("sendMessage", {
+        auctionId: normalizeId(auctionId),
+        message,
+        userId,
+      role: userRole
+    });
+
+    console.log(`Message sent to auction ${auctionId} by ${userRole} ${userId}`);
+  }, [socket, userId, userRole]);
 
   const performClerkAction = useCallback((auctionId, actionType) => {
-    if (socket && auctionId && actionType) {
-      socket.emit("clerkAction", { auctionId, actionType, userId, isClerk });
-      console.log(`Performed clerk action ${actionType} on auction ${auctionId}`);
-    }
-  }, [socket, userId, isClerk]);
+    if (socket && auctionId && actionType && userRole === "clerk") {
+      // Create a message based on the action type
+      let message = "";
+      switch (actionType) {
+        case "FAIR_WARNING":
+          message = "⚠️ FAIR WARNING";
+          break;
+        case "FINAL_CALL":
+          message = "🔔 FINAL CALL";
+          break;
+        case "SOLD":
+          message = "🎉 SOLD!";
+          break;
+        case "RESERVE_NOT_MET":
+          message = "❌ Reserve Not Met";
+          break;
+        case "NEXT_LOT":
+          message = "➡️ Moving to Next Lot";
+          break;
+        case "RETRACT":
+          message = "⚠️ Last Bid Retracted";
+          break;
+        default:
+          message = actionType;
+      }
 
-  const updateAuctionMode = useCallback((auctionId, mode) => {
-    if (socket && auctionId && mode) {
-      socket.emit("setAuctionMode", { auctionId, mode, userId, isClerk });
-      console.log(`Set auction ${auctionId} mode to: ${mode}`);
+      // Emit the clerk action
+      socket.emit("clerkAction", {
+        auctionId: normalizeId(auctionId),
+        actionType,
+        userId,
+        role: userRole,
+        message,
+      });
+
+      // Also emit a message to ensure it shows in the history
+      socket.emit("sendMessage", {
+        auctionId: normalizeId(auctionId),
+        message,
+        userId,
+        role: userRole,
+        type: "clerk_action"
+      });
+
+      console.log(`Clerk performed action ${actionType} on auction ${auctionId}`);
+      addNotification("success", `Action "${actionType}" performed successfully!`);
+    } else if (userRole !== "clerk") {
+      addNotification("error", "Only clerks can perform this action.");
     }
-  }, [socket, userId, isClerk]);
+  }, [socket, userId, userRole, addNotification]);
 
   useEffect(() => {
-    if (!socket) return;
+    console.log("Current role from Redux:", userRole);
+  }, [userRole]);
 
-    const handleAuctionMode = ({ auctionId, mode }) => {
-      console.log(`Received auction mode update for ${auctionId}: ${mode}`);
-      setAuctionModes((prev) => ({
-        ...prev,
-        [auctionId]: mode,
-      }));
+  useEffect(() => {
+    let socketIo = null;
+
+    const initializeSocket = () => {
+      if (!userId || !token) {
+        console.error("Cannot initialize socket: missing userId or token");
+        return;
+      }
+
+      if (socket) {
+        console.log("Socket already exists, cleaning up...");
+        socket.disconnect();
+        setSocket(null);
+      }
+
+      console.log("Initializing socket with user data:", {
+        userId,
+        role: userRole,
+        permissions
+      });
+
+      socketIo = io(config.baseURL, {
+        query: { 
+          userId,
+          role: userRole,
+          permissions: JSON.stringify(permissions),
+        },
+        auth: { 
+          token,
+          role: userRole,
+          permissions,
+        },
+        extraHeaders: {
+          Authorization: `Bearer ${token}`
+        },
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
+      });
+
+      socketIo.on("connect", () => {
+        console.log("Socket connected with ID:", socketIo.id, "Role:", userRole);
+        
+        // Emit role update on connection
+        socketIo.emit("updateRole", { role: userRole });
+        
+        setSocket(socketIo);
+        setIsConnected(true);
+        addNotification("success", "Connected to auction server!");
+      });
+
+      socketIo.on("disconnect", (reason) => {
+        console.log("Socket disconnected:", reason);
+        setIsConnected(false);
+        if (reason === "io server disconnect" || reason === "io client disconnect") {
+          setSocket(null);
+        }
+        addNotification("warning", "Disconnected from server. Reconnecting...");
+      });
+
+      socketIo.on("reconnect", (attempt) => {
+        console.log("Reconnected to Socket.IO server after", attempt, "attempts");
+        setIsConnected(true);
+        addNotification("success", "Reconnected to auction server!");
+      });
+
+      socketIo.on("connect_error", (error) => {
+        console.error("Socket connection error:", error);
+        setIsConnected(false);
+        toast.error(`Socket connection error: ${error.message}`);
+        addNotification("error", `Connection failed: ${error.message}`);
+      });
+
+      socketIo.on("error", (error) => {
+        console.error("Socket error:", error);
+        if (error.message?.includes("Unauthorized") || error.message?.includes("admin")) {
+          addNotification("error", "You don't have permission for this action");
+        } else {
+          addNotification("error", error.message || "Socket error occurred");
+        }
+      });
+
+      socketIo.on("auctionData", (data) => {
+        console.log("Received auctionData:", data);
+        setLiveAuctions((prev) => {
+          const normalizedAuctionId = normalizeId(data._id || data.auctionId);
+          if (!normalizedAuctionId) return prev;
+          const exists = prev.find((a) => normalizeId(a.id) === normalizedAuctionId);
+          return exists
+            ? prev.map((a) =>
+                normalizeId(a.id) === normalizedAuctionId
+                  ? { ...a, ...data, id: normalizedAuctionId }
+                  : a
+              )
+            : [...prev, { ...data, id: normalizedAuctionId }];
+        });
+      });
+
+      socketIo.on("auctionMessage", ({ auctionId, message, sender, timestamp, type }) => {
+        console.log("Received auctionMessage:", { auctionId, message, sender, timestamp, type });
+        
+        // Update live auctions with the new message
+        setLiveAuctions((prev) =>
+          prev.map((auction) =>
+            normalizeId(auction.id) === normalizeId(auctionId)
+              ? {
+                  ...auction,
+                  messages: [
+                    ...(auction.messages || []),
+                    {
+                      message,
+                      sender,
+                      timestamp,
+                      type: type || "message"
+                    }
+                  ]
+                }
+              : auction
+          )
+        );
+
+        // Show notification for new messages
+        if (type === "admin_message" || type === "clerk_message") {
+          const senderName = sender?.name || (type === "admin_message" ? "Admin" : "Clerk");
+          addNotification("info", `New message from ${senderName}: ${message}`);
+        }
+      });
+
+      socketIo.on("messageSent", ({ auctionId, message, timestamp, status }) => {
+        if (status === "success") {
+          console.log("Message sent successfully:", { auctionId, message, timestamp });
+          addNotification("success", "Message sent successfully!");
+        }
+      });
+
+      socketIo.on("bidUpdate", (data) => {
+        console.log("Global bidUpdate received:", data);
+        const auctionId = normalizeId(data.auctionId);
+        setLiveAuctions((prev) =>
+          prev.map((auction) =>
+            normalizeId(auction.id) === auctionId
+              ? {
+                  ...auction,
+                  currentBid: data.bidAmount,
+                  currentBidder: data.bidderId,
+                  minBidIncrement: data.minBidIncrement,
+                  bids: data.bids || [
+                    ...(auction.bids || []),
+                    {
+                      bidder: data.bidderId,
+                      bidAmount: data.bidAmount,
+                      bidTime: data.timestamp || new Date(),
+                      bidType: data.bidType,
+                    },
+                  ],
+                }
+              : auction
+          )
+        );
+      });
+
+      socketIo.on("watcherUpdate", ({ auctionId, watchers }) => {
+        console.log("Received watcherUpdate:", { auctionId, watchers });
+        setLiveAuctions((prev) =>
+          prev.map((auction) =>
+            normalizeId(auction.id) === normalizeId(auctionId)
+              ? { ...auction, watchers }
+              : auction
+          )
+        );
+      });
+
+      socketIo.on("auctionModeUpdate", ({ auctionId, mode }) => {
+        console.log(`Received auctionModeUpdate for auction ${auctionId}: ${mode}`);
+        setAuctionModes((prev) => ({
+          ...prev,
+          [normalizeId(auctionId)]: mode,
+        }));
+      });
+
+      socketIo.on("latestBidRemoved", ({ auctionId, removedBid, updatedBids, currentBid, currentBidder }) => {
+        console.log("Received latestBidRemoved:", { auctionId, removedBid, updatedBids, currentBid, currentBidder });
+        setLiveAuctions((prev) =>
+          prev.map((auction) =>
+            normalizeId(auction.id) === normalizeId(auctionId)
+              ? {
+                  ...auction,
+                  currentBid,
+                  currentBidder,
+                  bids: updatedBids,
+                }
+              : auction
+          )
+        );
+        addNotification("warning", "Latest bid has been removed.");
+      });
+
+      return () => {
+        if (socketIo) {
+          console.log("Cleaning up socket connection");
+          socketIo.disconnect();
+          setSocket(null);
+          setIsConnected(false);
+        }
+      };
     };
 
-    const handleAuctionMessage = ({ auctionId, message, actionType, sender, timestamp, bidAmount, bidType }) => {
-      console.log("Received auction message:", { auctionId, message, actionType, sender, timestamp, bidAmount, bidType });
-      setLiveAuctions((prev) =>
-        prev.map((auction) =>
-          auction.id === auctionId
-            ? {
-                ...auction,
-                messages: [
-                  ...(auction.messages || []),
-                  {
-                    message: message || actionType,
-                    bidTime: timestamp || new Date(),
-                    sender: typeof sender === "object" ? sender.name || "Admin" : "Admin",
-                    bidType: bidType || (message ? "message" : actionType),
-                    bidAmount: bidAmount || (bidType === "competitor" && auction.bids?.length > 0 ? auction.bids[auction.bids.length - 1].bidAmount + getBidIncrement(auction.bids[auction.bids.length - 1].bidAmount || 0) : auction.startingBid),
-                  },
-                ],
-              }
-            : auction
-        )
-      );
-    };
+    initializeSocket();
+  }, [userId, token, userRole, permissions, addNotification]);
 
-    const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bidType, timestamp }) => {
-      console.log("Received bid update:", { auctionId, bidAmount, bidderId, bidType, timestamp });
-      setLiveAuctions((prev) =>
-        prev.map((auction) =>
-          auction.id === auctionId
-            ? {
-                ...auction,
-                currentBid: bidAmount,
-                bids: [
-                  ...(auction.bids || []),
-                  {
-                    bidder: bidderId,
-                    bidAmount,
-                    bidTime: timestamp || new Date(),
-                    bidType,
-                    isClerk: isClerk,
-                  },
-                ],
-              }
-            : auction
-        )
-      );
-    };
+  useEffect(() => {
+    if (socket) {
+      socket.on("auctionData", (data) => {
+        const normalizedAuctionId = normalizeId(data._id || data.auctionId);
+        if (normalizedAuctionId) {
+          console.log("Received auction data for:", normalizedAuctionId);
+        }
+      });
 
-    const handleAuctionUpdate = ({ auctionId, updateData }) => {
-      console.log("Received auction update:", { auctionId, updateData });
-      setLiveAuctions((prev) =>
-        prev.map((auction) =>
-          auction.id === auctionId
-            ? {
-                ...auction,
-                ...updateData,
-              }
-            : auction
-        )
-      );
-    };
-
-    socket.on("auctionMode", handleAuctionMode);
-    socket.on("auctionMessage", handleAuctionMessage);
-    socket.on("bidUpdate", handleBidUpdate);
-    socket.on("auctionUpdate", handleAuctionUpdate);
+      socket.on("joinAuction", ({ auctionId }) => {
+        console.log("Joined auction:", auctionId);
+      });
+    }
 
     return () => {
-      socket.off("auctionMode", handleAuctionMode);
-      socket.off("auctionMessage", handleAuctionMessage);
-      socket.off("bidUpdate", handleBidUpdate);
-      socket.off("auctionUpdate", handleAuctionUpdate);
+      if (socket) {
+        socket.off("auctionData");
+        socket.off("joinAuction");
+      }
     };
-  }, [socket, isClerk, getBidIncrement]);
+  }, [socket]);
+
+  const subscribeToEvents = useCallback((auctionId, callbacks) => {
+    if (!socket || !auctionId) return () => {};
+
+    const normalizedAuctionId = normalizeId(auctionId);
+
+    const handlers = {
+      onBidUpdate: callbacks.onBidUpdate || (() => {}),
+      onAuctionMessage: callbacks.onAuctionMessage || (() => {}),
+      onWatcherUpdate: callbacks.onWatcherUpdate || (() => {}),
+      onLatestBidRemoved: callbacks.onLatestBidRemoved || (() => {}),
+      onAuctionModeUpdate: callbacks.onAuctionModeUpdate || (() => {}),
+    };
+
+    const bidUpdateHandler = (data) => {
+      const msgAuctionId = normalizeId(data.auctionId);
+      if (msgAuctionId === normalizedAuctionId) {
+        console.log(`Received bid update for auction ${msgAuctionId}:`, data);
+        handlers.onBidUpdate(data);
+
+        setLiveAuctions((prev) =>
+          prev.map((auction) => {
+            if (normalizeId(auction.id) !== msgAuctionId) return auction;
+
+            const bidTime = new Date(data.timestamp || new Date()).getTime();
+            const hasDuplicate = (auction.bids || []).some((existingBid) => {
+              const existingTime = new Date(existingBid.bidTime).getTime();
+              return (
+                existingBid.bidAmount === data.bidAmount &&
+                Math.abs(existingTime - bidTime) < 1000
+              );
+            });
+
+            const updatedBids = hasDuplicate
+              ? auction.bids
+              : [
+                  ...(auction.bids || []),
+                  {
+                    bidder: data.bidderId,
+                    bidAmount: data.bidAmount,
+                    bidTime: data.timestamp || new Date(),
+                    bidType: data.bidType,
+                  },
+                ];
+
+            return {
+              ...auction,
+              currentBid: data.bidAmount,
+              currentBidder: data.bidderId,
+              minBidIncrement: data.minBidIncrement,
+              bids: updatedBids,
+            };
+          })
+        );
+      }
+    };
+
+    const auctionMessageHandler = ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType }) => {
+      const normalizedMsgAuctionId = normalizeId(msgAuctionId);
+      if (normalizedMsgAuctionId === normalizedAuctionId) {
+        handlers.onAuctionMessage({
+          auctionId: normalizedMsgAuctionId,
+          message,
+          actionType,
+          sender,
+          timestamp,
+          bidType,
+        });
+      }
+    };
+
+    const watcherUpdateHandler = ({ auctionId: msgAuctionId, watchers }) => {
+      const normalizedMsgAuctionId = normalizeId(msgAuctionId);
+      if (normalizedMsgAuctionId === normalizedAuctionId) {
+        handlers.onWatcherUpdate({
+          auctionId: normalizedMsgAuctionId,
+          watchers,
+        });
+      }
+    };
+
+    const latestBidRemovedHandler = ({ auctionId: msgAuctionId, removedBid, updatedBids, currentBid, currentBidder }) => {
+      const normalizedMsgAuctionId = normalizeId(msgAuctionId);
+      if (normalizedMsgAuctionId === normalizedAuctionId) {
+        handlers.onLatestBidRemoved({
+          auctionId: normalizedMsgAuctionId,
+          removedBid,
+          updatedBids,
+          currentBid,
+          currentBidder,
+        });
+      }
+    };
+
+    const auctionModeUpdateHandler = ({ auctionId: msgAuctionId, mode }) => {
+      const normalizedMsgAuctionId = normalizeId(msgAuctionId);
+      if (normalizedMsgAuctionId === normalizedAuctionId) {
+        handlers.onAuctionModeUpdate({
+          auctionId: normalizedMsgAuctionId,
+          mode,
+        });
+        setAuctionModes((prev) => ({
+          ...prev,
+          [normalizedMsgAuctionId]: mode,
+        }));
+      }
+    };
+
+    socket.on("bidUpdate", bidUpdateHandler);
+    socket.on("auctionMessage", auctionMessageHandler);
+    socket.on("watcherUpdate", watcherUpdateHandler);
+    socket.on("latestBidRemoved", latestBidRemovedHandler);
+    socket.on("auctionModeUpdate", auctionModeUpdateHandler);
+
+    return () => {
+      socket.off("bidUpdate", bidUpdateHandler);
+      socket.off("auctionMessage", auctionMessageHandler);
+      socket.off("watcherUpdate", watcherUpdateHandler);
+      socket.off("latestBidRemoved", latestBidRemovedHandler);
+      socket.off("auctionModeUpdate", auctionModeUpdateHandler);
+    };
+  }, [socket, setLiveAuctions]);
+
+  useEffect(() => {
+    if (socket && userRole) {
+      console.log("Role changed to:", userRole);
+      socket.emit("updateRole", { role: userRole });
+    }
+  }, [socket, userRole]);
 
   return {
     socket,
@@ -461,5 +734,7 @@ export const useMemberSocket = () => {
     auctionModes,
     notifications,
     getBidIncrement,
+    isConnected,
+    subscribeToEvents,
   };
-}; 
+};

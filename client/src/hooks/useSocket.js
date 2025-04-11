@@ -19,7 +19,11 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
-  const isAdmin = useSelector((state) => state.auth.isAdmin);
+  const isAdmin = useSelector((state) => state.auth.isAdmin); // Existing admin flag
+  const role = useSelector((state) => state.auth.role); // New role field
+
+  // Determine if the user is effectively an admin (either isAdmin or role is "clerk")
+  const isEffectiveAdmin = isAdmin || role === "clerk";
 
   const addNotification = useCallback((type, message) => {
     const id = Date.now();
@@ -37,7 +41,7 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           mode,
           userId,
-          isAdmin,
+          isAdmin: isEffectiveAdmin, // Use effective admin status
         });
         console.log(`Set auction ${auctionId} mode to: ${mode}`);
         setAuctionModes((prev) => ({
@@ -46,7 +50,7 @@ export const useSocket = () => {
         }));
       }
     },
-    [socket, userId, isAdmin]
+    [socket, userId, isEffectiveAdmin]
   );
 
   const joinAuction = useCallback(
@@ -152,6 +156,7 @@ export const useSocket = () => {
           userId,
           bidType,
           bidAmount,
+          isAdmin: isEffectiveAdmin, // Pass effective admin status
         });
 
         console.log(
@@ -171,6 +176,7 @@ export const useSocket = () => {
       getAuctionData,
       addNotification,
       updateAuctionMode,
+      isEffectiveAdmin,
     ]
   );
 
@@ -181,12 +187,12 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           message,
           userId,
-          isAdmin,
+          isAdmin: isEffectiveAdmin, // Use effective admin status
         });
         console.log(`Sent message to auction ${auctionId}: ${message}`);
       }
     },
-    [socket, userId, isAdmin]
+    [socket, userId, isEffectiveAdmin]
   );
 
   const performAdminAction = useCallback(
@@ -196,14 +202,14 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           actionType,
           userId,
-          isAdmin,
+          isAdmin: isEffectiveAdmin, // Use effective admin status
         });
         console.log(
           `Performed admin action ${actionType} on auction ${auctionId}`
         );
       }
     },
-    [socket, userId, isAdmin]
+    [socket, userId, isEffectiveAdmin]
   );
 
   useEffect(() => {
@@ -214,7 +220,7 @@ export const useSocket = () => {
 
       socketIo = io(config.baseURL, {
         query: { userId },
-        auth: { token, isAdmin: isAdmin || false },
+        auth: { token, isAdmin: isEffectiveAdmin }, // Use effective admin status
         transports: ["websocket"],
         reconnection: true,
         reconnectionAttempts: 5,
@@ -405,7 +411,7 @@ export const useSocket = () => {
     };
 
     initializeSocket();
-  }, [userId, token, isAdmin, addNotification]);
+  }, [userId, token, isEffectiveAdmin, addNotification]);
 
   useEffect(() => {
     const setDefaultMode = (auctionId) => {
