@@ -802,7 +802,7 @@ export const updateCatalog = async (req, res) => {
             return badRequest(res, "Please provide a valid catalog and lotNumber.");
         }
 
-        const updatedLotNumber = lotNumber - 1;
+        const updatedLotNumber = lotNumber;
 
         const findAuction = await auctionModel.findOne({ catalog, lotNumber: updatedLotNumber });
 
