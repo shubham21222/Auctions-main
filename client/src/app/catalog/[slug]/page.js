@@ -1,417 +1,441 @@
 "use client";
 
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import toast from "react-hot-toast";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
-import config from "@/app/config_BASE_URL";
+import { useSocket } from "@/hooks/useSocket";
+import CatalogHeader from "./CatalogHeader";
+import CatalogDetails from "./CatalogDetails";
+import CatalogCarousel from "./CatalogCarousel";
 import { motion } from "framer-motion";
-import { Input } from "@/components/ui/input";
+import toast from "react-hot-toast";
+import config from "@/app/config_BASE_URL";
 
-const getBidIncrement = (currentBid) => {
-  if (currentBid >= 1000000) return 50000;
-  if (currentBid >= 500000) return 25000;
-  if (currentBid >= 250000) return 10000;
-  if (currentBid >= 100000) return 5000;
-  if (currentBid >= 50000) return 2500;
-  if (currentBid >= 25025) return 1000;
-  if (currentBid >= 10000) return 500;
-  if (currentBid >= 5000) return 250;
-  if (currentBid >= 1000) return 100;
-  if (currentBid >= 100) return 50;
-  if (currentBid >= 50) return 10;
-  if (currentBid >= 25) return 5;
-  return 1;
-};
+const Notification = ({ type, message }) => {
+  const bgColor =
+    type === "success"
+      ? "bg-green-600"
+      : type === "error"
+      ? "bg-red-600"
+      : type === "warning"
+      ? "bg-yellow-600"
+      : "bg-blue-600";
 
-const renderHTML = (htmlString) => {
-  if (!htmlString) return "No description available.";
-  return htmlString.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
-};
-
-export default function CatalogDetails({
-  product,
-  auction,
-  loading,
-  onBidNowClick,
-  onSendMessage,
-  onClerkAction,
-  token,
-  notifications,
-  socket,
-  messages,
-  isJoined,
-  setIsJoined,
-  userId,
-  isClerk,
-  auctionMode,
-  updateAuctionMode,
-}) {
-  const [userCache, setUserCache] = useState({});
-  const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [imageErrors, setImageErrors] = useState({});
-  const [message, setMessage] = useState("");
-  const updatesRef = useRef(null);
-
-  const fetchUserName = useCallback(
-    async (id) => {
-      if (!token || !id) return "Anonymous";
-      if (userCache[id]) return userCache[id];
-
-      try {
-        const response = await fetch(`${config.baseURL}/v1/api/auth/getUserById/${id}`, {
-          method: "GET",
-          headers: { Authorization: `${token}` },
-        });
-        if (!response.ok) throw new Error("Failed to fetch user");
-        const data = await response.json();
-        const userName = data.items?.name || "Anonymous";
-        setUserCache((prev) => ({ ...prev, [id]: userName }));
-        return userName;
-      } catch (error) {
-        console.error(`Error fetching user ${id}:`, error.message);
-        return "Anonymous";
-      }
-    },
-    [token, userCache]
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className={`${bgColor} text-white p-3 rounded-lg mb-3 shadow-lg border border-opacity-20 border-white max-w-md`}
+    >
+      <div className="font-medium">{message}</div>
+      <div className="text-xs opacity-80 mt-1">{new Date().toLocaleTimeString()}</div>
+    </motion.div>
   );
+};
 
-  useEffect(() => {
-    if (!auction?.bids) {
-      setBidsWithUsernames([]);
+export default function CatalogPage() {
+  const { slug } = useParams();
+  const auctionId = slug;
+  const [auction, setAuction] = useState(null);
+  const [product, setProduct] = useState(null);
+  const [allAuctions, setAllAuctions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isJoined, setIsJoined] = useState(false);
+  const [headerData, setHeaderData] = useState({
+    productName: "Loading...",
+    lotNumber: "N/A",
+    catalog: "Uncategorized",
+    endDate: null,
+    status: "Loading",
+  });
+  const token = useSelector((state) => state.auth.token);
+  const userId = useSelector((state) => state.auth._id);
+  const isClerk = useSelector((state) => state.auth.isClerk);
+  const router = useRouter();
+  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications, subscribeToEvents, getBidIncrement, sendMessage, performClerkAction, updateAuctionMode, auctionModes } = useSocket();
+  const hasJoinedRef = useRef(new Set());
+
+  const fetchAuctionData = useCallback(async () => {
+    if (!token || !auctionId) {
+      setLoading(false);
       return;
     }
 
-    const updateBidsWithUsernames = async () => {
-      const uniqueBids = new Map();
+    setLoading(true);
+    try {
+      // Fetch auction data from the new API endpoint
+      const response = await fetch(`${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch auction data");
+      const auctionData = await response.json();
+      if (!auctionData.status || !auctionData.items) throw new Error("Invalid auction data");
 
-      auction.bids.forEach((bid) => {
-        const bidTime = new Date(bid.bidTime).getTime();
-        const key = `${bid.bidAmount}-${Math.floor(bidTime / 1000)}`;
+      const auctionResult = {
+        ...auctionData.items,
+        messages: Array.isArray(auctionData.items.messages) ? auctionData.items.messages : [],
+        catalog: auctionData.items.catalog || auctionData.items.category?.name || "Uncategorized",
+        bids: Array.isArray(auctionData.items.bids) ? auctionData.items.bids : [],
+      };
 
-        if (uniqueBids.has(key)) {
-          const existingBid = uniqueBids.get(key);
-          if (!existingBid.bidType && bid.bidType) {
-            uniqueBids.set(key, bid);
-          }
-        } else {
-          uniqueBids.set(key, bid);
-        }
+      console.log("Fetched Auction Data:", auctionResult);
+
+      setAuction(auctionResult);
+      setHeaderData({
+        productName: auctionResult.product?.title || "Unnamed Item",
+        lotNumber: auctionResult.lotNumber || "N/A",
+        catalog: auctionResult.catalog,
+        endDate: auctionResult.endDate,
+        status: auctionResult.status || "Loading",
       });
 
-      const updatedBids = await Promise.all(
-        Array.from(uniqueBids.values()).map(async (bid) => {
-          const bidderName = await fetchUserName(bid.bidder);
-          return { ...bid, bidderName, bidType: bid.bidType || "online" };
-        })
+      setIsJoined(
+        Array.isArray(auctionResult.participants) && auctionResult.participants.some((p) => p._id === userId)
       );
 
-      const finalBids = updatedBids
-        .sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime))
-        .filter((bid, index, array) => {
-          if (index === 0) return true;
-          const prevBid = array[index - 1];
-          const timeDiff = Math.abs(new Date(bid.bidTime) - new Date(prevBid.bidTime));
-          return !(bid.bidAmount === prevBid.bidAmount && timeDiff < 1000);
-        });
+      setProduct({
+        id: auctionResult.product?._id || "",
+        name: auctionResult.product?.title || "Unnamed Item",
+        images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
+        description: auctionResult.description || "No additional description available.",
+        price: {
+          min: auctionResult.product?.price || 0,
+          max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
+        },
+      });
 
-      console.log("CatalogDetails: Updated bids with usernames:", finalBids);
-      setBidsWithUsernames(finalBids);
-    };
+      setLiveAuctions((prev) => {
+        const exists = prev.find((a) => a.id === auctionId);
+        return exists
+          ? prev.map((a) => (a.id === auctionId ? { ...a, ...auctionResult, id: auctionId } : a))
+          : [...prev, { ...auctionResult, id: auctionId }];
+      });
 
-    updateBidsWithUsernames();
-  }, [auction?.bids, fetchUserName]);
+      // Fetch all auctions for the carousel
+      const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
+      if (!allAuctionsResponse.ok) throw new Error("Failed to fetch all auctions");
+      const allAuctionsData = await allAuctionsResponse.json();
+      if (allAuctionsData.status && allAuctionsData.items?.catalogs) {
+        const auctions = allAuctionsData.items.catalogs.flatMap((catalog) =>
+          catalog.auctions.map((auction) => ({
+            ...auction,
+            catalog: catalog.catalogName,
+          }))
+        );
+        console.log("All Auctions Fetched:", auctions);
+        setAllAuctions(auctions);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }, [auctionId, token, setLiveAuctions, userId]);
 
-  const handleJoinAuction = async () => {
-    if (!userId || !auction || !auction._id || !termsAccepted) {
-      toast.error(
-        !userId
-          ? "Please log in to join the auction"
-          : !auction || !auction._id
-          ? "No active auction available"
-          : "You must accept the terms and conditions"
-      );
-      return;
+  useEffect(() => {
+    fetchAuctionData();
+  }, [fetchAuctionData]);
+
+  useEffect(() => {
+    if (!auctionId || !socket) return;
+
+    if (!hasJoinedRef.current.has(auctionId)) {
+      joinAuction(auctionId);
+      hasJoinedRef.current.add(auctionId);
+      console.log(`Joined auction ${auctionId} once as ${isClerk ? "Clerk" : "User"}`);
     }
 
+    const unsubscribe = subscribeToEvents(auctionId, {
+      onBidUpdate: ({ auctionId: msgAuctionId, bidAmount, bidderId, bidType, timestamp, minBidIncrement, bids }) => {
+        console.log("Catalog: Received bidUpdate:", { msgAuctionId, bidAmount, bidType });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => {
+            if (Array.isArray(bids) && bids.length > 0) {
+              const deduplicatedBids = bids.reduce((acc, bid) => {
+                const existingBid = acc.find(b => 
+                  b.bidAmount === bid.bidAmount && 
+                  Math.abs(new Date(b.bidTime) - new Date(bid.bidTime)) < 3000
+                );
+                if (!existingBid) {
+                  acc.push(bid);
+                }
+                return acc;
+              }, []);
+              
+              return {
+                ...prev,
+                currentBid: bidAmount,
+                currentBidder: bidderId,
+                minBidIncrement,
+                bids: deduplicatedBids
+              };
+            }
+            
+            const newBid = {
+              bidder: bidderId,
+              bidAmount,
+              bidTime: timestamp || new Date(),
+              bidType
+            };
+            
+            const isDuplicate = prev?.bids?.some(existingBid => {
+              const timeDiff = Math.abs(new Date(existingBid.bidTime) - new Date(newBid.bidTime));
+              return existingBid.bidAmount === bidAmount && timeDiff < 3000;
+            });
+            
+            const updatedBids = isDuplicate ? prev.bids : [...(prev?.bids || []), newBid];
+            
+            return {
+              ...prev,
+              currentBid: bidAmount,
+              currentBidder: bidderId,
+              minBidIncrement,
+              bids: updatedBids
+            };
+          });
+          
+          toast.success(`New ${bidType} bid: $${bidAmount.toLocaleString()}`);
+        }
+      },
+      onAuctionMessage: ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType }) => {
+        console.log("Catalog: Received auctionMessage:", { msgAuctionId, message, actionType });
+        if (msgAuctionId === auctionId) {
+          const newMessage = {
+            message: message || actionType || "Update",
+            actionType,
+            sender: typeof sender === "object" ? sender.name || (isClerk ? "Clerk" : "Admin") : sender || (isClerk ? "Clerk" : "Admin"),
+            timestamp: timestamp || new Date(),
+            bidType: bidType || "message",
+          };
+          
+          setAuction((prev) => ({
+            ...prev,
+            messages: [...(prev?.messages || []), newMessage],
+          }));
+          
+          toast.info(`Auction update: ${message || actionType}`);
+        }
+      },
+      onWatcherUpdate: ({ auctionId: msgAuctionId, watchers }) => {
+        console.log("Catalog: Received watcherUpdate:", { msgAuctionId, watchers });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => ({ ...prev, watchers }));
+        }
+      },
+      onLatestBidRemoved: ({ auctionId: msgAuctionId, updatedBids, currentBid, currentBidder }) => {
+        console.log("Catalog: Received latestBidRemoved:", { msgAuctionId, currentBid });
+        if (msgAuctionId === auctionId) {
+          setAuction((prev) => ({
+            ...prev,
+            currentBid,
+            currentBidder,
+            bids: updatedBids,
+          }));
+          toast.warning("Latest bid has been removed.");
+        }
+      },
+      onAuctionModeUpdate: ({ auctionId: msgAuctionId, mode }) => {
+        console.log("Catalog: Received auctionModeUpdate:", { msgAuctionId, mode });
+        if (msgAuctionId === auctionId) {
+          auctionModes[msgAuctionId] = mode; // Update auctionModes directly
+        }
+      },
+    });
+
+    return () => unsubscribe();
+  }, [auctionId, socket, joinAuction, subscribeToEvents, isClerk]);
+
+  useEffect(() => {
+    const liveAuction = liveAuctions.find((a) => a.id === auctionId);
+    if (liveAuction && JSON.stringify(liveAuction) !== JSON.stringify(auction)) {
+      console.log("Catalog: Syncing auction with liveAuctions:", liveAuction);
+      setAuction((prev) => ({
+        ...prev,
+        currentBid: liveAuction.currentBid,
+        bids: liveAuction.bids || prev?.bids || [],
+        messages: liveAuction.messages || prev?.messages || [],
+        status: liveAuction.status || prev?.status,
+        watchers: liveAuction.watchers || prev?.watchers || 0,
+      }));
+    }
+  }, [liveAuctions, auctionId]);
+
+  useEffect(() => {
+    if (!socket || !auction || !allAuctions.length) return;
+
+    const handleNextLot = ({ auctionId: msgAuctionId, actionType }) => {
+      console.log("Catalog: Received auctionMessage for NEXT_LOT:", { msgAuctionId, actionType });
+      if (msgAuctionId === auctionId && actionType === "NEXT_LOT") {
+        const currentCatalogAuctions = allAuctions.filter((a) => {
+          const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
+          const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
+          return normalizedAuctionCatalog === normalizedCurrentCatalog;
+        });
+        const currentIndex = currentCatalogAuctions.findIndex((a) => a._id === auctionId);
+        if (currentIndex < currentCatalogAuctions.length - 1) {
+          const nextAuctionId = currentCatalogAuctions[currentIndex + 1]._id;
+          console.log(`Navigating to next auction: ${nextAuctionId}`);
+          router.push(`/catalog/${nextAuctionId}`);
+        } else {
+          toast.info("No more auctions in this catalog.");
+        }
+      }
+    };
+
+    socket.on("auctionMessage", handleNextLot);
+    return () => {
+      socket.off("auctionMessage", handleNextLot);
+    };
+  }, [socket, auctionId, auction, allAuctions, router]);
+
+  const handlePlaceBid = async (bidType, bidAmount) => {
+    if (!auction || !auction._id) {
+      toast.error("Cannot place bid. Auction not available.");
+      return;
+    }
+    if (!userId) {
+      toast.error("Please log in to place a bid");
+      return;
+    }
+  
     try {
-      const response = await fetch(`${config.baseURL}/v1/api/auction/join`, {
+      const auctionData = await getAuctionData(auction._id);
+      const currentBid = auctionData.currentBid || 0;
+      const bidIncrement = getBidIncrement(currentBid);
+      let finalBidAmount = bidAmount || (currentBid + bidIncrement);
+
+      if (bidType === "competitor" && !isClerk) {
+        toast.error("Only clerks can place competitive bids.");
+        return;
+      }
+
+      if (bidType === "online" && isClerk) {
+        toast.error("Clerks cannot place online bids.");
+        return;
+      }
+
+      const success = await placeBid(auction._id, bidType, finalBidAmount);
+      if (!success) {
+        throw new Error("Failed to place bid via socket");
+      }
+
+      console.log(`Catalog: ${bidType} bid placed via socket for auction ${auction._id}: $${finalBidAmount}`);
+      
+      const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `${token}`,
         },
-        body: JSON.stringify({ auctionId: auction._id, userId }),
+        body: JSON.stringify({
+          auctionId: auction._id,
+          bidAmount: finalBidAmount,
+          bidType,
+        }),
       });
 
-      const data = await response.json();
-      if (!response.ok && data.message !== "User already joined the auction") {
-        throw new Error(data.message || "Failed to join auction");
-      }
-
-      setIsJoined(true);
-      toast.success("Successfully joined the auction!");
-      if (socket && socket.connected && auction.auctionType === "LIVE") {
-        socket.emit("joinAuction", { auctionId: auction._id, userId, isClerk });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.warn("API bid placement returned error, but socket bid was accepted:", errorData);
       }
     } catch (error) {
-      console.error("Join Auction Error:", error);
-      toast.error(error.message || "Failed to join auction.");
+      console.error("Catalog: Place Bid Error:", error);
+      toast.error(error.message || "Failed to place bid");
     }
   };
 
-  const handleBidSubmit = (e) => {
-    e.preventDefault();
-    const currentBid = auction?.currentBid || 0;
-    const bidIncrement = getBidIncrement(currentBid);
-    const nextBid = currentBid + bidIncrement;
-    onBidNowClick(isClerk ? "competitor" : "online", nextBid);
+  const handleSendMessage = (message) => {
+    if (isClerk) {
+      sendMessage(auctionId, message);
+    } else {
+      toast.error("Only clerks can send messages.");
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!message.trim()) {
-      toast.error("Message cannot be empty.");
-      return;
+  const handleClerkAction = (actionType) => {
+    if (isClerk) {
+      performClerkAction(auctionId, actionType);
+    } else {
+      toast.error("Only clerks can perform this action.");
     }
-    onSendMessage(message);
-    setMessage("");
   };
-
-  // For TIMED auctions, only show bids; for LIVE auctions, show bids and messages
-  const bidHistory = auction?.auctionType === "TIMED"
-    ? bidsWithUsernames
-    : [...bidsWithUsernames, ...(auction?.messages || [])]
-        .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp));
-
-  useEffect(() => {
-    if (updatesRef.current) {
-      updatesRef.current.scrollTop = updatesRef.current.scrollHeight;
-    }
-  }, [bidHistory]);
-
-  const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-120px)]">
-      <div className="flex-1 max-w-[800px] flex flex-col">
-        <div className="flex-1 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex flex-col gap-8 pb-6">
-              <div className="relative h-[500px] rounded-xl overflow-hidden bg-slate-100 shadow-md">
-                {productImages.length > 0 ? (
-                  imageErrors[selectedImageIndex] ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
-                      Image not available
-                    </div>
-                  ) : (
-                    <Image
-                      src={productImages[selectedImageIndex]}
-                      alt={`${product?.name || "Product"} main image`}
-                      fill
-                      className="object-contain transition-transform duration-300 hover:scale-105"
-                      onError={(e) => {
-                        console.error(`Failed to load image: ${productImages[selectedImageIndex]}`);
-                        setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
-                      }}
-                      onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
-                      unoptimized={true}
-                    />
-                  )
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
-                    No images available
-                  </div>
-                )}
-              </div>
-
-              {productImages.length > 1 && (
-                <div className="flex gap-4 overflow-x-auto py-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-                  {productImages.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                        selectedImageIndex === index ? "border-emerald-600 shadow-md" : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      {imageErrors[index] ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
-                          Error
-                        </div>
-                      ) : (
-                        <Image 
-                          src={image} 
-                          alt={`Thumbnail ${index + 1}`} 
-                          fill 
-                          className="object-cover" 
-                          unoptimized={true}
-                        />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-6 px-2">
-                <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
-                <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-                  {renderHTML(product?.description)}
-                </div>
-              </div>
+    <>
+      <div className="max-w-[1400px] flex min-h-screen bg-slate-50">
+        {loading ? (
+          <div className="fixed left-0 top-[70px] h-[calc(100vh-70px)] w-[350px] bg-white border-r border-slate-200 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
+              <p className="text-slate-600 font-medium">Loading auctions...</p>
             </div>
           </div>
-        </div>
-
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg z-10">
-          <div className="max-w-3xl mx-auto space-y-4">
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600 font-medium">Current Bid</span>
-                <span className="text-4xl font-bold text-slate-900">
-                  ${(auction?.currentBid || 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            {auction && auction.status === "ACTIVE" && (
-              <div className="space-y-4">
-                {!isJoined ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="terms"
-                        checked={termsAccepted}
-                        onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
-                      />
-                      <label htmlFor="terms" className="text-sm text-slate-600">
-                        I agree to the terms and conditions
-                      </label>
-                    </div>
-                    <Button
-                      onClick={handleJoinAuction}
-                      disabled={!termsAccepted}
-                      className={`w-full py-6 text-lg font-medium transition-all duration-200 ${
-                        termsAccepted
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                      }`}
-                    >
-                      Join Auction to Bid
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={handleBidSubmit}
-                    className="w-full py-6 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
-                  >
-                    Place {isClerk ? "Competitive" : "Online"} Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {isClerk && auction?.auctionType === "LIVE" && (
-              <div className="space-y-4">
-                <select
-                  value={auctionMode}
-                  onChange={(e) => updateAuctionMode(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                >
-                  <option value="competitor">Competitor Mode</option>
-                  <option value="online">Online Mode</option>
-                </select>
-
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Enter message..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter" && message.trim()) {
-                        handleSendMessage();
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
-                  >
-                    Send
-                  </Button>
-                </div>
-
-                <div className="flex gap-2 flex-wrap">
-                  {["FAIR_WARNING", "FINAL_CALL", "RESERVE_NOT_MET", "NEXT_LOT", "SOLD", "RETRACT"].map((action) => (
-                    <Button
-                      key={action}
-                      onClick={() => onClerkAction(action)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
-                    >
-                      {action.replace(/_/g, " ")}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+        ) : auction && allAuctions.length > 0 ? (
+          <CatalogCarousel
+            catalogName={auction.catalog}
+            auctions={allAuctions.filter((a) => {
+              const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
+              const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
+              return normalizedAuctionCatalog === normalizedCurrentCatalog && a._id !== auction._id;
+            })}
+            currentTime={new Date()}
+            onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
+          />
+        ) : (
+          <div className="fixed left-0 top-[70px] h-[calc(100vh-70px)] w-[350px] bg-white border-r border-slate-200 flex items-center justify-center">
+            <p className="text-slate-600 font-medium">No auctions available</p>
           </div>
-        </div>
+        )}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          className="flex-1 min-h-screen relative ml-[350px] bg-gradient-to-br from-slate-50 to-white"
+        >
+          <div className="max-w-6xl mx-auto px-8 py-10">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="space-y-8"
+            >
+              <CatalogHeader
+                productName={headerData.productName}
+                auctionEndDate={headerData.endDate}
+                lotNumber={headerData.lotNumber}
+                catalog={headerData.catalog}
+                status={headerData.status}
+              />
+              <div className="mt-8">
+                <CatalogDetails
+                  product={product}
+                  auction={auction}
+                  loading={loading}
+                  onBidNowClick={handlePlaceBid}
+                  onSendMessage={handleSendMessage}
+                  onClerkAction={handleClerkAction}
+                  token={token}
+                  notifications={notifications}
+                  socket={socket}
+                  messages={auction?.messages || []}
+                  isJoined={isJoined}
+                  setIsJoined={setIsJoined}
+                  userId={userId}
+                  isClerk={isClerk}
+                  auctionMode={auctionModes[auctionId] || "competitor"}
+                  updateAuctionMode={(mode) => updateAuctionMode(auctionId, mode)}
+                />
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
       </div>
-
-      <div className="w-[400px] border-slate-500 bg-white rounded-xl shadow-sm">
-        <div className="h-[500px] flex flex-col">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
-            {auction?.status === "ACTIVE" && auction?.auctionType === "LIVE" && (
-              <div className="mt-4 bg-emerald-50 text-emerald-800 px-4 py-3 rounded-lg flex items-center">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-                Live Auction
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
-            {[...bidHistory]
-              .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp))
-              .map((entry, index) => (
-                <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
-                  {entry.message ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-medium">{entry.message}</span>
-                        <span className="text-sm text-slate-500">({entry.sender || (isClerk ? "Clerk" : "Admin")})</span>
-                      </div>
-                      <span className="text-xs text-slate-400 whitespace-nowrap">
-                        {new Date(entry.timestamp || entry.bidTime).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900">${entry.bidAmount.toLocaleString()}</span>
-                        <span className={`text-sm font-medium ${entry.bidType === "online" ? "text-blue-600" : "text-red-600"}`}>
-                          {entry.bidType === "online" ? "(Online Bid)" : "(Competitive Bid)"}
-                        </span>
-                      </div>
-                      <span className="text-xs text-slate-400 whitespace-nowrap">
-                        {new Date(entry.bidTime).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            {bidHistory.length === 0 && (
-              <div className="text-center text-slate-500 py-4">No updates yet</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 };
