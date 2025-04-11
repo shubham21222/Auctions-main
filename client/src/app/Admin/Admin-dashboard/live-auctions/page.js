@@ -176,7 +176,9 @@ const AdminLiveAuctionPage = () => {
       }
 
       if (actionType === "NEXT_LOT") {
-        const liveAuctions = selectedCatalog.auctions.filter((a) => a.status === "ACTIVE" && a.auctionType === "LIVE");
+        const liveAuctions = selectedCatalog.auctions.filter(
+          (a) => a.status === "ACTIVE" && a.auctionType === "LIVE"
+        );
         const currentIndex = liveAuctions.findIndex((a) => a._id === currentAuction._id);
         if (currentIndex < liveAuctions.length - 1) {
           setCurrentAuction(liveAuctions[currentIndex + 1]);
@@ -215,7 +217,8 @@ const AdminLiveAuctionPage = () => {
         }
 
         toast.success("Auction marked as sold and status updated to ENDED");
-        fetchAuctionData();
+        setCurrentAuction((prev) => ({ ...prev, status: "ENDED" }));
+        await fetchAuctionData();
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);
@@ -253,7 +256,6 @@ const AdminLiveAuctionPage = () => {
             <div className="flex items-center">
               <h1 className="text-xl font-bold">NY Elizabeth</h1>
               <div className="ml-8 text-sm">
-                {/* <span>NY Elizabeth</span> */}
                 <span className="ml-2 text-blue-400">
                   {selectedCatalog && selectedCatalog.auctions.length > 0
                     ? Math.round(
@@ -289,7 +291,7 @@ const AdminLiveAuctionPage = () => {
               <AuctionDetails
                 currentAuction={currentAuction}
                 upcomingLots={selectedCatalog.auctions.filter(
-                  (a) => a.status === "ACTIVE" && a.auctionType === "LIVE" && a._id !== currentAuction?._id
+                  (a) => a.auctionType === "LIVE" && a._id !== currentAuction?._id
                 )}
                 onSelectLot={(lot) => {
                   setCurrentAuction(lot);

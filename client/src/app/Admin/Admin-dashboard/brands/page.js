@@ -23,7 +23,8 @@ const BrandsPage = () => {
     brandName: '',
     summary: '',
     Biography: '',
-    images: ['']
+    images: [''],
+    videos: ['']
   });
   const [editBrand, setEditBrand] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +66,7 @@ const BrandsPage = () => {
       });
       toast.success("Brand created successfully");
       fetchBrands();
-      setNewBrand({ brandName: '', summary: '', Biography: '', images: [''] });
+      setNewBrand({ brandName: '', summary: '', Biography: '', images: [''], videos: [''] });
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error('Error creating brand:', error);
@@ -87,7 +88,7 @@ const BrandsPage = () => {
   };
 
   const handleUpdate = (brand) => {
-    setEditBrand({ ...brand, images: brand.images || [''] });
+    setEditBrand({ ...brand, images: brand.images || [''], videos: brand.videos || [] });
     setIsEditModalOpen(true);
   };
 
@@ -121,6 +122,20 @@ const BrandsPage = () => {
     }
   };
 
+  const addVideoField = (isEdit = false) => {
+    if (isEdit) {
+      setEditBrand({
+        ...editBrand,
+        videos: [...editBrand.videos, '']
+      });
+    } else {
+      setNewBrand({
+        ...newBrand,
+        videos: [...newBrand.videos, '']
+      });
+    }
+  };
+
   const updateImage = (index, value, isEdit = false) => {
     if (isEdit) {
       const newImages = [...editBrand.images];
@@ -130,6 +145,18 @@ const BrandsPage = () => {
       const newImages = [...newBrand.images];
       newImages[index] = value;
       setNewBrand({ ...newBrand, images: newImages });
+    }
+  };
+
+  const updateVideo = (index, value, isEdit = false) => {
+    if (isEdit) {
+      const newVideos = [...editBrand.videos];
+      newVideos[index] = value;
+      setEditBrand({ ...editBrand, videos: newVideos });
+    } else {
+      const newVideos = [...newBrand.videos];
+      newVideos[index] = value;
+      setNewBrand({ ...newBrand, videos: newVideos });
     }
   };
 
@@ -180,13 +207,24 @@ const BrandsPage = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Images</label>
                 {newBrand.images.map((img, index) => (
-                  <Input
-                    key={index}
-                    placeholder={`Image URL ${index + 1}`}
-                    value={img}
-                    onChange={(e) => updateImage(index, e.target.value)}
-                    className="mb-2"
-                  />
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Image URL ${index + 1}`}
+                      value={img}
+                      onChange={(e) => updateImage(index, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newImages = newBrand.images.filter((_, i) => i !== index);
+                        setNewBrand({ ...newBrand, images: newImages });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
                 <Button
                   type="button"
@@ -196,6 +234,38 @@ const BrandsPage = () => {
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Add Image URL
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Videos</label>
+                {newBrand.videos.map((video, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Video URL ${index + 1}`}
+                      value={video}
+                      onChange={(e) => updateVideo(index, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newVideos = newBrand.videos.filter((_, i) => i !== index);
+                        setNewBrand({ ...newBrand, videos: newVideos });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addVideoField()}
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Add Video URL
                 </Button>
               </div>
               <Button type="submit" className="w-full">
@@ -330,13 +400,24 @@ const BrandsPage = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Images</label>
                 {editBrand.images.map((img, index) => (
-                  <Input
-                    key={index}
-                    placeholder={`Image URL ${index + 1}`}
-                    value={img}
-                    onChange={(e) => updateImage(index, e.target.value, true)}
-                    className="mb-2"
-                  />
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Image URL ${index + 1}`}
+                      value={img}
+                      onChange={(e) => updateImage(index, e.target.value, true)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newImages = editBrand.images.filter((_, i) => i !== index);
+                        setEditBrand({ ...editBrand, images: newImages });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
                 <Button
                   type="button"
@@ -346,6 +427,38 @@ const BrandsPage = () => {
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Add Image URL
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Videos</label>
+                {editBrand?.videos.map((video, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Video URL ${index + 1}`}
+                      value={video}
+                      onChange={(e) => updateVideo(index, e.target.value, true)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newVideos = editBrand.videos.filter((_, i) => i !== index);
+                        setEditBrand({ ...editBrand, videos: newVideos });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addVideoField(true)}
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Add Video URL
                 </Button>
               </div>
               <Button type="submit" className="w-full">

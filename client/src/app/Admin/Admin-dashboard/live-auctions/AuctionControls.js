@@ -34,39 +34,36 @@ const AuctionControls = ({
         try {
           const data = await getAuctionData(currentAuction._id);
           if (data) {
-            // Update the current auction with latest data
-            setCurrentAuction(prev => ({
+            setCurrentAuction((prev) => ({
               ...prev,
               currentBid: data.currentBid,
               currentBidder: data.currentBidder,
               minBidIncrement: data.minBidIncrement,
-              bids: data.bids
+              bids: data.bids,
             }));
           }
         } catch (error) {
           console.error("Failed to fetch latest auction data:", error);
         }
       };
-  
-      // Set up a polling interval to refresh data
+
       const intervalId = setInterval(fetchLatestAuctionData, 5000);
-      
-      // Also listen for bid updates via socket
+
       const handleBidUpdate = ({ auctionId, bidAmount, bidderId, bidType }) => {
         if (auctionId === currentAuction._id) {
-          setCurrentAuction(prev => ({
+          setCurrentAuction((prev) => ({
             ...prev,
             currentBid: bidAmount,
-            currentBidder: bidderId
+            currentBidder: bidderId,
           }));
         }
       };
-      
-      socket.on('bidUpdate', handleBidUpdate);
-      
+
+      socket.on("bidUpdate", handleBidUpdate);
+
       return () => {
         clearInterval(intervalId);
-        socket.off('bidUpdate', handleBidUpdate);
+        socket.off("bidUpdate", handleBidUpdate);
       };
     }
   }, [currentAuction?._id, socket]);
@@ -97,7 +94,6 @@ const AuctionControls = ({
   if (!currentAuction) return null;
 
   const handleAddCompetitorBid = async () => {
-    console.log("Add Competitive Bid clicked", { currentAuction });
     if (!currentAuction) {
       toast.error("No active auction selected.");
       return;
@@ -111,7 +107,6 @@ const AuctionControls = ({
 
     const placeCompetitorBid = async () => {
       try {
-        console.log("Attempting to place competitor bid...");
         const auctionId = currentAuction._id;
 
         const auctionData = await getAuctionData(auctionId);
@@ -119,14 +114,11 @@ const AuctionControls = ({
         const bidIncrement = getBidIncrement(currentBid);
         const nextBid = currentBid + bidIncrement;
 
-        console.log(`Calculated nextBid: $${nextBid} based on currentBid: $${currentBid}`);
-
         const success = await placeBid(auctionId, "competitor", nextBid);
         if (!success) {
           throw new Error("Failed to place bid via socket");
         }
 
-        console.log("Admin: Competitive bid placed via socket:", { auctionId, bidAmount: nextBid });
         const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
           method: "POST",
           headers: {
@@ -162,27 +154,66 @@ const AuctionControls = ({
     }
   };
 
+  const handleReopenLot = async () => {
+    if (!currentAuction || !currentAuction.catalog || !currentAuction.lotNumber) {
+      toast.error("Cannot reopen lot: Missing catalog or lot number.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${config.baseURL}/v1/api/auction/updateCatalog`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+        body: JSON.stringify({
+          catalog: currentAuction.catalog,
+          lotNumber: currentAuction.lotNumber,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reopen lot");
+      }
+
+      toast.success("Lot reopened successfully!");
+      // Update the current auction status to "ACTIVE"
+      setCurrentAuction((prev) => ({
+        ...prev,
+        status: "ACTIVE",
+      }));
+      // Optionally fetch updated auction data
+      const updatedData = await getAuctionData(currentAuction._id);
+      if (updatedData) {
+        setCurrentAuction(updatedData);
+      }
+    } catch (error) {
+      console.error("Error reopening lot:", error);
+      toast.error(`Failed to reopen lot: ${error.message}`);
+    }
+  };
+
   const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
   const bidIncrement = getBidIncrement(currentBid);
   const nextBid = currentBid + bidIncrement;
 
   return (
     <div className="bg-white border border-gray-200">
-      {/* Lot Number and Title */}
       <div className="border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <span className="text-gray-600 mr-2">Lot:</span>
-            <span className="font-medium">{currentAuction?.lotNumber || ''}</span>
+            <span className="font-medium">{currentAuction?.lotNumber || ""}</span>
           </div>
           <div className="text-right">
             <span className="text-gray-600">Online: {watchers}</span>
           </div>
         </div>
-        <h2 className="text-lg font-bold mt-2">{currentAuction?.product?.title || ''}</h2>
+        <h2 className="text-lg font-bold mt-2">{currentAuction?.product?.title || ""}</h2>
       </div>
 
-      {/* Bid History Section */}
       <div className="border-b border-gray-200 p-4">
         <div className="space-y-2">
           {localBidHistory.slice(-10).map((entry, index) => (
@@ -202,9 +233,7 @@ const AuctionControls = ({
         </div>
       </div>
 
-      {/* Control Buttons */}
       <div className="p-4">
-        {/* Top Row */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => handleAdminAction("FAIR_WARNING")}
@@ -224,9 +253,16 @@ const AuctionControls = ({
           >
             Reserve Not Met
           </button>
+          {currentAuction.status === "ENDED" && (
+            <button
+              onClick={handleReopenLot}
+              className="px-4 py-2 bg-green-100 text-green-700 border border-green-300 rounded hover:bg-green-200"
+            >
+              Reopen Lot
+            </button>
+          )}
         </div>
 
-        {/* Bid Info */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-center">
             <div className="text-sm text-gray-600">Bid Increment</div>
@@ -238,7 +274,6 @@ const AuctionControls = ({
           </div>
         </div>
 
-        {/* Bottom Row */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleAdminAction("NEXT_LOT")}
@@ -254,7 +289,7 @@ const AuctionControls = ({
           </button>
           <button
             onClick={() => handleAdminAction("NEXT_LOT")}
-            className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
+            className="px-4 py-2 bg-gray-100 text-green-700 border border-green-300 rounded hover:bg-gray-200"
           >
             Next Lot
           </button>
@@ -275,7 +310,6 @@ const AuctionControls = ({
           </button>
         </div>
 
-        {/* Message Input */}
         <div className="mt-4">
           <div className="flex gap-2">
             <input

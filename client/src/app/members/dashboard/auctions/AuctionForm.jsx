@@ -30,7 +30,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
   const [newAuction, setNewAuction] = useState({
     product: "",
     category: "",
-    auctionType: "TIMED",
+    auctionType: "", // No default, will be set by checkbox
     startingBid: "",
     startDate: moment().tz(timeZone).format("DD-MM-YYYY"), // Date only
     startTime: "12:00", // Default start time
@@ -62,24 +62,27 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
     e.preventDefault();
     setLoading(true);
 
-    if (!newAuction.startDate || !newAuction.startTime || !newAuction.endDate || !newAuction.endTime || !newAuction.startingBid || !newAuction.category) {
-      toast.error("Please fill in all required fields.");
+    if (!newAuction.startDate || !newAuction.startTime || !newAuction.startingBid || !newAuction.category || !newAuction.auctionType) {
+      toast.error("Please fill in all required fields, including selecting an auction type.");
       setLoading(false);
       return;
     }
 
     // Convert DD-MM-YYYY and HH:mm to ISO 8601 format
     const startDateTimeLocal = `${newAuction.startDate} ${newAuction.startTime}`;
-    const endDateTimeLocal = `${newAuction.endDate} ${newAuction.endTime}`;
-
     const startDateTimeUTC = moment(startDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
-    const endDateTimeUTC = moment(endDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
 
-    const nowUTC = moment().utc();
-    if (moment(endDateTimeUTC).isSameOrBefore(nowUTC)) {
-      toast.error("End date and time must be in the future.");
-      setLoading(false);
-      return;
+    let endDateTimeUTC = null;
+    if (newAuction.auctionType === "TIMED" && newAuction.endDate && newAuction.endTime) {
+      const endDateTimeLocal = `${newAuction.endDate} ${newAuction.endTime}`;
+      endDateTimeUTC = moment(endDateTimeLocal, "DD-MM-YYYY HH:mm").tz(timeZone).utc().format();
+
+      const nowUTC = moment().utc();
+      if (moment(endDateTimeUTC).isSameOrBefore(nowUTC)) {
+        toast.error("End date and time must be in the future for TIMED auctions.");
+        setLoading(false);
+        return;
+      }
     }
 
     const payload = {
@@ -88,7 +91,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
       auctionType: newAuction.auctionType,
       startingBid: Number(newAuction.startingBid),
       startDate: startDateTimeUTC,
-      endDate: endDateTimeUTC,
+      endDate: endDateTimeUTC, // Null for Live, actual date for Timed
       status: newAuction.status,
     };
 
@@ -112,14 +115,14 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
             startingBid: payload.startingBid,
             currentBid: payload.startingBid,
             status: payload.status,
-            endDate: payload.endDate,
+            endDate: payload.endDate || null, // Include endDate only if it exists
             auctionType: payload.auctionType,
           },
         ]);
         setNewAuction({
           product: "",
           category: "",
-          auctionType: "TIMED",
+          auctionType: "", // Reset auction type
           startingBid: "",
           startDate: moment().tz(timeZone).format("DD-MM-YYYY"),
           startTime: "12:00",
@@ -183,7 +186,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
         sortByPrice: row.SortByPrice || "Low Price",
         stock: 1,
         type: "Painting",
-        auctionType: row.auction_type || "TIMED",
+        auctionType: row.auction_type || "TIMED", // Default to TIMED if not specified
       }));
 
       const categoryName = jsonData[0]?.Category || "Painting";
@@ -193,29 +196,41 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
         return;
       }
 
-      const batchSize = 2;
-      const batches = [];
-      for (let i = 0; i < products.length; i += batchSize) {
-        batches.push(products.slice(i, i + batchSize));
+      const startDateTimeUTC = moment.tz("2025-04-01 12:00", "YYYY-MM-DD HH:mm", timeZone).utc().format();
+      let endDateTimeUTC = null;
+      if (products.every(p => p.auctionType === "TIMED")) {
+        endDateTimeUTC = moment.tz("2025-04-12 12:00", "YYYY-MM-DD HH:mm", timeZone).utc().format();
       }
 
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        const payload = {
-          category: category._id,
-          startDate: "2025-04-01T12:00:00.000+00:00", // Fixed start date and time
-          endDate: "2025-04-12T12:00:00.000+00:00",   // Fixed end date and time
-          description: "new file",
-          products: batch,
-        };
+      const payload = {
+        category: category._id,
+        startDate: startDateTimeUTC,
+        endDate: endDateTimeUTC, // Will be null if all are Live
+        description: "new file",
+        products: products.map((product) => ({
+          title: product.title,
+          description: product.description,
+          price: product.price,
+          estimateprice: product.estimateprice,
+          offerAmount: product.offerAmount,
+          onlinePrice: product.onlinePrice,
+          sellPrice: product.sellPrice,
+          ReservePrice: product.ReservePrice,
+          image: product.image,
+          skuNumber: product.skuNumber,
+          lotNumber: product.lotNumber,
+          sortByPrice: product.sortByPrice,
+          stock: product.stock,
+          type: product.type,
+          auctionType: product.auctionType,
+        })),
+      };
 
-        try {
-          await handleBulkCreate(payload);
-          toast.success(`Batch ${batchIndex + 1} of ${batches.length} uploaded successfully!`);
-        } catch (error) {
-          toast.error(`Failed to upload batch ${batchIndex + 1}: ${error.message}`);
-          break;
-        }
+      try {
+        await handleBulkCreate(payload);
+        toast.success("All products uploaded successfully!");
+      } catch (error) {
+        toast.error(`Failed to upload products: ${error.message}`);
       }
     };
 
@@ -248,6 +263,13 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
     } finally {
       setLoading(false);
       setBulkUploadFile(null);
+    }
+  };
+
+  const handleAuctionTypeChange = (type) => {
+    setNewAuction({ ...newAuction, auctionType: type });
+    if (type === "LIVE") {
+      setNewAuction({ ...newAuction, auctionType: type, endDate: "", endTime: "12:00" });
     }
   };
 
@@ -369,47 +391,58 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
               </div>
 
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="endDate" className="text-right">
-                  End Date
-                </Label>
-                <Input
-                  id="endDate"
-                  type="text"
-                  value={newAuction.endDate}
-                  onChange={(e) => setNewAuction({ ...newAuction, endDate: e.target.value })}
-                  className="col-span-2 bg-white border-luxury-gold/20"
-                  placeholder="DD-MM-YYYY"
-                  required
-                  pattern="\d{2}-\d{2}-\d{4}"
-                  title="Please enter date in DD-MM-YYYY format"
-                />
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={newAuction.endTime}
-                  onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })}
-                  className="col-span-1 bg-white border-luxury-gold/20"
-                  required
-                />
+                <Label className="text-right">Auction Type (Select One)</Label>
+                <div className="col-span-3 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="liveAuction"
+                      checked={newAuction.auctionType === "LIVE"}
+                      onChange={() => handleAuctionTypeChange("LIVE")}
+                    />
+                    <Label htmlFor="liveAuction">Live Auction</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="timedAuction"
+                      checked={newAuction.auctionType === "TIMED"}
+                      onChange={() => handleAuctionTypeChange("TIMED")}
+                    />
+                    <Label htmlFor="timedAuction">Timed Auction</Label>
+                  </div>
+                  {(!newAuction.auctionType) && (
+                    <p className="text-red-500 text-sm">Please select an auction type.</p>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="auctionType" className="text-right">
-                  Auction Type
-                </Label>
-                <Select
-                  value={newAuction.auctionType}
-                  onValueChange={(value) => setNewAuction({ ...newAuction, auctionType: value })}
-                >
-                  <SelectTrigger className="col-span-3 bg-white border-luxury-gold/20">
-                    <SelectValue placeholder="Select auction type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="TIMED">Timed</SelectItem>
-                    <SelectItem value="LIVE">Live</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {newAuction.auctionType === "TIMED" && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="endDate" className="text-right">
+                    End Date
+                  </Label>
+                  <Input
+                    id="endDate"
+                    type="text"
+                    value={newAuction.endDate}
+                    onChange={(e) => setNewAuction({ ...newAuction, endDate: e.target.value })}
+                    className="col-span-2 bg-white border-luxury-gold/20"
+                    placeholder="DD-MM-YYYY"
+                    required
+                    pattern="\d{2}-\d{2}-\d{4}"
+                    title="Please enter date in DD-MM-YYYY format"
+                  />
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={newAuction.endTime}
+                    onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })}
+                    className="col-span-1 bg-white border-luxury-gold/20"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
@@ -432,7 +465,7 @@ export default function AuctionForm({ categories, auctions, setAuctions, fetchAu
             <DialogFooter>
               <Button
                 type="submit"
-                disabled={loading || !newAuction.category || !newAuction.startingBid}
+                disabled={loading || !newAuction.category || !newAuction.startingBid || !newAuction.auctionType}
               >
                 {loading ? "Creating..." : "Create Auction"}
               </Button>

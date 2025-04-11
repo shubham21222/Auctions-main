@@ -23,6 +23,7 @@ import {
   Palette,
   Store,
   ChevronDown,
+  Mail
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -89,6 +90,7 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard/artists", icon: Palette, label: "Artists" },
     // { href: "/Admin/Admin-dashboard/role-permissions", icon: UserCheck, label: "Roles" },
     // { href: "/Admin/Admin-dashboard/register-for-role", icon: UserCheck, label: "Staff" },
+    { href: "/Admin/Admin-dashboard/newsletter", icon: Mail, label: "Newsletter" },
   ];
 
   const auctionSubItems = [

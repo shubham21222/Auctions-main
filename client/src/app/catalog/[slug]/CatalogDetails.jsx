@@ -34,6 +34,8 @@ export default function CatalogDetails({
   auction,
   loading,
   onBidNowClick,
+  onSendMessage,
+  onClerkAction,
   token,
   notifications,
   socket,
@@ -41,12 +43,16 @@ export default function CatalogDetails({
   isJoined,
   setIsJoined,
   userId,
+  isClerk,
+  auctionMode,
+  updateAuctionMode,
 }) {
   const [userCache, setUserCache] = useState({});
   const [bidsWithUsernames, setBidsWithUsernames] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [message, setMessage] = useState("");
   const updatesRef = useRef(null);
 
   const fetchUserName = useCallback(
@@ -77,20 +83,16 @@ export default function CatalogDetails({
       setBidsWithUsernames([]);
       return;
     }
-  
+
     const updateBidsWithUsernames = async () => {
-      // Create a map to track unique bids by amount and approximate time
       const uniqueBids = new Map();
-      
-      // First pass: group bids by amount and approximate time (within 1 second)
-      auction.bids.forEach(bid => {
+
+      auction.bids.forEach((bid) => {
         const bidTime = new Date(bid.bidTime).getTime();
-        const key = `${bid.bidAmount}-${Math.floor(bidTime/1000)}`;
-        
-        // If we already have this bid, keep the one with more complete information
+        const key = `${bid.bidAmount}-${Math.floor(bidTime / 1000)}`;
+
         if (uniqueBids.has(key)) {
           const existingBid = uniqueBids.get(key);
-          // Prefer bids with explicit bidType
           if (!existingBid.bidType && bid.bidType) {
             uniqueBids.set(key, bid);
           }
@@ -98,20 +100,14 @@ export default function CatalogDetails({
           uniqueBids.set(key, bid);
         }
       });
-      
-      // Process the deduplicated bids
+
       const updatedBids = await Promise.all(
         Array.from(uniqueBids.values()).map(async (bid) => {
           const bidderName = await fetchUserName(bid.bidder);
-          return { 
-            ...bid, 
-            bidderName,
-            bidType: bid.bidType || "online" // Ensure bidType is preserved, default to "online" if missing
-          };
+          return { ...bid, bidderName, bidType: bid.bidType || "online" };
         })
       );
-      
-      // Sort by time and remove any remaining duplicates
+
       const finalBids = updatedBids
         .sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime))
         .filter((bid, index, array) => {
@@ -120,14 +116,13 @@ export default function CatalogDetails({
           const timeDiff = Math.abs(new Date(bid.bidTime) - new Date(prevBid.bidTime));
           return !(bid.bidAmount === prevBid.bidAmount && timeDiff < 1000);
         });
-      
-      console.log("CatalogDetails: Updated bids with usernames (deduplicated):", finalBids);
+
+      console.log("CatalogDetails: Updated bids with usernames:", finalBids);
       setBidsWithUsernames(finalBids);
     };
-  
+
     updateBidsWithUsernames();
   }, [auction?.bids, fetchUserName]);
-  
 
   const handleJoinAuction = async () => {
     if (!userId || !auction || !auction._id || !termsAccepted) {
@@ -159,7 +154,7 @@ export default function CatalogDetails({
       setIsJoined(true);
       toast.success("Successfully joined the auction!");
       if (socket && socket.connected) {
-        socket.emit("joinAuction", { auctionId: auction._id });
+        socket.emit("joinAuction", { auctionId: auction._id, userId, isClerk });
       }
     } catch (error) {
       console.error("Join Auction Error:", error);
@@ -172,11 +167,20 @@ export default function CatalogDetails({
     const currentBid = auction?.currentBid || 0;
     const bidIncrement = getBidIncrement(currentBid);
     const nextBid = currentBid + bidIncrement;
-    onBidNowClick(nextBid);
+    onBidNowClick(isClerk ? "competitor" : "online", nextBid);
   };
 
-  // Use bidsWithUsernames directly for bid history, like admin
-  const bidHistory = [...bidsWithUsernames].sort((a, b) => new Date(a.bidTime) - new Date(b.bidTime));
+  const handleSendMessage = () => {
+    if (!message.trim()) {
+      toast.error("Message cannot be empty.");
+      return;
+    }
+    onSendMessage(message);
+    setMessage("");
+  };
+
+  const bidHistory = [...bidsWithUsernames, ...(auction?.messages || [])]
+    .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp));
 
   useEffect(() => {
     if (updatesRef.current) {
@@ -209,6 +213,7 @@ export default function CatalogDetails({
                         setImageErrors((prev) => ({ ...prev, [selectedImageIndex]: true }));
                       }}
                       onLoad={() => console.log(`Loaded image: ${productImages[selectedImageIndex]}`)}
+                      unoptimized={true}
                     />
                   )
                 ) : (
@@ -233,7 +238,13 @@ export default function CatalogDetails({
                           Error
                         </div>
                       ) : (
-                        <Image src={image} alt={`Thumbnail ${index + 1}`} fill className="object-cover" unoptimized={true} />
+                        <Image 
+                          src={image} 
+                          alt={`Thumbnail ${index + 1}`} 
+                          fill 
+                          className="object-cover" 
+                          unoptimized={true}
+                        />
                       )}
                     </button>
                   ))}
@@ -243,7 +254,7 @@ export default function CatalogDetails({
               <div className="space-y-6 px-2">
                 <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
                 <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-                  {renderHTML(product?.description)}
+                  {product?.description}
                 </div>
               </div>
             </div>
@@ -294,9 +305,55 @@ export default function CatalogDetails({
                     onClick={handleBidSubmit}
                     className="w-full py-6 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
                   >
-                    Place Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
+                    Place {isClerk ? "Competitive" : "Online"} Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
                   </Button>
                 )}
+              </div>
+            )}
+
+            {isClerk && (
+              <div className="space-y-4">
+                <select
+                  value={auctionMode}
+                  onChange={(e) => updateAuctionMode(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded"
+                >
+                  <option value="competitor">Competitor Mode</option>
+                  <option value="online">Online Mode</option>
+                </select>
+
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Enter message..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter" && message.trim()) {
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
+                  >
+                    Send
+                  </Button>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  {["FAIR_WARNING", "FINAL_CALL", "RESERVE_NOT_MET", "NEXT_LOT", "SOLD", "RETRACT"].map((action) => (
+                    <Button
+                      key={action}
+                      onClick={() => onClerkAction(action)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
+                    >
+                      {action.replace(/_/g, " ")}
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -316,7 +373,7 @@ export default function CatalogDetails({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
-            {[...bidHistory, ...(auction?.messages || [])]
+            {[...bidHistory]
               .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp))
               .map((entry, index) => (
                 <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all duration-200">
@@ -324,7 +381,7 @@ export default function CatalogDetails({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-blue-600 font-medium">{entry.message}</span>
-                        <span className="text-sm text-slate-500">({entry.sender || "Admin"})</span>
+                        <span className="text-sm text-slate-500">({entry.sender || (isClerk ? "Clerk" : "Admin")})</span>
                       </div>
                       <span className="text-xs text-slate-400 whitespace-nowrap">
                         {new Date(entry.timestamp || entry.bidTime).toLocaleTimeString()}
@@ -345,7 +402,7 @@ export default function CatalogDetails({
                   )}
                 </div>
               ))}
-            {(bidHistory.length === 0 && (!auction?.messages || auction.messages.length === 0)) && (
+            {bidHistory.length === 0 && (
               <div className="text-center text-slate-500 py-4">No updates yet</div>
             )}
           </div>

@@ -7,8 +7,6 @@ import { useSocket } from "@/hooks/useSocket";
 import CatalogHeader from "./CatalogHeader";
 import CatalogDetails from "./CatalogDetails";
 import CatalogCarousel from "./CatalogCarousel";
-import Footer from "@/app/components/Footer";
-import Header from "@/app/components/Header";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
@@ -53,28 +51,36 @@ export default function CatalogPage() {
   });
   const token = useSelector((state) => state.auth.token);
   const userId = useSelector((state) => state.auth._id);
+  const isClerk = useSelector((state) => state.auth.isClerk);
   const router = useRouter();
-  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications, subscribeToEvents, getBidIncrement } = useSocket();
+  const { socket, liveAuctions, setLiveAuctions, joinAuction, placeBid, getAuctionData, notifications, subscribeToEvents, getBidIncrement, sendMessage, performClerkAction, updateAuctionMode, auctionModes } = useSocket();
   const hasJoinedRef = useRef(new Set());
 
   const fetchAuctionData = useCallback(async () => {
-    if (!token || !auctionId || !socket) {
+    if (!token || !auctionId) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      // Use getAuctionData (Socket.IO) instead of HTTP API for consistency
-      const auctionData = await getAuctionData(auctionId);
-      console.log("Fetched Auction via Socket:", auctionData);
+      // Fetch auction data from the new API endpoint
+      const response = await fetch(`${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch auction data");
+      const auctionData = await response.json();
+      if (!auctionData.status || !auctionData.items) throw new Error("Invalid auction data");
 
       const auctionResult = {
-        ...auctionData,
-        messages: Array.isArray(auctionData.messages) ? auctionData.messages : [],
-        catalog: auctionData.category?.name || auctionData.catalog || "Uncategorized",
-        bids: Array.isArray(auctionData.bids) ? auctionData.bids : [],
+        ...auctionData.items,
+        messages: Array.isArray(auctionData.items.messages) ? auctionData.items.messages : [],
+        catalog: auctionData.items.catalog || auctionData.items.category?.name || "Uncategorized",
+        bids: Array.isArray(auctionData.items.bids) ? auctionData.items.bids : [],
       };
+
+      console.log("Fetched Auction Data:", auctionResult);
 
       setAuction(auctionResult);
       setHeaderData({
@@ -93,7 +99,7 @@ export default function CatalogPage() {
         id: auctionResult.product?._id || "",
         name: auctionResult.product?.title || "Unnamed Item",
         images: Array.isArray(auctionResult.product?.image) ? auctionResult.product.image : [],
-        description: auctionResult.product?.description || "No additional description available.",
+        description: auctionResult.description || "No additional description available.",
         price: {
           min: auctionResult.product?.price || 0,
           max: auctionResult.product?.price ? auctionResult.product.price + 1000 : 1000,
@@ -107,6 +113,7 @@ export default function CatalogPage() {
           : [...prev, { ...auctionResult, id: auctionId }];
       });
 
+      // Fetch all auctions for the carousel
       const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
         method: "GET",
         headers: { Authorization: `${token}` },
@@ -129,7 +136,7 @@ export default function CatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [auctionId, token, socket, setLiveAuctions, userId, getAuctionData]);
+  }, [auctionId, token, setLiveAuctions, userId]);
 
   useEffect(() => {
     fetchAuctionData();
@@ -141,17 +148,7 @@ export default function CatalogPage() {
     if (!hasJoinedRef.current.has(auctionId)) {
       joinAuction(auctionId);
       hasJoinedRef.current.add(auctionId);
-      console.log(`Joined auction ${auctionId} once`);
-
-      getAuctionData(auctionId)
-        .then((data) => {
-          console.log("Catalog: Received initial auction data:", data);
-          setAuction((prev) => ({ ...prev, ...data }));
-        })
-        .catch((err) => {
-          console.error("Catalog: Error fetching initial auction data:", err);
-          toast.error("Failed to load auction data. Please try refreshing.");
-        });
+      console.log(`Joined auction ${auctionId} once as ${isClerk ? "Clerk" : "User"}`);
     }
 
     const unsubscribe = subscribeToEvents(auctionId, {
@@ -159,9 +156,7 @@ export default function CatalogPage() {
         console.log("Catalog: Received bidUpdate:", { msgAuctionId, bidAmount, bidType });
         if (msgAuctionId === auctionId) {
           setAuction((prev) => {
-            // If server sent complete bids array, use it directly
             if (Array.isArray(bids) && bids.length > 0) {
-              // Deduplicate the bids array
               const deduplicatedBids = bids.reduce((acc, bid) => {
                 const existingBid = acc.find(b => 
                   b.bidAmount === bid.bidAmount && 
@@ -182,7 +177,6 @@ export default function CatalogPage() {
               };
             }
             
-            // Handle individual bid
             const newBid = {
               bidder: bidderId,
               bidAmount,
@@ -190,7 +184,6 @@ export default function CatalogPage() {
               bidType
             };
             
-            // Check for duplicates in existing bids
             const isDuplicate = prev?.bids?.some(existingBid => {
               const timeDiff = Math.abs(new Date(existingBid.bidTime) - new Date(newBid.bidTime));
               return existingBid.bidAmount === bidAmount && timeDiff < 3000;
@@ -207,7 +200,6 @@ export default function CatalogPage() {
             };
           });
           
-          // Only show toast for new bids
           toast.success(`New ${bidType} bid: $${bidAmount.toLocaleString()}`);
         }
       },
@@ -217,7 +209,7 @@ export default function CatalogPage() {
           const newMessage = {
             message: message || actionType || "Update",
             actionType,
-            sender: typeof sender === "object" ? sender.name || "Admin" : sender || "Admin",
+            sender: typeof sender === "object" ? sender.name || (isClerk ? "Clerk" : "Admin") : sender || (isClerk ? "Clerk" : "Admin"),
             timestamp: timestamp || new Date(),
             bidType: bidType || "message",
           };
@@ -227,10 +219,7 @@ export default function CatalogPage() {
             messages: [...(prev?.messages || []), newMessage],
           }));
           
-          // Show toast for admin messages
-          if (message || actionType) {
-            toast.info(`Auction update: ${message || actionType}`);
-          }
+          toast.info(`Auction update: ${message || actionType}`);
         }
       },
       onWatcherUpdate: ({ auctionId: msgAuctionId, watchers }) => {
@@ -251,10 +240,16 @@ export default function CatalogPage() {
           toast.warning("Latest bid has been removed.");
         }
       },
+      onAuctionModeUpdate: ({ auctionId: msgAuctionId, mode }) => {
+        console.log("Catalog: Received auctionModeUpdate:", { msgAuctionId, mode });
+        if (msgAuctionId === auctionId) {
+          auctionModes[msgAuctionId] = mode; // Update auctionModes directly
+        }
+      },
     });
 
     return () => unsubscribe();
-  }, [auctionId, socket, joinAuction, getAuctionData, subscribeToEvents]);
+  }, [auctionId, socket, joinAuction, subscribeToEvents, isClerk]);
 
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);
@@ -299,9 +294,9 @@ export default function CatalogPage() {
     };
   }, [socket, auctionId, auction, allAuctions, router]);
 
-  const handlePlaceBid = async (bidAmount) => {
-    if (!auction || !auction._id || !isJoined) {
-      toast.error("Cannot place bid. Auction not joined or unavailable.");
+  const handlePlaceBid = async (bidType, bidAmount) => {
+    if (!auction || !auction._id) {
+      toast.error("Cannot place bid. Auction not available.");
       return;
     }
     if (!userId) {
@@ -313,20 +308,25 @@ export default function CatalogPage() {
       const auctionData = await getAuctionData(auction._id);
       const currentBid = auctionData.currentBid || 0;
       const bidIncrement = getBidIncrement(currentBid);
-      const nextBid = currentBid + bidIncrement;
-  
-      console.log(`Calculated nextBid: $${nextBid} based on currentBid: $${currentBid}`);
-  
-      // First place bid via socket for immediate UI update
-      const success = await placeBid(auction._id, "online", nextBid);
+      let finalBidAmount = bidAmount || (currentBid + bidIncrement);
+
+      if (bidType === "competitor" && !isClerk) {
+        toast.error("Only clerks can place competitive bids.");
+        return;
+      }
+
+      if (bidType === "online" && isClerk) {
+        toast.error("Clerks cannot place online bids.");
+        return;
+      }
+
+      const success = await placeBid(auction._id, bidType, finalBidAmount);
       if (!success) {
         throw new Error("Failed to place bid via socket");
       }
-  
-      console.log(`Catalog: Online bid placed via socket for auction ${auction._id}: $${nextBid}`);
+
+      console.log(`Catalog: ${bidType} bid placed via socket for auction ${auction._id}: $${finalBidAmount}`);
       
-      // Then record the bid via API (but don't update UI again)
-      // This is just for persistence and server-side validation
       const response = await fetch(`${config.baseURL}/v1/api/auction/placeBid`, {
         method: "POST",
         headers: {
@@ -335,21 +335,34 @@ export default function CatalogPage() {
         },
         body: JSON.stringify({
           auctionId: auction._id,
-          bidAmount: nextBid,
-          bidType: "online",
+          bidAmount: finalBidAmount,
+          bidType,
         }),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         console.warn("API bid placement returned error, but socket bid was accepted:", errorData);
-        // Don't throw error here since socket bid was successful
       }
-  
-      // Toast is already shown by the bidUpdate handler
     } catch (error) {
       console.error("Catalog: Place Bid Error:", error);
       toast.error(error.message || "Failed to place bid");
+    }
+  };
+
+  const handleSendMessage = (message) => {
+    if (isClerk) {
+      sendMessage(auctionId, message);
+    } else {
+      toast.error("Only clerks can send messages.");
+    }
+  };
+
+  const handleClerkAction = (actionType) => {
+    if (isClerk) {
+      performClerkAction(auctionId, actionType);
+    } else {
+      toast.error("Only clerks can perform this action.");
     }
   };
 
@@ -405,6 +418,8 @@ export default function CatalogPage() {
                   auction={auction}
                   loading={loading}
                   onBidNowClick={handlePlaceBid}
+                  onSendMessage={handleSendMessage}
+                  onClerkAction={handleClerkAction}
                   token={token}
                   notifications={notifications}
                   socket={socket}
@@ -412,6 +427,9 @@ export default function CatalogPage() {
                   isJoined={isJoined}
                   setIsJoined={setIsJoined}
                   userId={userId}
+                  isClerk={isClerk}
+                  auctionMode={auctionModes[auctionId] || "competitor"}
+                  updateAuctionMode={(mode) => updateAuctionMode(auctionId, mode)}
                 />
               </div>
             </motion.div>

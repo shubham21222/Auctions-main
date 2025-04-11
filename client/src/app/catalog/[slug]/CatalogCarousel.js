@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) => {
   const [currentImage] = useState(0);
-  const images = auction.product?.image || ["/placeholder.svg"];
+  const images = Array.isArray(auction.product?.image) ? auction.product.image : [];
 
   const endDate = auction.endDate ? new Date(auction.endDate) : null;
   const startDate = new Date(auction.startDate);
@@ -27,12 +27,19 @@ const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) =
       className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 cursor-pointer border-b border-gray-200 w-full transition-all duration-200 ease-in-out"
     >
       <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
-        <Image
-          src={images[currentImage]}
-          alt={auction.product?.title || "Auction Item"}
-          fill
-          className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
-        />
+        {images.length > 0 ? (
+          <Image
+            src={images[currentImage]}
+            alt={auction.product?.title || "Auction Item"}
+            fill
+            className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
+            unoptimized={true}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
+            No image
+          </div>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">

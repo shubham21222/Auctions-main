@@ -168,7 +168,7 @@ export default function Auctions() {
 
       const products = jsonData.map((row) => ({
         title: row.Title || "N/A",
-        description: row.Description || "No description provided",
+        descriptions: row.Description || "No description provided",
         price: Number(row.StartPrice) || 0,
         estimateprice: `${Number(row.LowEst) || 0}-${Number(row.HighEst) || 0}`,
         offerAmount: 0,
