@@ -348,12 +348,13 @@ export const getAuctions = async (req, res) => {
                 $project: {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
-                        // description: { $ifNull: ["$product.description", ""] },
+                        description: { $ifNull: ["$product.description", ""] },
                         price: { $ifNull: ["$product.price", ""] },
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
                     startingBid: 1,
+                    desciption:1,
                     currentBid: 1,
                     currentBidder: 1,
                     payment_status:1,
