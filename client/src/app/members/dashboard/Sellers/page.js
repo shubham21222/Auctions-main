@@ -65,7 +65,7 @@ const SellersPage = () => {
     }
 
     try {
-        const response = await fetch(`${config.baseURL}/v1/api/seller/approve`, {
+      const response = await fetch(`${config.baseURL}/v1/api/seller/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

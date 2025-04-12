@@ -200,7 +200,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             continue;
           }
 
-          const response = await fetch( `${config.baseURL}/v1/api/product/create`, {
+          const response = await fetch(`${config.baseURL}/v1/api/product/create`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

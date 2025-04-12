@@ -17,14 +17,11 @@ export default function CategoryManagement() {
   // Access Redux state
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
-  const permissions = auth?.user?.permissions || [];
 
   // Fetch all categories on component mount
   useEffect(() => {
-    if (permissions.includes("view categories")) {
-      fetchCategories();
-    }
-  }, [permissions]);
+    fetchCategories();
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -56,31 +53,14 @@ export default function CategoryManagement() {
     }
   };
 
-  // If user doesn't have "view categories" permission, show access denied message
-  if (!permissions.includes("view categories")) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-3xl font-bold">Category Management</h2>
-        <Card>
-          <CardContent>
-            <p className="text-red-500">You do not have permission to view categories.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Add Toaster for displaying notifications */}
-      {/* <Toaster position="top-right" /> */}
 
       {/* Header Section */}
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold">Category Management</h2>
-        {permissions.includes("create categories") && (
-          <AddCategoryDialog fetchCategories={fetchCategories} />
-        )}
+        <AddCategoryDialog fetchCategories={fetchCategories} />
       </div>
 
       {/* Table Section */}
@@ -107,21 +87,17 @@ export default function CategoryManagement() {
                     <TableCell>{category.description}</TableCell>
                     <TableCell>
                       {/* Edit Button */}
-                      {permissions.includes("edit categories") && (
-                        <EditCategoryDialog
-                          category={category}
-                          fetchCategories={fetchCategories}
-                        />
-                      )}
+                      <EditCategoryDialog
+                        category={category}
+                        fetchCategories={fetchCategories}
+                      />
                       {/* Delete Button */}
-                      {permissions.includes("delete categories") && (
-                        <button
-                          className="text-red-500 ml-2"
-                          onClick={() => handleDeleteCategory(category._id)}
-                        >
-                          Delete
-                        </button>
-                      )}
+                      <button
+                        className="text-red-500 ml-2"
+                        onClick={() => handleDeleteCategory(category._id)}
+                      >
+                        Delete
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))}

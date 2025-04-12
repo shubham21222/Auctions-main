@@ -26,7 +26,10 @@ const getBidIncrement = (currentBid) => {
 
 const renderHTML = (htmlString) => {
   if (!htmlString) return "No description available.";
-  return htmlString.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+  return htmlString
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
 };
 
 export default function CatalogDetails({
@@ -254,7 +257,7 @@ export default function CatalogDetails({
               <div className="space-y-6 px-2">
                 <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
                 <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-                  {product?.description}
+                  {renderHTML(auction?.product?.description || product?.description)}
                 </div>
               </div>
             </div>

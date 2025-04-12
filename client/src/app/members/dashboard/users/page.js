@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-  
+
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +81,7 @@ const UsersPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6">
+      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">User Directory</h1>
 
         {/* Search Bar */}
@@ -95,32 +95,99 @@ const UsersPage = () => {
           />
         </div>
 
-        {/* Users Grid */}
+        {/* Users Table */}
         {users.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {users.map((user) => (
-              <div
-                key={user._id} // Use _id from API response
-                className="bg-gray-50 p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300"
-              >
-                <h2 className="text-xl font-semibold text-gray-800">{user.name || "Unnamed User"}</h2>
-                <p className="text-gray-600">{user.email || "No email"}</p>
-                <p className="text-sm text-gray-500">ID: {user._id}</p>
-                <p className="text-sm text-gray-500">Role: {user.role || "N/A"}</p>
-                <p className="text-sm text-gray-500">
-                  Wallet Balance: ${user.walletBalance || 0}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Payment Status: {user.Payment_Status || "N/A"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Created: {new Date(user.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Info</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role & Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th> */}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.map((user) => {
+                  // Get IP from userAuctions bids
+                  const latestBid = user.userAuctions?.reduce((latest, auction) => {
+                    const auctionBids = auction.bids || [];
+                    // Find the most recent bid with a non-empty IP address
+                    const latestAuctionBid = auctionBids
+                      .filter(bid => bid.ipAddress && bid.ipAddress.trim() !== "")
+                      .sort((a, b) => new Date(b.bidTime) - new Date(a.bidTime))[0];
+                    
+                    if (!latest || (latestAuctionBid && new Date(latestAuctionBid.bidTime) > new Date(latest.bidTime))) {
+                      return latestAuctionBid;
+                    }
+                    return latest;
+                  }, null);
+
+                  // If no IP found in bids, try to get from orders
+                  const latestOrder = user.userOrders?.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                  
+                  const ipAddress = latestBid?.ipAddress || latestOrder?.ipAddress || "N/A";
+                  const lastActivity = latestBid?.bidTime || latestOrder?.createdAt;
+
+                  return (
+                    <tr key={user._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{user.name || "Unnamed User"}</div>
+                            <div className="text-sm text-gray-500">{user.email || "No email"}</div>
+                            <div className="text-xs text-gray-400">ID: {user._id}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.role === "ADMIN" 
+                            ? "bg-purple-100 text-purple-800" 
+                            : "bg-green-100 text-green-800"
+                        }`}>
+                          {user.role || "N/A"}
+                        </span>
+                        <div className="mt-1 text-xs text-gray-500">
+                          Created: {new Date(user.createdAt).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.Payment_Status === "PAID" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {user.Payment_Status || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          Auctions: {user.userAuctions?.length || 0}
+                        </div>
+                        <div className="text-sm text-gray-900">
+                          Orders: {user.userOrders?.length || 0}
+                        </div>
+                      </td>
+                      {/* <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {ipAddress}
+                        </div>
+                        {lastActivity && (
+                          <div className="text-xs text-gray-500">
+                            Last activity: {new Date(lastActivity).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td> */}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="text-center text-gray-600">No users found matching your search.</div>
+          <div className="text-center text-gray-600 py-8">No users found matching your search.</div>
         )}
 
         {/* Pagination */}
@@ -137,7 +204,7 @@ const UsersPage = () => {
           </span>
           <button
             onClick={() => handlePageChange(page + 1)}
-            disabled={page === totalPages} // Disable if on last page
+            disabled={page === totalPages}
             className="px-4 py-2 bg-blue-600 text-white rounded-full disabled:bg-gray-400 hover:bg-blue-700 transition-colors"
           >
             Next
