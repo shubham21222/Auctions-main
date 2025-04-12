@@ -662,6 +662,7 @@ export const getbulkAuctions = async (req, res) => {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
+                        desciption:{$ifNull:["$product.description" , ""]},
                         image:{$ifNull: ["$product.image", ""]},
                         estimateprice:{$ifNull: ["$product.estimateprice", ""]},
                         offerAmount:{$ifNull: ["$product.offerAmount", ""]},
@@ -2113,7 +2114,7 @@ export const createBulkAuction = async (req, res) => {
             if (!product) {
                 product = await AuctionProduct.create({
                     title: productData.title || "Untitled Product",
-                    description: req.body.desciptions || "No description",
+                    description: productData.description || "No description",
                     price: productData.price || 0,
                     estimateprice: productData.estimateprice || "N/A",
                     offerAmount: productData.offerAmount || 0,
