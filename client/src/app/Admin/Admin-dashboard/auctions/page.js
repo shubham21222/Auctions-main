@@ -28,14 +28,14 @@ export default function Auctions() {
   const [openBulkUploadDialog, setOpenBulkUploadDialog] = useState(false);
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [catalogName, setCatalogName] = useState("");
-  const [catalogDescription, setCatalogDescription] = useState("");
   const [startDate, setStartDate] = useState(moment().tz("Asia/Kolkata").format("DD-MM-YYYY"));
   const [endDate, setEndDate] = useState(moment().tz("Asia/Kolkata").add(5, "days").format("DD-MM-YYYY"));
   const [productsToUpload, setProductsToUpload] = useState([]);
-  const [auctionType, setAuctionType] = useState(""); // To store selected auction type (Live or Timed)
-  const [catalogs, setCatalogs] = useState([]); // To store all catalogs
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false); // For delete confirmation
-  const [catalogToDelete, setCatalogToDelete] = useState(""); // Catalog to delete
+  const [auctionType, setAuctionType] = useState("");
+  const [catalogs, setCatalogs] = useState([]);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [catalogToDelete, setCatalogToDelete] = useState("");
+  const [selectedCatalog, setSelectedCatalog] = useState(null);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
@@ -85,13 +85,13 @@ export default function Auctions() {
           endDate: auction.endDate || "",
           auctionType: auction.auctionType || "N/A",
           category: auction.category || {},
-          catalog: catalog.catalogName || "N/A", // Store catalog name
+          catalog: catalog.catalogName || "N/A",
           startDate: auction.startDate || "",
         }));
       });
 
       setAuctions(formattedAuctions);
-      setCatalogs(data.items.catalogs.map(catalog => catalog.catalogName)); // Store catalog names
+      setCatalogs(data.items.catalogs.map(catalog => catalog.catalogName));
       toast.success("Auctions and catalogs loaded successfully!");
     } catch (error) {
       console.error("Error fetching auctions:", error);
@@ -151,8 +151,13 @@ export default function Auctions() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!catalogName || !catalogDescription || !startDate || !auctionType) {
+    if (!catalogName || !startDate || !auctionType) {
       toast.error("Please enter all required fields before uploading the file, including auction type.");
+      return;
+    }
+
+    if (auctionType === "TIMED" && !endDate) {
+      toast.error("Timed auctions require an end date.");
       return;
     }
 
@@ -166,9 +171,12 @@ export default function Auctions() {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const products = jsonData.map((row) => ({
-        title: row.Title || "N/A",
-        descriptions: row.Description || "No description provided",
+      // Generate a unique identifier for this upload batch
+      const batchId = Date.now().toString();
+
+      const products = jsonData.map((row, index) => ({
+        title: `${row.Title || "N/A"}-${batchId}-${index}`,
+        description: row.Description || "No description provided",
         price: Number(row.StartPrice) || 0,
         estimateprice: `${Number(row.LowEst) || 0}-${Number(row.HighEst) || 0}`,
         offerAmount: 0,
@@ -188,10 +196,11 @@ export default function Auctions() {
           row["ImageFile.10"] || "",
         ].filter(Boolean),
         skuNumber: row["SKU No"] || "N/A",
-        lotNumber: String(row.LotNum || "N/A"),
+        lotNumber: String(row.LotNum || `LOT${index + 1}`),
         sortByPrice: row.SortByPrice || "Low Price",
         stock: 1,
         type: "Jewelry",
+        auctionType: auctionType,
       }));
 
       setProductsToUpload(products);
@@ -207,8 +216,18 @@ export default function Auctions() {
       return;
     }
 
-    if (!catalogName || !catalogDescription || !startDate || !auctionType) {
+    if (!catalogName || !startDate || !auctionType) {
       toast.error("Please enter all required fields, including auction type.");
+      return;
+    }
+
+    if (auctionType === "TIMED" && !endDate) {
+      toast.error("Timed auctions require an end date.");
+      return;
+    }
+
+    if (!["LIVE", "TIMED"].includes(auctionType)) {
+      toast.error("Invalid auction type. Please select LIVE or TIMED.");
       return;
     }
 
@@ -218,24 +237,24 @@ export default function Auctions() {
     const startDateTimeUTC = moment
       .tz(`${startDate} 00:00`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
       .utc()
-      .format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
+      .format("YYYY-MM-DDTHH:mm:ss.SSSZ");
     let endDateTimeUTC = null;
-    if (auctionType === "TIMED" && endDate) {
+    if (auctionType === "TIMED") {
       endDateTimeUTC = moment
         .tz(`${endDate} 23:59`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
         .utc()
-        .format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
+        .format("YYYY-MM-DDTHH:mm:ss.SSSZ");
     }
 
     const payload = {
       category: catalogName,
-      stateDate: startDateTimeUTC, // Corrected typo from stateDate to startDate
-      endDate: endDateTimeUTC, // Null for Live, actual date for Timed
-      description: catalogDescription,
-      auctionType: auctionType, // Use the selected auction type for all products
+      stateDate: startDateTimeUTC,
+      endDate: endDateTimeUTC,
+      status: "ACTIVE",
+      desciptions: "Catalog description", // Workaround for backend typo
       products: productsToUpload.map((product) => ({
         title: product.title,
-        description: product.description,
+        description: product.description, // Keep product-level description
         price: product.price,
         estimateprice: product.estimateprice,
         offerAmount: product.offerAmount,
@@ -248,7 +267,7 @@ export default function Auctions() {
         sortByPrice: product.sortByPrice,
         stock: product.stock,
         type: product.type,
-        auctionType: auctionType, // Use the selected auction type for all products
+        auctionType: auctionType,
       })),
     };
 
@@ -291,7 +310,6 @@ export default function Auctions() {
     fetchAuctions();
     setOpenBulkUploadDialog(false);
     setCatalogName("");
-    setCatalogDescription("");
     setStartDate(moment().tz("Asia/Kolkata").format("DD-MM-YYYY"));
     setEndDate(moment().tz("Asia/Kolkata").add(5, "days").format("DD-MM-YYYY"));
     setAuctionType("");
@@ -328,7 +346,7 @@ export default function Auctions() {
       const data = await response.json();
       if (data.status) {
         toast.success(`Catalog "${catalogToDelete}" deleted successfully!`);
-        fetchAuctions(); // Refresh catalogs and auctions
+        fetchAuctions();
         setOpenDeleteDialog(false);
         setCatalogToDelete("");
       } else {
@@ -348,9 +366,9 @@ export default function Auctions() {
         <h2 className="text-3xl font-bold">Auctions</h2>
         <div>
           <Button onClick={() => setOpenBulkUploadDialog(true)}>Add Auctions</Button>
-          <Button 
-            variant="destructive" 
-            className="ml-2" 
+          <Button
+            variant="destructive"
+            className="ml-2"
             onClick={() => setOpenDeleteDialog(true)}
             disabled={catalogs.length === 0}
           >
@@ -360,12 +378,73 @@ export default function Auctions() {
       </div>
 
       {initialFetchDone ? (
-        <AuctionList auctions={auctions} loading={loading} token={token} fetchAuctions={fetchAuctions} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {catalogs.map((catalog) => (
+            <div
+              key={catalog}
+              className="group relative bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-luxury-gold/20"
+              onClick={() => setSelectedCatalog(catalog)}
+            >
+              <div className="absolute top-4 right-4">
+                <div className="w-12 h-12 rounded-full bg-luxury-gold/10 flex items-center justify-center">
+                  <span className="text-luxury-gold text-lg font-semibold">
+                    {auctions.filter(a => a.catalog === catalog).length}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-2xl font-bold text-gray-800 group-hover:text-luxury-gold transition-colors">
+                  {catalog}
+                </h3>
+                <p className="text-gray-600">
+                  {auctions.filter(a => a.catalog === catalog).length} products available
+                </p>
+                <div className="pt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full border-luxury-gold/20 text-luxury-gold hover:bg-luxury-gold/10"
+                  >
+                    View Products
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
-        <p>Loading auctions...</p>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-luxury-gold"></div>
+        </div>
       )}
 
-      {/* Bulk Upload Dialog */}
+      {selectedCatalog && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-3xl font-bold text-gray-800">Products in {selectedCatalog}</h3>
+              <p className="text-gray-600 mt-1">Manage your auction products</p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedCatalog(null)}
+              className="border-luxury-gold/20 text-luxury-gold hover:bg-luxury-gold/10"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+              Back to Catalogs
+            </Button>
+          </div>
+          <AuctionList
+            auctions={auctions.filter(a => a.catalog === selectedCatalog)}
+            loading={loading}
+            token={token}
+            fetchAuctions={fetchAuctions}
+          />
+        </div>
+      )}
+
       <Dialog open={openBulkUploadDialog} onOpenChange={setOpenBulkUploadDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -382,21 +461,7 @@ export default function Auctions() {
                 value={catalogName}
                 onChange={(e) => setCatalogName(e.target.value)}
                 className="col-span-3 bg-white border-luxury-gold/20"
-                placeholder="e.g., newcatgosdry"
-              />
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="catalogDescription" className="text-right">
-                Catalog Description
-              </Label>
-              <Input
-                id="catalogDescription"
-                type="text"
-                value={catalogDescription}
-                onChange={(e) => setCatalogDescription(e.target.value)}
-                className="col-span-3 bg-white border-luxury-gold/20"
-                placeholder="e.g., new file"
+                placeholder="e.g., newcatalog"
               />
             </div>
 
@@ -438,7 +503,7 @@ export default function Auctions() {
                   />
                   <Label htmlFor="timedAuction">Timed Auction</Label>
                 </div>
-                {(!auctionType) && (
+                {!auctionType && (
                   <p className="text-red-500 text-sm">Please select an auction type.</p>
                 )}
               </div>
@@ -474,9 +539,9 @@ export default function Auctions() {
                   accept=".xlsx, .xls, .csv"
                   onChange={handleFileUpload}
                   className="bg-white border-luxury-gold/20"
-                  disabled={!catalogName || !catalogDescription || !startDate || !auctionType}
+                  disabled={!catalogName || !startDate || !auctionType}
                 />
-                <Button 
+                <Button
                   onClick={() => {
                     const link = document.createElement("a");
                     link.href = "/sample_auctions.xlsx";
@@ -484,8 +549,8 @@ export default function Auctions() {
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                  }} 
-                  variant="outline" 
+                  }}
+                  variant="outline"
                   className="w-full"
                 >
                   Download Sample Excel File
@@ -502,7 +567,6 @@ export default function Auctions() {
               onClick={() => {
                 setOpenBulkUploadDialog(false);
                 setCatalogName("");
-                setCatalogDescription("");
                 setStartDate(moment().tz("Asia/Kolkata").format("DD-MM-YYYY"));
                 setEndDate(moment().tz("Asia/Kolkata").add(5, "days").format("DD-MM-YYYY"));
                 setAuctionType("");
@@ -514,7 +578,7 @@ export default function Auctions() {
             </Button>
             <Button
               onClick={handleBulkCreate}
-              disabled={loading || productsToUpload.length === 0 || !catalogName || !catalogDescription || !startDate || !auctionType}
+              disabled={loading || productsToUpload.length === 0 || !catalogName || !startDate || !auctionType}
             >
               {loading ? "Uploading..." : "Add Products"}
             </Button>
@@ -522,7 +586,6 @@ export default function Auctions() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Catalog Dialog */}
       <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -549,8 +612,8 @@ export default function Auctions() {
             <Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteCatalog}
               disabled={!catalogToDelete || loading}
             >

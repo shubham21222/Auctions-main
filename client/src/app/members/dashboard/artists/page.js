@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
-import config from "@/app/config_BASE_URL";
+import config from '@/app/config_BASE_URL';
 
 const ArtistPage = () => {
   const [artists, setArtists] = useState([]);
@@ -23,7 +23,8 @@ const ArtistPage = () => {
     artistName: '',
     summary: '',
     Biography: '',
-    images: ['']
+    images: [''],
+    videos: ['']
   });
   const [editArtist, setEditArtist] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +66,7 @@ const ArtistPage = () => {
       });
       toast.success("Artist created successfully");
       fetchArtists();
-      setNewArtist({ artistName: '', summary: '', Biography: '', images: [''] });
+      setNewArtist({ artistName: '', summary: '', Biography: '', images: [''], videos: [''] });
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error('Error creating artist:', error);
@@ -87,7 +88,7 @@ const ArtistPage = () => {
   };
 
   const handleUpdate = (artist) => {
-    setEditArtist({ ...artist, images: artist.images || [''] });
+    setEditArtist({ ...artist, images: artist.images || [''], videos: artist.videos || [''] });
     setIsEditModalOpen(true);
   };
 
@@ -130,6 +131,32 @@ const ArtistPage = () => {
       const newImages = [...newArtist.images];
       newImages[index] = value;
       setNewArtist({ ...newArtist, images: newImages });
+    }
+  };
+
+  const addVideoField = (isEdit = false) => {
+    if (isEdit) {
+      setEditArtist({
+        ...editArtist,
+        videos: [...editArtist.videos, '']
+      });
+    } else {
+      setNewArtist({
+        ...newArtist,
+        videos: [...newArtist.videos, '']
+      });
+    }
+  };
+
+  const updateVideo = (index, value, isEdit = false) => {
+    if (isEdit) {
+      const newVideos = [...editArtist.videos];
+      newVideos[index] = value;
+      setEditArtist({ ...editArtist, videos: newVideos });
+    } else {
+      const newVideos = [...newArtist.videos];
+      newVideos[index] = value;
+      setNewArtist({ ...newArtist, videos: newVideos });
     }
   };
 
@@ -196,6 +223,38 @@ const ArtistPage = () => {
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Add Image URL
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Videos</label>
+                {newArtist.videos.map((video, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Video URL ${index + 1}`}
+                      value={video}
+                      onChange={(e) => updateVideo(index, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newVideos = newArtist.videos.filter((_, i) => i !== index);
+                        setNewArtist({ ...newArtist, videos: newVideos });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addVideoField()}
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Add Video URL
                 </Button>
               </div>
               <Button type="submit" className="w-full">
@@ -346,6 +405,38 @@ const ArtistPage = () => {
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Add Image URL
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Videos</label>
+                {editArtist.videos.map((video, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder={`Video URL ${index + 1}`}
+                      value={video}
+                      onChange={(e) => updateVideo(index, e.target.value, true)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newVideos = editArtist.videos.filter((_, i) => i !== index);
+                        setEditArtist({ ...editArtist, videos: newVideos });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addVideoField(true)}
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Add Video URL
                 </Button>
               </div>
               <Button type="submit" className="w-full">

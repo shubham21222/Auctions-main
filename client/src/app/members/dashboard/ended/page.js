@@ -7,7 +7,7 @@ import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { format } from "date-fns";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
 import {
   Table,
   TableBody,
@@ -67,9 +67,9 @@ const EndedAuctionsPage = () => {
           const allAuctions = response.data.items.catalogs.flatMap(
             (catalog) => catalog.auctions
           );
-          const endedAuctions = allAuctions
-            .filter((auction) => auction.status === "ENDED")
-            .sort((a, b) => new Date(b.endDate) - new Date(a.endDate)); // Sort by endDate descending
+          const endedAuctions = allAuctions.filter(
+            (auction) => auction.status === "ENDED"
+          );
           setWinners(endedAuctions);
         } else {
           setError("Failed to fetch auctions");
@@ -172,145 +172,146 @@ const EndedAuctionsPage = () => {
       if (response.data.status) {
         const auctionData = response.data.items;
         const doc = new jsPDF();
-        
-        // Add title and header
-        doc.setFontSize(20);
-        doc.setTextColor(59, 130, 246); // Blue color
-        doc.text('NY Elizabeth Bid Logs', 105, 20, { align: 'center' });
-        
-        doc.setFontSize(12);
-        doc.setTextColor(0, 0, 0); // Reset to black
-        doc.text(`Auction Report - ${auctionData.product?.title || 'Untitled Auction'}`, 14, 30);
-        
-        // Initialize autoTable
-        autoTable(doc, {
-          startY: 40,
-          head: [['Detail', 'Value']],
-          body: [
-            ['Lot Number', auctionData.lotNumber || 'N/A'],
-            ['Starting Price', `$${auctionData.startingBid || '0'}`],
-            ['Current Bid', `$${auctionData.currentBid || '0'}`],
-            ['Reserve Price', `$${auctionData.product?.ReservePrice || '0'}`],
-            ['Estimate Price', auctionData.product?.estimateprice || 'N/A'],
-            ['Auction Type', auctionData.auctionType || 'N/A'],
-            ['Status', auctionData.status || 'N/A'],
-            ['Start Date', format(new Date(auctionData.startDate), "PPp")],
-            ['End Date', format(new Date(auctionData.endDate), "PPp")],
-            ['Catalog', auctionData.catalog || 'N/A']
-          ],
-          theme: 'grid',
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [59, 130, 246], textColor: 255 }
-        });
 
-        // Add winner details
+        // Add title
+        doc.setFontSize(16);
+        doc.text(`Bid History - ${auctionData.product?.title || 'Untitled Auction'}`, 14, 20);
+
+        // Add auction details
+        doc.setFontSize(12);
+        doc.text(`Lot Number: ${auctionData.lotNumber || 'N/A'}`, 14, 30);
+        doc.text(`Starting Price: $${auctionData.startingBid || '0'}`, 14, 40);
+        doc.text(`Current Bid: $${auctionData.currentBid || '0'}`, 14, 50);
+        doc.text(`Total Bids: ${auctionData.bids?.length || 0}`, 14, 60);
+        doc.text(`Total Bid Logs: ${auctionData.bidLogs?.length || 0}`, 14, 70);
+
+        // Add winner details if exists
         if (auctionData.winner) {
-          doc.setFontSize(14);
-          doc.text('Winner Details', 14, doc.lastAutoTable.finalY + 20);
-          
-          autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 25,
-            head: [['Detail', 'Value']],
-            body: [
-              ['Name', auctionData.winner.name || 'N/A'],
-              ['Email', auctionData.winner.email || 'N/A'],
-              ['Winning Time', format(new Date(auctionData.winnerBidTime), "PPp")],
-              ['Winning Bid', `$${auctionData.currentBid}`]
-            ],
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [59, 130, 246], textColor: 255 }
-          });
+          doc.text(`Winner: ${auctionData.winner.name || 'N/A'}`, 14, 80);
+          doc.text(`Email: ${auctionData.winner.email || 'N/A'}`, 14, 90);
+          doc.text(`Winning Time: ${auctionData.winnerBidTime ? format(new Date(auctionData.winnerBidTime), "PPp") : 'N/A'}`, 14, 100);
         }
 
-        // Add bids table
+        let y = 110;
+
+        // Add bids table if exists
         if (auctionData.bids?.length > 0) {
           doc.setFontSize(14);
-          doc.text('Bid History', 14, doc.lastAutoTable.finalY + 20);
-          
-          const bidRows = auctionData.bids.map((bid, index) => [
-            auctionData.bids.length - index,
-            `$${bid.bidAmount}`,
-            format(new Date(bid.bidTime), "PPp"),
-            bid.bidder?.name?.name || 'Unknown',
-            bid.bidder?.name?.email || 'N/A'
-          ]);
+          doc.text("Bids", 14, y);
+          y += 10;
 
-          autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 25,
-            head: [['#', 'Amount', 'Time', 'Bidder', 'Email']],
-            body: bidRows,
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-            columnStyles: {
-              0: { cellWidth: 10 },
-              1: { cellWidth: 25 },
-              2: { cellWidth: 50 },
-              3: { cellWidth: 40 },
-              4: { cellWidth: 50 }
-            }
+          // Table headers
+          const headers = ["Bid #", "Amount", "Time", "Bidder", "Email"];
+          const columnWidths = [20, 30, 50, 40, 50];
+
+          // Draw table header
+          doc.setFillColor(59, 130, 246);
+          doc.setTextColor(255, 255, 255);
+          headers.forEach((header, i) => {
+            doc.rect(14 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y, columnWidths[i], 10, 'F');
+            doc.text(header, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
           });
+          y += 10;
+
+          // Draw table rows
+          doc.setTextColor(0, 0, 0);
+          auctionData.bids.forEach((bid, index) => {
+            const bidderName = bid.bidder?.name || 'Unknown';
+            const bidderEmail = bid.bidder?.email || 'N/A';
+            
+            const row = [
+              auctionData.bids.length - index,
+              `$${bid.bidAmount || '0'}`,
+              bid.bidTime ? format(new Date(bid.bidTime), "PPp") : 'N/A',
+              bidderName,
+              bidderEmail
+            ];
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+              doc.setFillColor(245, 245, 245);
+              doc.rect(14, y, columnWidths.reduce((a, b) => a + b, 0), 10, 'F');
+            }
+
+            row.forEach((cell, i) => {
+              const text = cell.toString();
+              const maxWidth = columnWidths[i] - 6;
+              if (doc.getTextWidth(text) > maxWidth) {
+                const lines = doc.splitTextToSize(text, maxWidth);
+                lines.forEach((line, lineIndex) => {
+                  doc.text(line, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7 + (lineIndex * 5));
+                });
+                y += (lines.length - 1) * 5;
+              } else {
+                doc.text(text, 17 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+              }
+            });
+            y += 10;
+          });
+          y += 10;
         }
 
-        // Add bid logs
+        // Add bid logs table if exists
         if (auctionData.bidLogs?.length > 0) {
           doc.setFontSize(14);
-          doc.text('Bid Logs', 14, doc.lastAutoTable.finalY + 20);
-          
-          const logRows = auctionData.bidLogs.map((log, index) => {
-            if (log.msg) {
-              return [auctionData.bidLogs.length - index, log.msg, 'N/A', 'N/A', log.ipAddress || 'N/A'];
-            }
-            return [
-              auctionData.bidLogs.length - index,
-              `$${log.bidAmount}`,
-              format(new Date(log.bidTime), "PPp"),
-              log.bidder?.name || 'Unknown',
-              log.ipAddress || 'N/A'
-            ];
-          });
+          doc.text("Bid Logs", 14, y);
+          y += 10;
 
-          autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 25,
-            head: [['#', 'Amount/Message', 'Time', 'Bidder', 'IP Address']],
-            body: logRows,
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-            columnStyles: {
-              0: { cellWidth: 10 },
-              1: { cellWidth: 35 },
-              2: { cellWidth: 50 },
-              3: { cellWidth: 40 },
-              4: { cellWidth: 40 }
+          // Table headers for bid logs
+          const logHeaders = ["Log #", "Action", "Amount", "Time", "User"];
+          const logColumnWidths = [20, 40, 30, 50, 40];
+
+          // Draw table header
+          doc.setFillColor(59, 130, 246);
+          doc.setTextColor(255, 255, 255);
+          logHeaders.forEach((header, i) => {
+            doc.rect(14 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y, logColumnWidths[i], 10, 'F');
+            doc.text(header, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+          });
+          y += 10;
+
+          // Draw table rows
+          doc.setTextColor(0, 0, 0);
+          auctionData.bidLogs.forEach((log, index) => {
+            const row = [
+              auctionData.bidLogs.length - index,
+              log.action || 'N/A',
+              log.amount ? `$${log.amount}` : 'N/A',
+              log.timestamp ? format(new Date(log.timestamp), "PPp") : 'N/A',
+              log.user?.name || 'Unknown'
+            ];
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+              doc.setFillColor(245, 245, 245);
+              doc.rect(14, y, logColumnWidths.reduce((a, b) => a + b, 0), 10, 'F');
             }
+
+            row.forEach((cell, i) => {
+              const text = cell.toString();
+              const maxWidth = logColumnWidths[i] - 6;
+              if (doc.getTextWidth(text) > maxWidth) {
+                const lines = doc.splitTextToSize(text, maxWidth);
+                lines.forEach((line, lineIndex) => {
+                  doc.text(line, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7 + (lineIndex * 5));
+                });
+                y += (lines.length - 1) * 5;
+              } else {
+                doc.text(text, 17 + logColumnWidths.slice(0, i).reduce((a, b) => a + b, 0), y + 7);
+              }
+            });
+            y += 10;
           });
         }
 
-        // Add product details
-        if (auctionData.product) {
-          doc.setFontSize(14);
-          doc.text('Product Details', 14, doc.lastAutoTable.finalY + 20);
-          
-          autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 25,
-            head: [['Detail', 'Value']],
-            body: [
-              ['Title', auctionData.product.title || 'N/A'],
-              ['Description', auctionData.product.description || 'N/A'],
-              ['SKU Number', auctionData.product.skuNumber || 'N/A'],
-              ['Stock', auctionData.product.stock || '0'],
-              ['Sell Price', `$${auctionData.product.sellPrice || '0'}`]
-            ],
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [59, 130, 246], textColor: 255 }
-          });
+        // Add message if no bids or logs
+        if (!auctionData.bids?.length && !auctionData.bidLogs?.length) {
+          doc.setFontSize(12);
+          doc.text("No bid history or logs available", 14, y);
         }
 
         // Save the PDF
-        doc.save(`auction-report-${auctionData.lotNumber || 'unknown'}.pdf`);
+        doc.save(`bid-history-${auctionData.lotNumber || 'unknown'}.pdf`);
       } else {
         toast.error("Failed to fetch auction details");
       }
