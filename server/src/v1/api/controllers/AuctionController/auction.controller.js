@@ -1321,9 +1321,8 @@ export const joinAuction = async (req, res) => {
         }
 
         // check end date of auction should be greater than current date //
-
-        if (findAuction.endDate < Date.now()) {
-            return badRequest(res, "Auction has ended")
+        if (findAuction.type === "TIMED" && findAuction.endDate < Date.now()) {
+            return badRequest(res, "Auction has ended");
         }
 
         if (findUser.Payment_Status !== "PAID") {
@@ -1933,6 +1932,20 @@ const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
             { $match: { paymentStatus: "SUCCEEDED" } },
             { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
         ]);
+
+        const auctionTotalRevenus = await auctionModel.aggregate([
+            {
+                $match:{
+                    payment_status:"PAID"
+                }
+            },
+            {
+                $group:{
+                    _id:null, 
+                    currentBid:{$sum:"$currentBid"}
+                }
+            }
+        ])
         const totalRevenue = totalRevenueData.length > 0 ? totalRevenueData[0].totalAmount : 0;
 
         // console.log("firstDayLastMonth:", firstDayLastMonth);
