@@ -1922,57 +1922,105 @@ export const deleteCatalog = async (req, res) => {
 export const getDashboardStats = async (req, res) => {
     try {
         const now = new Date();
-        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
+        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
         const startOfWeek = moment().startOf("isoWeek").toDate(); // Monday 00:00:00
-const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
+        const endOfWeek = moment().endOf("isoWeek").toDate();     // Sunday 23:59:59
 
-        // Total Revenue
-        const totalRevenueData = await OrderModel.aggregate([
+        // --- Total Revenue ---
+        const totalOrderRevenue = await OrderModel.aggregate([
             { $match: { paymentStatus: "SUCCEEDED" } },
             { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
         ]);
 
-        const auctionTotalRevenus = await auctionModel.aggregate([
+        const totalAuctionRevenue = await auctionModel.aggregate([
+            { $match: { payment_status: "PAID" } },
+            { $group: { _id: null, totalBidAmount: { $sum: "$currentBid" } } }
+        ]);
+
+        const orderRevenue = totalOrderRevenue.length > 0 ? totalOrderRevenue[0].totalAmount : 0;
+        const auctionRevenue = totalAuctionRevenue.length > 0 ? totalAuctionRevenue[0].totalBidAmount : 0;
+        const totalRevenue = orderRevenue + auctionRevenue;
+
+        // --- Last Month Revenue ---
+        const lastMonthOrderRevenue = await OrderModel.aggregate([
             {
-                $match:{
-                    payment_status:"PAID"
+                $match: {
+                    paymentStatus: "SUCCEEDED",
+                    createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth }
+                }
+            },
+            { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
+        ]);
+
+        const lastMonthAuctionRevenue = await auctionModel.aggregate([
+            {
+                $match: {
+                    payment_status: "PAID",
+                    createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth }
+                }
+            },
+            { $group: { _id: null, totalBidAmount: { $sum: "$currentBid" } } }
+        ]);
+
+        const lastMonthOrderAmount = lastMonthOrderRevenue.length > 0 ? lastMonthOrderRevenue[0].totalAmount : 0;
+        const lastMonthAuctionAmount = lastMonthAuctionRevenue.length > 0 ? lastMonthAuctionRevenue[0].totalBidAmount : 0;
+
+        const lastMonthRevenue = lastMonthOrderAmount + lastMonthAuctionAmount;
+        const revenueChange = lastMonthRevenue ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+
+        // --- Active Users ---
+        const activeUsers = await UserModel.countDocuments();
+        const lastMonthUsers = await UserModel.countDocuments({
+            createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth }
+        });
+        const userChange = lastMonthUsers ? ((activeUsers - lastMonthUsers) / lastMonthUsers) * 100 : 0;
+
+        // --- Active Auctions ---
+        const activeAuctions = await auctionModel.countDocuments({ status: "ACTIVE" });
+
+        // --- Total Sales (Only Orders) ---
+    // Total Sales - Orders
+const totalOrderSalesData = await OrderModel.aggregate([
+    { $match: { paymentStatus: "SUCCEEDED" } },
+    {
+        $group: {
+            _id: null,
+            count: { $sum: 1 },
+            amount: { $sum: "$totalAmount" }
+        }
+    }
+]);
+const orderSalesCount = totalOrderSalesData[0]?.count || 0;
+const orderSalesAmount = totalOrderSalesData[0]?.amount || 0;
+
+// Total Sales - Auctions
+const totalAuctionSalesData = await auctionModel.aggregate([
+    { $match: { payment_status: "PAID" } },
+    {
+        $group: {
+            _id: null,
+            count: { $sum: 1 },
+            amount: { $sum: "$currentBid" }
+        }
+    }
+]);
+const auctionSalesCount = totalAuctionSalesData[0]?.count || 0;
+const auctionSalesAmount = totalAuctionSalesData[0]?.amount || 0;
+
+// Final Total Sales (Orders + Auctions)
+const totalSalesCount = orderSalesCount + auctionSalesCount;
+const totalSalesAmount = orderSalesAmount + auctionSalesAmount;
+
+        // --- Last Month Sales (Only Orders) ---
+        const lastMonthSalesData = await OrderModel.aggregate([
+            {
+                $match: {
+                    paymentStatus: "SUCCEEDED",
+                    createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth }
                 }
             },
             {
-                $group:{
-                    _id:null, 
-                    currentBid:{$sum:"$currentBid"}
-                }
-            }
-        ])
-        const totalRevenue = totalRevenueData.length > 0 ? totalRevenueData[0].totalAmount : 0;
-
-        // console.log("firstDayLastMonth:", firstDayLastMonth);
-        // console.log("lastDayLastMonth:", lastDayLastMonth);
-
-        // Last Month Revenue
-        const lastMonthRevenueData = await OrderModel.aggregate([
-            { $match: { paymentStatus: "SUCCEEDED", createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } } },
-            { $group: { _id: null, totalAmount: { $sum: "$totalAmount" } } }
-        ]);
-
-
-        const lastMonthRevenue = lastMonthRevenueData.length > 0 ? lastMonthRevenueData[0].totalAmount : 0;
-        const revenueChange = lastMonthRevenue ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
-
-        // Active Users
-        const activeUsers = await UserModel.countDocuments();
-        const lastMonthUsers = await UserModel.countDocuments({ createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } });
-        const userChange = lastMonthUsers ? ((activeUsers - lastMonthUsers) / lastMonthUsers) * 100 : 0;
-
-        // Active Auctions
-        const activeAuctions = await auctionModel.countDocuments({ status: "ACTIVE" });
-
-        // Total Sales
-        const totalSalesData = await OrderModel.aggregate([
-            { $match: { paymentStatus: "SUCCEEDED" } },
-            {
                 $group: {
                     _id: null,
                     totalSalesCount: { $sum: 1 },
@@ -1980,73 +2028,76 @@ const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
                 }
             }
         ]);
-        const totalSalesCount = totalSalesData.length > 0 ? totalSalesData[0].totalSalesCount : 0;
-        const totalSalesAmount = totalSalesData.length > 0 ? totalSalesData[0].totalSalesAmount : 0;
 
-        // Last Month Sales
-        const lastMonthSalesData = await OrderModel.aggregate([
-            { $match: { paymentStatus: "SUCCEEDED", createdAt: { $gte: firstDayLastMonth, $lt: lastDayLastMonth } } },
-            {
-                $group: {
-                    _id: null,
-                    totalSalesCount: { $sum: 1 },
-                    totalSalesAmount: { $sum: "$totalAmount" }
-                }
-            }
-        ]);
         const lastMonthSalesCount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesCount : 0;
         const lastMonthSalesAmount = lastMonthSalesData.length > 0 ? lastMonthSalesData[0].totalSalesAmount : 0;
-
         const salesChange = lastMonthSalesCount ? ((totalSalesCount - lastMonthSalesCount) / lastMonthSalesCount) * 100 : 0;
 
-        // Monthly Sales (Jan - Dec)
-        const monthlySales = await OrderModel.aggregate([
-            { $match: { paymentStatus: "SUCCEEDED" } },
+        // --- Monthly Sales (Jan-Dec for Orders) ---
+     // --- Monthly Sales (Orders) ---
+const orderMonthlySales = await OrderModel.aggregate([
+    { $match: { paymentStatus: "SUCCEEDED" } },
+    {
+        $group: {
+            _id: { $month: "$createdAt" },
+            orderSales: { $sum: "$totalAmount" }
+        }
+    },
+    { $sort: { "_id": 1 } }
+]);
+
+// --- Monthly Sales (Auctions) ---
+const auctionMonthlySales = await auctionModel.aggregate([
+    { $match: { payment_status: "PAID" } },
+    {
+        $group: {
+            _id: { $month: "$createdAt" },
+            auctionSales: { $sum: "$currentBid" }
+        }
+    },
+    { $sort: { "_id": 1 } }
+]);
+
+// --- Combine Both into One Monthly Sales Array ---
+const monthlySalesData = Array.from({ length: 12 }, (_, i) => {
+    const order = orderMonthlySales.find((s) => s._id === i + 1)?.orderSales || 0;
+    const auction = auctionMonthlySales.find((s) => s._id === i + 1)?.auctionSales || 0;
+    return {
+        month: i + 1,
+        orderSales: order + auction,
+        totalSales: order + auction
+    };
+});
+
+
+        // --- Weekly Visitors (Users Registered) ---
+        const weeklyVisitors = await UserModel.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfWeek, $lte: endOfWeek }
+                }
+            },
             {
                 $group: {
-                    _id: { $month: "$createdAt" },
-                    totalSales: { $sum: "$totalAmount" }
+                    _id: { $dayOfWeek: "$createdAt" },
+                    visitors: { $sum: 1 }
                 }
             },
             { $sort: { "_id": 1 } }
         ]);
-        const monthlySalesData = Array.from({ length: 12 }, (_, i) => ({
-            month: i + 1,
-            totalSales: monthlySales.find((s) => s._id === i + 1)?.totalSales || 0
-        }));
 
-        // Weekly Visitors (Mon-Sat)
-        const weeklyVisitors = await UserModel.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startOfWeek, $lte: endOfWeek } // Filter current week users
-                }
-            },
-            {
-                $group: {
-                    _id: { $dayOfWeek: "$createdAt" }, // Group by day of the week (1 = Sunday, 7 = Saturday)
-                    visitors: { $sum: 1 }
-                }
-            },
-            { $sort: { "_id": 1 } } // Sort results from Sunday (1) to Saturday (7)
-        ]);
-        
-        // Mapping weekdays correctly (Sunday-Saturday)
         const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         const weeklyVisitorsData = weekDays.map((day, i) => ({
             day,
             visitors: weeklyVisitors.find((v) => v._id === i + 1)?.visitors || 0
         }));
 
-        
-    
-        
-
-        // Send Response
+        // --- Response ---
         res.status(200).json({
             success: true,
             data: {
                 totalRevenue,
+                auctionTotalRevenues: auctionRevenue,
                 revenueChange: revenueChange.toFixed(2) + "%",
                 activeUsers,
                 userChange: userChange.toFixed(2) + "%",
@@ -2066,6 +2117,7 @@ const endOfWeek = moment().endOf("isoWeek").toDate(); // Sunday 23:59:59
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
+
 
 
 
