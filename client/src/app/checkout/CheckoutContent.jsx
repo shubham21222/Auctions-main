@@ -123,7 +123,7 @@ const CheckoutForm = ({ productDetails, userId, token, billingDetails, orderId, 
     <form onSubmit={handleProceed}>
       <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <p className="text-yellow-700 text-sm">
-          <strong>Note:</strong> If the order is canceled, the $100 auction fee will be refunded to your original payment method.
+          <strong>Note:</strong> $100 will be refunded if we are not able to process the order
         </p>
       </div>
       <div className="mb-4">
