@@ -105,7 +105,7 @@ export const register = async (req, res , next) => {
                             display: inline-block;
                             padding: 12px 25px;
                             margin-top: 20px;
-                            background-color: #1a73e8;
+                            background-color:rgb(47, 232, 26);
                             color: white;
                             text-decoration: none;
                             border-radius: 5px;
@@ -197,7 +197,7 @@ export const register = async (req, res , next) => {
                             display: inline-block;
                             padding: 12px 25px;
                             margin-top: 20px;
-                            background-color: #1a73e8;
+                            background-color:rgb(26, 232, 29);
                             color: white;
                             text-decoration: none;
                             border-radius: 5px;
