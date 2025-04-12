@@ -1618,7 +1618,6 @@ export const placeBid = async (req, res) => {
         // Update auction with new bid
         findAuction.currentBid = bidAmount;
         findAuction.minBidIncrement = requiredBid;
-        findAuction.createdBy = req.user._id;
         findAuction.currentBidder = req.user._id;
         findAuction.bids.push({
             bidder: req.user._id,

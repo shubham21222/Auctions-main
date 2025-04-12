@@ -736,7 +736,7 @@ export const getAllUsers = async (req, res, next) => {
                 $lookup: {
                     from: 'auctions',
                     localField: '_id',
-                    foreignField: 'createdBy',
+                    foreignField: 'winner',
                     as: 'userAuctions'
                 }
             },
@@ -746,7 +746,7 @@ export const getAllUsers = async (req, res, next) => {
             {
                 $lookup: {
                     from: 'auctionproducts',
-                    localField: 'userAuctions.product',
+                    localField: 'userAuctions.auctionProduct',
                     foreignField: '_id',
                     as: 'auctionProducts'
                 }
@@ -796,7 +796,9 @@ export const getAllUsers = async (req, res, next) => {
                                 lotNumber: { $ifNull: ["$$auction.lotNumber", ""] },
                                 createdBy: { $ifNull: ["$$auction.createdBy", ""] },
                                 status: { $ifNull: ["$$auction.status", ""] },
-                                bids: { $ifNull: ["$$auction.bids", []] },
+                                payment_status:{ $ifNull: ["$$auction.payment_status", ""] },
+                                shipping_status:{$ifNull:["$$auction.shipping_status", ""]}
+                                // bids: { $ifNull: ["$$auction.bids", []] },
 
                             }
                         }

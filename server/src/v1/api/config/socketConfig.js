@@ -239,7 +239,6 @@ export const initializeSocket = (server) => {
         auction.currentBid = finalBidAmount;
         auction.currentBidder = bidderId;
         auction.minBidIncrement = requiredIncrement;
-        auction.createdBy = user._id;
         await auction.save();
 
         console.log(
