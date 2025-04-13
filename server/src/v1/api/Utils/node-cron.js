@@ -3,6 +3,10 @@ import Auction from  "../models/Auction/auctionModel.js";
 import User from "../models/Auth/User.js";
 import stripe from "../config/stripeConfig.js"
 import nodemailer from "nodemailer";
+import postmark from 'postmark'
+import dotenv from 'dotenv';
+dotenv.config();
+
 
 // cron.schedule("*/1 * * * *", async () => {  // Runs every 1 minute
 //     try {
@@ -94,47 +98,50 @@ export const createPaymentLink = async (amount, currency, productName, metadata)
 
 
 
-
+// Postmark client setup
+const client = new postmark.ServerClient(process.env.SERVER_TOKEN);
 
 // Function to send email
-const sendPaymentEmail = async (email, paymentLink, auctionTitle, bidAmount , productTitle, name ) => {
+export const sendPaymentEmail = async (email, paymentLink, auctionTitle, bidAmount, productTitle, name) => {
     try {
-        let transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.CLIENT_EMAIL,
-                pass: process.env.CLIENT_EMAIL_PASSWORD,
-            },
-        });
-
-        let mailOptions = {
-            from: process.env.CLIENT_EMAIL,
-            to: email,
-            subject: `🎉 Congratulations! You Won the Auction for ${productTitle} (${auctionTitle})`,
-            html: `<p>Dear ${name || ""},</p>
-        
-                   <p>Congratulations! You have won the auction for <b>${productTitle}</b> (<b>${auctionTitle}</b>).</p>
-                   
-                   <p><strong>Winning Bid:</strong> $${bidAmount}</p>
-                   
-                   <p>To secure your item, please complete the payment using the link below:</p>
-                   
-                   <p><a href="${paymentLink}" style="background-color:#008CBA; color:white; padding:10px 15px; text-decoration:none; display:inline-block; font-size:16px; border-radius:5px;">Complete Payment</a></p>
-        
-                   <p>If you have any questions, feel free to reach out.</p>
-        
-                   <p>Thank you for participating!</p>
-                   <p>Best Regards,<br> Your Auction Team</p>`,
-        };
-        
-
-        const data = await transporter.sendMail(mailOptions);
-        console.log(`📧 Email sent to ${email}`);
-        return data
+      const subject = `🎉 Congratulations! You Won the Auction for ${productTitle} (${auctionTitle})`;
+  
+      const html = `
+        <p>Dear ${name || "Bidder"},</p>
+  
+        <p>Congratulations! You have won the auction for <b>${productTitle}</b> (<b>${auctionTitle}</b>).</p>
+  
+        <p><strong>Winning Bid:</strong> $${bidAmount}</p>
+  
+        <p>To secure your item, please complete the payment using the link below:</p>
+  
+        <p><a href="${paymentLink}" style="background-color:#008CBA; color:white; padding:10px 15px; text-decoration:none; display:inline-block; font-size:16px; border-radius:5px;">Complete Payment</a></p>
+  
+        <p>If you have any questions, feel free to reach out.</p>
+  
+        <p>Thank you for participating!</p>
+        <p>Best Regards,<br> Your Auction Team</p>
+      `;
+  
+      const emailOptions = {
+        From: process.env.CLIENT_EMAIL,
+        To: email,
+        Subject: subject,
+        HtmlBody: html,
+        TextBody: `Dear ${name || "Bidder"},\n\nYou won the auction for ${productTitle} (${auctionTitle}). Winning Bid: $${bidAmount}\n\nComplete your payment here: ${paymentLink}\n\nThank you!`,
+        ReplyTo: process.env.CLIENT_EMAIL_REPLY,
+        MessageStream: "outbound"
+      };
+  
+      const info = await client.sendEmail(emailOptions);
+      console.log(`📧 Payment email sent to ${email}`);
+      return info;
     } catch (error) {
-        console.error("❌ Error sending email:", error);
+      console.error("❌ Error sending payment email:", error?.message || error);
+      if (error?.response) console.error('Postmark response:', error.response);
+      throw new Error("Failed to send payment email");
     }
-};
+  };
 
 
 
@@ -151,7 +158,7 @@ cron.schedule("*/1 * * * *", async () => {
         const expiredAuctions = await Auction.find({
             $or: [
                 { status: "ACTIVE", endDate: { $lte: now }, Emailsend: "false", winner: { $ne: null } }, // Expired active auctions with a winner
-                { status: "ENDED", Emailsend: "false", winner: null} // Already ended, email not sent, has a winner
+                { status: "ENDED", Emailsend: "false" , winner: { $ne: null }} // Already ended, email not sent, has a winner
             ]
         }).populate({
             path: 'product',
