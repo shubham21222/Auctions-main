@@ -138,39 +138,39 @@ const AuctionDetails = memo(({ currentAuction, upcomingLots, onSelectLot }) => {
                   lot.status === "ENDED" ? "border-red-300 bg-red-50" : "border-gray-200 hover:border-gray-400"
                 } transition-colors duration-200`}
               >
-                {lot.status === "ENDED" ? (
-                  <div className="flex-1 flex flex-col items-center justify-center">
-                    <span className="text-red-600 font-bold text-lg">SOLD</span>
-                    <button
-                      onClick={() => handleReopenLot(lot)}
-                      className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                    >
-                      Reopen Lot
-                    </button>
+                <div className={`flex gap-4 w-full ${lot.status !== "ENDED" ? "cursor-pointer" : ""}`} 
+                  onClick={lot.status !== "ENDED" ? () => onSelectLot(lot) : undefined}>
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                    {lot.product?.image?.[0] ? (
+                      <Image
+                        src={lot.product.image[0]}
+                        alt={lot.product?.title || "Upcoming Lot"}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                        No image
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex gap-4 w-full cursor-pointer" onClick={() => onSelectLot(lot)}>
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                      {lot.product?.image?.[0] ? (
-                        <Image
-                          src={lot.product.image[0]}
-                          alt={lot.product?.title || "Upcoming Lot"}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                          No image
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-md font-medium">{lot.product?.title || "Unnamed Item"}</h3>
-                      <p className="text-sm text-gray-600">Lot: {lot.lotNumber || "N/A"}</p>
-                      <p className="text-sm text-gray-600">Status: {lot.status}</p>
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="text-md font-medium">{lot.product?.title || "Unnamed Item"}</h3>
+                    <p className="text-sm text-gray-600">Lot: {lot.lotNumber || "N/A"}</p>
+                    <p className="text-sm text-gray-600">Status: {lot.status}</p>
+                    {lot.status === "ENDED" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReopenLot(lot);
+                        }}
+                        className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                      >
+                        Reopen Lot
+                      </button>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             ))
           ) : (

@@ -305,6 +305,7 @@ const AdminLiveAuctionPage = () => {
                     return newSet;
                   });
                 }}
+                token={token}
               />
             </div>
             <div>
