@@ -158,10 +158,11 @@ cron.schedule("*/1 * * * *", async () => {
         const expiredAuctions = await Auction.find({
             $or: [
                 { status: "ACTIVE", endDate: { $lte: now }, Emailsend: "false", winner: { $ne: null } }, // Expired active auctions with a winner
-                { status: "ENDED", Emailsend: "false" , winner: { $ne: null }} // Already ended, email not sent, has a winner
+                { status: "ENDED", Emailsend: "false", winner: null }
+
             ]
         }).populate({
-            path: 'product',
+            path: 'auctionProduct',
             select: 'title image' // Get title and image of the product
         });
 
@@ -190,8 +191,8 @@ cron.schedule("*/1 * * * *", async () => {
                 }
 
                    // Get product details (title and first image)
-                   const productTitle = auction.product?.title || "Auction Product";
-                   const productImage = auction.product?.image?.[0] || "";
+                   const productTitle = auction.auctionProduct?.title || "Auction Product";
+                   const productImage = auction.auctionProduct?.image?.[0] || "";
 
                 const paymentLink = await createPaymentLink(
                     auction.currentBid,
@@ -252,6 +253,10 @@ cron.schedule("*/1 * * * *", async () => {  // Runs every minute
             endDate: { $lte: now }, // Auction time is over
             status: "ACTIVE", // Only update active auctions
             Emailsend: "false" // Ensure email is not already sent
+        })
+        .populate({
+            path: 'auctionProduct',
+            select: 'title image' // Get title and image of the product
         });
         
 
@@ -275,8 +280,8 @@ cron.schedule("*/1 * * * *", async () => {  // Runs every minute
                 }
 
                    // Get product details (title and first image)
-                   const productTitle = auction.product?.title || "Auction Product";
-                   const productImage = auction.product?.image?.[0] || "";
+                   const productTitle = auction.auctionProduct?.title || "Auction Product";
+                   const productImage = auction.auctionProduct?.image?.[0] || "";
 
                 const paymentLink = await createPaymentLink(
                     auction.currentBid,
