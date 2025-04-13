@@ -154,47 +154,6 @@ const AuctionControls = ({
     }
   };
 
-  const handleReopenLot = async () => {
-    if (!currentAuction || !currentAuction.catalog || !currentAuction.lotNumber) {
-      toast.error("Cannot reopen lot: Missing catalog or lot number.");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${config.baseURL}/v1/api/auction/updateCatalog`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${token}`,
-        },
-        body: JSON.stringify({
-          catalog: currentAuction.catalog,
-          lotNumber: currentAuction.lotNumber,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to reopen lot");
-      }
-
-      toast.success("Lot reopened successfully!");
-      // Update the current auction status to "ACTIVE"
-      setCurrentAuction((prev) => ({
-        ...prev,
-        status: "ACTIVE",
-      }));
-      // Optionally fetch updated auction data
-      const updatedData = await getAuctionData(currentAuction._id);
-      if (updatedData) {
-        setCurrentAuction(updatedData);
-      }
-    } catch (error) {
-      console.error("Error reopening lot:", error);
-      toast.error(`Failed to reopen lot: ${error.message}`);
-    }
-  };
-
   const currentBid = currentAuction.currentBid || currentAuction.startingBid || 0;
   const bidIncrement = getBidIncrement(currentBid);
   const nextBid = currentBid + bidIncrement;
@@ -253,14 +212,6 @@ const AuctionControls = ({
           >
             Reserve Not Met
           </button>
-          {currentAuction.status === "ENDED" && (
-            <button
-              onClick={handleReopenLot}
-              className="px-4 py-2 bg-green-100 text-green-700 border border-green-300 rounded hover:bg-green-200"
-            >
-              Reopen Lot
-            </button>
-          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
