@@ -145,7 +145,7 @@ export function Filters({
                 {["High Price", "Low Price"].map((price) => (
                   <div key={price} className="flex items-center space-x-3">
                     <RadioGroupItem
-                      value={price.toLowerCase()}
+                      value={price}
                       id={price.toLowerCase().replace(" ", "-")}
                       className="text-blue-600"
                     />
@@ -251,7 +251,7 @@ export function Filters({
             {["High Price", "Low Price"].map((price) => (
               <div key={price} className="flex items-center space-x-3">
                 <RadioGroupItem
-                  value={price.toLowerCase()}
+                  value={price}
                   id={price.toLowerCase().replace(" ", "-")}
                   className="text-blue-600"
                 />

@@ -309,21 +309,40 @@ const MainHeader = ({
                   {isDropdownOpen && (
                     <div className="absolute top-full left-0 w-48 bg-white text-black rounded-lg shadow-lg mt-2 z-1000">
                       <div className="flex flex-col space-y-1 p-2">
-                        <Link href="/profile" className="hover:bg-gray-100 px-4 py-2 rounded">
+                        <Link 
+                          href="/my-account" 
+                          className="hover:bg-gray-100 px-4 py-2 rounded"
+                          onClick={() => setMenuOpen(false)}
+                        >
                           Profile
                         </Link>
-                        <Link href="/auctions" className="hover:bg-gray-100 px-4 py-2 rounded">
+                        <Link 
+                          href="/participated-auctions" 
+                          className="hover:bg-gray-100 px-4 py-2 rounded"
+                          onClick={() => setMenuOpen(false)}
+                        >
                           Auctions
                         </Link>
-                        <Link href="/purchases" className="hover:bg-gray-100 px-4 py-2 rounded">
+                        <Link 
+                          href="/purchases" 
+                          className="hover:bg-gray-100 px-4 py-2 rounded"
+                          onClick={() => setMenuOpen(false)}
+                        >
                           Purchases
                         </Link>
-                        <Link href="/seller-portal" className="hover:bg-gray-100 px-4 py-2 rounded">
+                        <Link 
+                          href="/seller-portal" 
+                          className="hover:bg-gray-100 px-4 py-2 rounded"
+                          onClick={() => setMenuOpen(false)}
+                        >
                           Seller Portal
                         </Link>
                         <button
                           className="hover:bg-gray-100 px-4 py-2 rounded text-left"
-                          onClick={handleLogout}
+                          onClick={() => {
+                            handleLogout();
+                            setMenuOpen(false);
+                          }}
                         >
                           Log Out
                         </button>

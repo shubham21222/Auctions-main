@@ -218,7 +218,7 @@ export default function Home() {
                       id: uniqueKey,
                       image: product.image[0],
                       name: product.title,
-                      price: product.price || "Price Unavailable",
+                      price: product.offerAmount || "Price Unavailable",
                       slug: product._id,
                     };
                     return (
