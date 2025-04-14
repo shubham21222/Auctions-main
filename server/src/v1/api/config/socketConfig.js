@@ -458,6 +458,26 @@ export const initializeSocket = (server) => {
             finalBid: auction.currentBid,
           });
         }
+
+            // 🔄 Find next auction by incrementing lot number
+    const currentLot = parseInt(auction.lotNumber);
+    const nextAuction = await Auction.findOne({
+      lotNumber: (currentLot + 1).toString(),
+      status: { $ne: "ENDED" }, // Optional: Only fetch if not ended
+    });
+
+    if (nextAuction) {
+      console.log(`Next auction found: Lot ${nextAuction.lotNumber}, ID: ${nextAuction._id}`);
+      io.emit("nextAuctionInfo", {
+        nextLotNumber: nextAuction.lotNumber,
+        nextAuctionId: nextAuction._id,
+      });
+    } else {
+      console.log("No upcoming auction found after current lot.");
+    }
+
+    // ENDED //
+
       } catch (error) {
         console.error("Error ending auction:", error);
       }
