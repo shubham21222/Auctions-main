@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditProfileModal from "./components/EditProfileModal";
+import BillingDetailsModal from "./components/BillingDetailsModal";
 import config from "../config_BASE_URL";
 
 export default function ProfilePage() {
@@ -66,20 +67,20 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <div className="max-w-7xl mt-[80px] mx-auto p-6">
-        <div className="bg-gray-100 p-4 rounded-lg text-center">
-          <h1 className="text-2xl font-semibold">My account</h1>
-          <p className="text-lg font-medium mt-2">
+      <div className="max-w-7xl mt-[80px] mx-auto p-4 md:p-6">
+        <div className="bg-gray-100 p-3 md:p-4 rounded-lg text-center">
+          <h1 className="text-xl md:text-2xl font-semibold">My account</h1>
+          <p className="text-base md:text-lg font-medium mt-2">
             {auth.items.email ? auth.items.email.split("@")[0] : "Loading..."}
           </p>
-          <p className="text-blue-600">{auth.items.email || "Loading..."}</p>
+          <p className="text-blue-600 text-sm md:text-base">{auth.items.email || "Loading..."}</p>
         </div>
 
-        <div className="flex border-b mt-6 space-x-6">
+        <div className="flex border-b mt-4 md:mt-6 space-x-2 md:space-x-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab}
-              className={`pb-2 ${
+              className={`pb-2 whitespace-nowrap px-2 md:px-4 ${
                 activeTab === tab
                   ? "border-b-2 border-blue-600 text-blue-600 font-medium"
                   : "text-gray-600"
@@ -93,20 +94,20 @@ export default function ProfilePage() {
 
         {/* Profile Tab */}
         {activeTab === "Profile" && (
-          <Card className="mt-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Profile Details</h2>
-              <div className="bg-gray-100 p-4 rounded-md">
-                <div className="grid grid-cols-4 gap-4 text-sm font-medium">
+          <Card className="mt-4 md:mt-6">
+            <CardContent className="p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-semibold mb-4">Profile Details</h2>
+              <div className="bg-gray-100 p-3 md:p-4 rounded-md">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm font-medium">
                   <span>Name</span>
                   <span>Email</span>
                   <span>Mobile Number</span>
                   <span>Password</span>
                 </div>
-                <div className="grid grid-cols-4 gap-4 mt-2 text-gray-700">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mt-2 text-xs md:text-sm text-gray-700">
                   <span>{auth.items.email ? auth.items.email.split("@")[0] : "Loading..."}</span>
                   <span>{auth.items.email || "Loading..."}</span>
-                  <span>-</span>
+                  <span>{auth.billingDetails?.phone || "-"}</span>
                   <span>••••••••••</span>
                 </div>
               </div>
@@ -119,16 +120,16 @@ export default function ProfilePage() {
 
         {/* Saved Lots Tab */}
         {activeTab === "Saved Lots" && (
-          <Card className="mt-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Saved Lots</h2>
+          <Card className="mt-4 md:mt-6">
+            <CardContent className="p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-semibold mb-4">Saved Lots</h2>
               {wishlistProducts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {wishlistProducts.map((product) => (
                     <Link href={`/products/${product._id}`} key={product._id}>
                       <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
-                        <CardContent className="p-4">
-                          <div className="relative w-full h-48 rounded-md overflow-hidden">
+                        <CardContent className="p-3 md:p-4">
+                          <div className="relative w-full h-32 md:h-48 rounded-md overflow-hidden">
                             <Image
                               src={product.image[0] || "/placeholder.svg"}
                               alt={product.title}
@@ -136,21 +137,65 @@ export default function ProfilePage() {
                               className="object-cover"
                             />
                           </div>
-                          <h3 className="text-lg font-semibold mt-2 line-clamp-1">{product.title}</h3>
-                          <p className="text-luxury-gold font-bold">${product.price.toLocaleString()}</p>
+                          <h3 className="text-sm md:text-lg font-semibold mt-2 line-clamp-1">{product.title}</h3>
+                          <p className="text-luxury-gold font-bold text-sm md:text-base">${product.price.toLocaleString()}</p>
                         </CardContent>
                       </Card>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No products saved in your wishlist.</p>
+                <p className="text-gray-500 text-sm md:text-base">No products saved in your wishlist.</p>
               )}
             </CardContent>
           </Card>
         )}
 
-        <p className="text-gray-600 text-sm mt-6">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mt-4 md:mt-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 md:mb-6">
+            <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-0">Billing Information</h2>
+            <BillingDetailsModal />
+          </div>
+
+          {auth?.billingDetails ? (
+            <div className="space-y-3 md:space-y-4">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">Name:</span>
+                <span className="font-medium text-sm md:text-base">
+                  {`${auth.billingDetails.firstName} ${auth.billingDetails.lastName}`}
+                </span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">Company:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.company_name || "-"}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">Address:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.streetAddress}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">City:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.city}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">State:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.state}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">Zip Code:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.zipcode || "-"}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <span className="text-gray-600 text-sm md:text-base">Phone:</span>
+                <span className="font-medium text-sm md:text-base">{auth.billingDetails.phone}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm md:text-base">No billing details available</p>
+          )}
+        </div>
+
+        <p className="text-gray-600 text-xs md:text-sm mt-4 md:mt-6">
           Your account currently enables you to get updates, save lots, access sale details, and more. To bid, buy, and sell with NY Elizabeth, please take a moment to complete your profile.
         </p>
       </div>

@@ -49,10 +49,11 @@ export default function AuctionCalendar() {
       const headers = token ? { Authorization: `${token}` } : {};
       const queryParams = new URLSearchParams({
         ...(filters.category && { catalog: filters.category }),
-        ...(filters.priceRange[1] !== 100000 && { priceRange: filters.priceRange[1] }),
+        ...(filters.priceRange[1] !== 100000 && { maxPrice: filters.priceRange[1] }),
         ...(filters.searchQuery && { searchQuery: filters.searchQuery }),
         ...(filters.auctionType && { auctionType: filters.auctionType }),
         ...(filters.status && { status: filters.status }),
+        ...(filters.date && { startDate: filters.date }), // Add startDate to query if date is selected
       }).toString();
 
       const url = `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
@@ -72,7 +73,7 @@ export default function AuctionCalendar() {
           }))
         ) || [];
 
-        const enrichedAuctions = auctionItems.map((auction) => ({
+        let enrichedAuctions = auctionItems.map((auction) => ({
           id: auction._id,
           title: auction.product?.title || "Untitled Auction",
           images: auction.images,
@@ -92,18 +93,20 @@ export default function AuctionCalendar() {
           bids: auction.bids || [],
         }));
 
-        let filteredAuctions = filters.date
-          ? enrichedAuctions.filter((auction) => {
-              const startDate = new Date(auction.startDateRaw);
-              return (
-                startDate.getFullYear() === filters.date.getFullYear() &&
-                startDate.getMonth() === filters.date.getMonth() &&
-                startDate.getDate() === filters.date.getDate()
-              );
-            })
-          : enrichedAuctions;
+        // Apply date filter if date is provided
+        if (filters.date) {
+          const filterDate = new Date(filters.date);
+          filterDate.setHours(0, 0, 0, 0); // Set to start of day
 
-        filteredAuctions = [...filteredAuctions].sort((a, b) => {
+          enrichedAuctions = enrichedAuctions.filter((auction) => {
+            if (!auction.startDateRaw) return false;
+            const auctionDate = new Date(auction.startDateRaw);
+            auctionDate.setHours(0, 0, 0, 0); // Set to start of day for comparison
+            return auctionDate.toDateString() === filterDate.toDateString();
+          });
+        }
+
+        enrichedAuctions = [...enrichedAuctions].sort((a, b) => {
           switch (sortOption) {
             case "title-asc":
               return a.title.localeCompare(b.title);
@@ -121,8 +124,8 @@ export default function AuctionCalendar() {
           }
         });
 
-        setAllAuctions(filteredAuctions);
-        setTotalAuctions(filteredAuctions.length);
+        setAllAuctions(enrichedAuctions);
+        setTotalAuctions(enrichedAuctions.length);
       } else {
         throw new Error(auctionsData.message);
       }
@@ -243,7 +246,7 @@ export default function AuctionCalendar() {
             Discover extraordinary pieces from the world&apos;s most prestigious collections. Each auction is carefully
             curated to bring you the finest in luxury.
           </p>
-        </div>
+        </div>  
 
         <div className="mb-8 flex items-center justify-between">
           <span className="text-sm text-muted-foreground">

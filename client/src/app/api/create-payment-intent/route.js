@@ -23,22 +23,42 @@ export async function POST(req) {
       });
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount, // In cents
-      currency: currency || "usd",
-      payment_method_types: ["card"],
-      capture_method: "manual", // Hold payment, don’t capture
+    // Get the base URL from the request headers
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const host = req.headers.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: currency || 'usd',
+            product_data: {
+              name: `NY Elizabeth ${metadata?.tier || 'Membership'}`,
+              description: `Annual membership for ${metadata?.tier || 'Tier'}`,
+              images: ['https://beta.nyelizabeth.com/wp-content/uploads/2024/03/p1.png'], // Add your logo URL here
+            },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${baseUrl}/exclusive-access?success=true`,
+      cancel_url: `${baseUrl}/exclusive-access?canceled=true`,
       metadata: metadata || {},
-      description: `Bid payment for auction item (Auction ID: ${metadata?.auctionId || "unknown"})`,
+      billing_address_collection: 'required',
+      customer_email: metadata?.email || undefined,
     });
 
-    console.log("Created PaymentIntent:", paymentIntent.id);
-    return new Response(JSON.stringify({ clientSecret: paymentIntent.client_secret }), {
+    console.log("Created Checkout Session:", session.id);
+    return new Response(JSON.stringify({ sessionId: session.id }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Stripe Payment Intent Error:", error.message, error.stack);
+    console.error("Stripe Checkout Session Error:", error.message, error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

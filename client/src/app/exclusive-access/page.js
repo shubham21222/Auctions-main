@@ -5,8 +5,15 @@ import { Button } from "@/components/ui/button";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useState } from "react";
+import { loadStripe } from '@stripe/stripe-js';
+import { useSelector } from "react-redux";
+import LoginModal from "@/app/components/LoginModal";
+import toast from "react-hot-toast";
 
-export default function PrivateSales() {
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+export default function PrivateSales() {    
     const images = [
         "https://beta.nyelizabeth.com/wp-content/uploads/2024/03/p3.png",
         "https://beta.nyelizabeth.com/wp-content/uploads/2024/03/p1.png",
@@ -14,6 +21,9 @@ export default function PrivateSales() {
     ];
 
     const [currentSlide, setCurrentSlide] = useState(0);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+    const user = useSelector((state) => state.auth.user);
 
     const nextSlide = () => {
         setCurrentSlide((prev) => (prev + 1) % images.length);
@@ -21,6 +31,60 @@ export default function PrivateSales() {
 
     const prevSlide = () => {
         setCurrentSlide((prev) => (prev - 1 + images.length) % images.length);
+    };
+
+    const handlePayment = async (amount) => {
+        if (!isLoggedIn) {
+            setIsLoginModalOpen(true);
+            return;
+        }
+
+        try {
+            // Create payment intent
+            const response = await fetch('/api/create-payment-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: amount * 100, // Convert to cents
+                    currency: 'usd',
+                    metadata: {
+                        type: 'membership',
+                        tier: amount === 120 ? 'Tier 1' : 'Tier 2 Gold',
+                        email: user?.email || 'customer@example.com'
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create payment session');
+            }
+
+            const { sessionId } = await response.json();
+
+            // Initialize Stripe
+            const stripe = await stripePromise;
+            
+            // Open Stripe Checkout
+            const { error } = await stripe.redirectToCheckout({
+                sessionId: sessionId,
+            });
+
+            if (error) {
+                console.error('Payment error:', error);
+                toast.error('Payment failed: ' + error.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error('Error: ' + error.message);
+        }
+    };
+
+    const handleOpenSignup = () => {
+        setIsLoginModalOpen(false);
+        toast.info("Please implement the signup modal logic.");
     };
 
     return (
@@ -88,7 +152,10 @@ export default function PrivateSales() {
                                     <li>Bid limit up to $5,000</li>
                                     <li>After-auction offers for jewelry and handbags only</li>
                                 </ul>
-                                <Button className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 transform hover:scale-105">
+                                <Button 
+                                    className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 transform hover:scale-105"
+                                    onClick={() => handlePayment(120)}
+                                >
                                     Join Now
                                 </Button>
                             </div>
@@ -108,7 +175,10 @@ export default function PrivateSales() {
                                     <li>Up to 12 monthly certificates of authenticity and insurance appraisal PDFs</li>
                                     <li>After-auction offers for all categories</li>
                                 </ul>
-                                <Button className="mt-6 w-full bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 transform hover:scale-105">
+                                <Button 
+                                    className="mt-6 w-full bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 transform hover:scale-105"
+                                    onClick={() => handlePayment(480)}
+                                >
                                     Join Now
                                 </Button>
                             </div>
@@ -117,6 +187,12 @@ export default function PrivateSales() {
                 </main>
             </div>
             <Footer />
+
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                onOpenSignup={handleOpenSignup}
+            />
         </>
     );
 }
