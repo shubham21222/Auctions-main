@@ -497,22 +497,22 @@ export const getbulkAuctions = async (req, res) => {
         if (priceRange) {
             const priceValue = parseFloat(priceRange);
             if (!isNaN(priceValue)) {
-                matchStage["product.price"] = { $lte: priceValue };
+                matchStage["currentBid"] = { $lte: priceValue };
             }
         }
 
         // Sorting logic
         let sortStage = {};
         if (sortByPrice) {
-            sortStage['product.price'] = sortByPrice === 'High Price' ? -1 : 1;
+            sortStage['currentBid'] = sortByPrice === 'High Price' ? -1 : 1;
         } else if (sortField && sortOrder) {
             const order = sortOrder === 'asc' ? 1 : -1;
             if (sortField === 'startDate') {
                 sortStage.startDate = order;
             } else if (sortField === 'currentBid') {
                 sortStage.currentBid = order;
-            } else if (sortField === 'product.price') {
-                sortStage['product.price'] = order;
+            } else if (sortField === 'currentBid') {
+                sortStage['currentBid'] = order;
             }
         } else {
             sortStage.startDate = -1;
