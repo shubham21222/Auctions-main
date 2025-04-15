@@ -1274,7 +1274,8 @@ export const updateAuction = async (req, res) => {
             return validation(res, 'Invalid auction ID.');
         }
 
-        const findAuction = await auctionModel.findById(id);
+        const findAuction = await auctionModel.findById(id).select('product startingBid auctionType endDate startDate category status shipping_status lotNumber');
+
         if (!findAuction) {
             return notFound(res, 'Auction not found.');
         }
