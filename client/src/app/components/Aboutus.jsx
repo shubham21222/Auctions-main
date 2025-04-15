@@ -97,9 +97,11 @@ export default function AboutUs() {
                 </p>
               </div>
             </div>
+            <Link href="/about-us"> 
             <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
               Learn More
             </button>
+            </Link>
           </motion.div>
 
           {/* Right Column: Image */}

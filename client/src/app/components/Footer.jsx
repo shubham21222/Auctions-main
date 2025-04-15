@@ -35,14 +35,14 @@ const Footer = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Follow Us</h3>
             <div className="flex justify-center space-x-4">
-              <Link href="https://www.instagram.com/nyelizabethauction/"  className="hover:text-gray-300">
+              <Link href="https://www.instagram.com/nyelizabethauction/" target="_blank"  className="hover:text-gray-300">
                 <FaInstagram className="w-6 h-6" />
               </Link>
 
-              <Link href="https://www.linkedin.com/company/nyelizabeth"  className="hover:text-gray-300" aria-label="LinkedIn">
+              <Link href="https://www.linkedin.com/company/nyelizabeth" target="_blank"  className="hover:text-gray-300" aria-label="LinkedIn">
                 <FaLinkedin className="w-6 h-6" />
               </Link>
-              <Link href="https://www.youtube.com/c/nyelizabeth"  className="hover:text-gray-300" aria-label="YouTube">
+              <Link href="https://www.youtube.com/c/nyelizabeth" target="_blank"  className="hover:text-gray-300" aria-label="YouTube">
                 <FaYoutube className="w-6 h-6" />
               </Link>
             </div>

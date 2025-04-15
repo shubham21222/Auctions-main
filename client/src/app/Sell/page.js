@@ -1,26 +1,58 @@
+"use client";
+
 import { Button } from '@/components/ui/button';
 import { Check, Image as ImageIcon, Search } from 'lucide-react';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import Link from 'next/link';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import LoginModal from '../components/LoginModal';
+import toast from 'react-hot-toast';
 
 const HowItWorks = () => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+
+  const handleStartSelling = (e) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      setIsLoginModalOpen(true);
+      return;
+    }
+    // If logged in, the Link component will handle the navigation
+  };
+
+  const handleViewSubmissions = (e) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      setIsLoginModalOpen(true);
+      return;
+    }
+    // If logged in, the Link component will handle the navigation
+  };
+
+  const handleOpenSignup = () => {
+    setIsLoginModalOpen(false);
+    toast.info("Please implement the signup modal logic.");
+  };
+
   return (
     <>
       <Header />
       <div className="flex flex-col items-center px-4 mt-[80px] py-12 md:px-12">
         <h2 className="text-xl font-semibold md:text-2xl">Sell with NY Elizabeth</h2>
-        <Link href="/seller-products">
-        <Button className="mt-4 bg-blue-900 text-white px-6 py-2 rounded-md shadow-md hover:bg-blue-800 transition-all duration-300 hover:scale-105">
-          START SELLING
-        </Button>
+        <Link href="/seller-products" onClick={handleStartSelling}>
+          <Button className="mt-4 bg-blue-900 text-white px-6 py-2 rounded-md shadow-md hover:bg-blue-800 transition-all duration-300 hover:scale-105">
+            START SELLING
+          </Button>
         </Link>
         <p className="mt-2 text-sm text-gray-600">
           Looking for items you already submitted?{' '}
-          <Link href="/seller-portal">
-          <span className="text-blue-600 cursor-pointer hover:text-blue-800 transition-colors duration-300">
-            Click here
-          </span>
+          <Link href="/seller-portal" onClick={handleViewSubmissions}>
+            <span className="text-blue-600 cursor-pointer hover:text-blue-800 transition-colors duration-300">
+              Click here
+            </span>
           </Link>
         </p>
 
@@ -52,6 +84,12 @@ const HowItWorks = () => {
         </div>
       </div>
       <Footer />
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onOpenSignup={handleOpenSignup}
+      />
     </>
   );
 };

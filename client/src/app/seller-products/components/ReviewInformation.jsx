@@ -45,7 +45,7 @@ const ReviewInformation = ({ setCurrentStep, selectedCategory, formData, setForm
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-lg">
+    <div className="bg-white p-6 rounded-xl shadow-lg mt-8">
       <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Review Information</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-6">

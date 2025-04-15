@@ -66,7 +66,7 @@ export default function Home() {
     <>
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
-        <div className="w-full max-w-6xl mx-auto p-6">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6">
           {/* <Toaster position="top-right" /> */}
           {currentStep === 1 && (
             <StepperForm
@@ -74,7 +74,7 @@ export default function Home() {
               setSelectedCategory={setSelectedCategory}
               setCurrentStep={setCurrentStep}
               setFormData={setFormData}
-              categories={categories} // Pass fetched categories to StepperForm
+              categories={categories}
             />
           )}
           {currentStep === 2 && SelectedItemForm ? (
