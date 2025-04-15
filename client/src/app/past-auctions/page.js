@@ -23,6 +23,7 @@ import {
 
 export default function PastAuctions() {
   const [auctions, setAuctions] = useState([]);
+  const [scrapedAuctions, setScrapedAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("date-descending");
@@ -34,22 +35,53 @@ export default function PastAuctions() {
   const itemsPerPage = 6;
 
   useEffect(() => {
-    const fetchAuctions = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch API data
         const response = await fetch(`${config.baseURL}/v1/api/auction/bulk?status=ENDED`);
         if (!response.ok) throw new Error("Failed to fetch auctions");
         const data = await response.json();
 
+        // Fetch scraped data
+        const scrapedResponse = await fetch('/scraped_auction_data.json');
+        const scrapedData = await scrapedResponse.json();
+
         if (data.status && data.items?.catalogs) {
-          // Flatten the catalogs array and get all auctions, including catalogName
-          const allAuctions = data.items.catalogs.flatMap(catalog => 
+          // Process API data
+          const apiAuctions = data.items.catalogs.flatMap(catalog => 
             (catalog.auctions || []).map(auction => ({
               ...auction,
               catalogName: catalog.catalogName,
-              product: auction.product || { title: "Untitled Item", image: [""] } // Default product data
+              product: auction.product || { title: "Untitled Item", image: [""] },
+              source: 'api'
             }))
           );
-          setAuctions(allAuctions);
+
+          // Process scraped data
+          const processedScrapedAuctions = scrapedData.flatMap(auction => 
+            auction.items.map(item => ({
+              _id: `scraped-${item.item_name}`,
+              title: item.item_name,
+              product: {
+                title: item.item_name,
+                image: [item.image_url],
+                description: item.image_alt,
+                estimateprice: item.price_estimate
+              },
+              lotNumber: item.item_name.split(':')[0],
+              currentBid: item.sold_price === "See Sold Price" ? "Sold" : item.sold_price,
+              winnerBidTime: auction.auction_date,
+              endDate: auction.auction_date,
+              status: "ENDED",
+              source: 'scraped',
+              catalogName: auction.auction_title,
+              location: auction.location
+            }))
+          );
+
+          // Combine both data sources
+          setAuctions([...apiAuctions, ...processedScrapedAuctions]);
+          setScrapedAuctions(processedScrapedAuctions);
         } else {
           throw new Error("Invalid response format");
         }
@@ -59,7 +91,7 @@ export default function PastAuctions() {
         setLoading(false);
       }
     };
-    fetchAuctions();
+    fetchData();
   }, []);
 
   const sortedAuctions = React.useMemo(() => {
@@ -123,7 +155,7 @@ export default function PastAuctions() {
   return (
     <>
       <Header />
-      <div className="container mx-auto py-12 px-4 mt-[60px] bg-gradient-to-b from-gray-50 to-white min-h-screen">
+      <div className="container mx-auto py-12 px-4 mt-[60px]  min-h-screen">
         <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 text-gray-800 tracking-tight">
           Past Auctions
         </h1>
@@ -216,18 +248,19 @@ export default function PastAuctions() {
                       <p className="text-sm text-gray-600">
                         <span className="font-medium">Ended:</span> {format(new Date(auction.winnerBidTime || auction.endDate), "PPp")}
                       </p>
+                      {auction.source === 'api' && (
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Winner:</span> {auction.winner ? (typeof auction.winner === 'string' ? auction.winner : auction.winner.name) : "No winner"}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-600">
-                        <span className="font-medium">Winner:</span> {auction.winner ? (typeof auction.winner === 'string' ? auction.winner : auction.winner.name) : "No winner"}
+                        <span className="font-medium">Final Bid:</span> {auction.currentBid}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Final Bid:</span> ${auction.currentBid || 0}
-                      </p>
-                      {/* <p className="text-sm text-gray-600">
-                        <span className="font-medium">Status:</span>{" "}
-                        <span className={auction.payment_status === "PAID" ? "text-green-600" : "text-red-600"}>
-                          {auction.payment_status || "PENDING"}
-                        </span>
-                      </p> */}
+                      {auction.location && (
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Location:</span> {auction.location}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -305,86 +338,54 @@ export default function PastAuctions() {
               <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700 text-lg">
                   <p><strong className="text-gray-900">Lot Number:</strong> {selectedAuction.lotNumber}</p>
-                  <p><strong className="text-gray-900">Starting Bid:</strong> ${selectedAuction.startingBid}</p>
-                  <p><strong className="text-gray-900">Current Bid:</strong> ${selectedAuction.currentBid}</p>
-                  <p><strong className="text-gray-900">Reserve Price:</strong> ${selectedAuction.product?.ReservePrice || 0}</p>
-                  <p><strong className="text-gray-900">Estimate Price:</strong> ${selectedAuction.product?.estimateprice || "N/A"}</p>
-                  <p><strong className="text-gray-900">Winner:</strong> {selectedAuction.winner ? (typeof selectedAuction.winner === 'string' ? selectedAuction.winner : selectedAuction.winner.name) : "No winner"}</p>
+                  {selectedAuction.source === 'api' && (
+                    <>
+                      <p><strong className="text-gray-900">Starting Bid:</strong> ${selectedAuction.startingBid}</p>
+                      <p><strong className="text-gray-900">Current Bid:</strong> ${selectedAuction.currentBid}</p>
+                      <p><strong className="text-gray-900">Reserve Price:</strong> ${selectedAuction.product?.ReservePrice || 0}</p>
+                    </>
+                  )}
+                  <p><strong className="text-gray-900">Estimate Price:</strong> {selectedAuction.product?.estimateprice || "N/A"}</p>
+                  {selectedAuction.source === 'api' && (
+                    <p><strong className="text-gray-900">Winner:</strong> {selectedAuction.winner ? (typeof selectedAuction.winner === 'string' ? selectedAuction.winner : selectedAuction.winner.name) : "No winner"}</p>
+                  )}
                   <p><strong className="text-gray-900">Winning Time:</strong> {selectedAuction.winnerBidTime ? format(new Date(selectedAuction.winnerBidTime), "PPp") : "N/A"}</p>
-                  {/* <p><strong className="text-gray-900">Payment Status:</strong>{" "}
-                    <span className={selectedAuction.payment_status === "PAID" ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                      {selectedAuction.payment_status || "PENDING"}
-                    </span>
-                  </p> */}
-                  {/* <p><strong className="text-gray-900">Shipping Status:</strong>{" "}
-                    <span className={selectedAuction.shipping_status === "SHIPPED" ? "text-green-600 font-semibold" : "text-yellow-600 font-semibold"}>
-                      {selectedAuction.shipping_status || "PENDING"}
-                    </span>
-                  </p> */}
+                  {selectedAuction.location && (
+                    <p><strong className="text-gray-900">Location:</strong> {selectedAuction.location}</p>
+                  )}
                 </div>
                 <div className="mt-6 text-gray-600 leading-relaxed">
                   <strong className="text-gray-900">Description:</strong>
-                  <div className="mt-2" dangerouslySetInnerHTML={{ __html: selectedAuction.description || "No description available" }} />
+                  <div className="mt-2" dangerouslySetInnerHTML={{ __html: selectedAuction.product?.description || "No description available" }} />
                 </div>
               </div>
 
-              {/* Bid History */}
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Bid History</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bidder</th> */}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(selectedAuction.bids || []).map((bid, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(selectedAuction.bids || []).length - index}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${bid.bidAmount}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bid.bidTime ? format(new Date(bid.bidTime), "PPp") : "N/A"}</td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bid.bidder ? (typeof bid.bidder === 'string' ? bid.bidder : bid.bidder.name) : "Unknown"}</td> */}
+              {/* Bid History - Only for API data */}
+              {selectedAuction.source === 'api' && selectedAuction.bids && (
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Bid History</h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {(selectedAuction.bids || []).map((bid, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(selectedAuction.bids || []).length - index}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${bid.bidAmount}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bid.bidTime ? format(new Date(bid.bidTime), "PPp") : "N/A"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-
-              {/* Bid Logs */}
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Bid Logs</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message/Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bidder</th> */}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(selectedAuction.bidLogs || []).map((log, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(selectedAuction.bidLogs || []).length - index}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {log.msg || `$${log.bidAmount}`}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {log.bidTime ? format(new Date(log.bidTime), "PPp") : "N/A"}
-                          </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.bidder ? (typeof log.bidder === 'string' ? log.bidder : log.bidder.name) : "N/A"}</td> */}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </DialogContent>
