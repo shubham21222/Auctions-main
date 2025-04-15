@@ -216,9 +216,22 @@ const AdminLiveAuctionPage = () => {
           throw new Error(errorData.message || "Failed to update auction status");
         }
 
+        const responseData = await response.json();
+        const nextActiveAuction = responseData.items?.nextActiveAuction;
+
         toast.success("Auction marked as sold and status updated to ENDED");
         setCurrentAuction((prev) => ({ ...prev, status: "ENDED" }));
         await fetchAuctionData();
+
+        // Emit SOLD action with nextActiveAuction
+        if (socket) {
+          socket.emit("auctionMessage", {
+            auctionId,
+            actionType: "SOLD",
+            message: "Auction has ended and sold.",
+            nextActiveAuction: nextActiveAuction || null,
+          });
+        }
       }
     } catch (error) {
       console.error(`Error performing ${actionType}:`, error);

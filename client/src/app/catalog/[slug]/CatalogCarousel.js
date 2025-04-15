@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import Image from "next/image";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
-const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) => {
+const AuctionCard = ({ auction, currentTime, currentAuctionId, onSelectAuction }) => {
   const [currentImage] = useState(0);
   const images = Array.isArray(auction.product?.image) ? auction.product.image : [];
 
   const endDate = auction.endDate ? new Date(auction.endDate) : null;
   const startDate = new Date(auction.startDate);
   const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
-  const isLive = auction.status === "ACTIVE" && startDate <= currentTime;
+  const isLive = auction.status === "ACTIVE" && startDate <= currentTime && auction._id === currentAuctionId;
 
   return (
     <motion.div
@@ -46,8 +43,8 @@ const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) =
           <Badge variant="secondary" className="bg-slate-100 text-slate-800 font-medium">
             {auction.lotNumber}
           </Badge>
-          <Badge className={`${isLive && isFirstActive ? "bg-emerald-600" : "bg-slate-600"} text-white font-medium`}>
-            {isLive && isFirstActive ? "LIVE" : auction.status}
+          <Badge className={`${isLive ? "bg-emerald-600" : "bg-slate-600"} text-white font-medium`}>
+            {isLive ? "LIVE" : isEnded ? "ENDED" : auction.status}
           </Badge>
         </div>
         <h3 className="text-base font-semibold text-slate-900 truncate mb-1">
@@ -66,20 +63,15 @@ const AuctionCard = ({ auction, currentTime, onSelectAuction, isFirstActive }) =
   );
 };
 
-const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }) => {
+const CatalogCarousel = ({ catalogName, auctions, currentTime, currentAuctionId, onSelectAuction }) => {
   const totalItems = auctions.length;
-  const endedAuctions = auctions.filter(auction => {
+  const endedAuctions = auctions.filter((auction) => {
     const endDate = auction.endDate ? new Date(auction.endDate) : null;
     return auction.status === "ENDED" || (endDate && endDate < currentTime);
   }).length;
-  
-  const itemsRemaining = totalItems - endedAuctions;
 
-  // Find the first active auction
-  const firstActiveAuctionId = auctions.find(auction => {
-    const startDate = new Date(auction.startDate);
-    return auction.status === "ACTIVE" && startDate <= currentTime;
-  })?._id;
+  // Reverse progress: show completion percentage
+  const completionPercentage = totalItems > 0 ? (endedAuctions / totalItems) * 100 : 0;
 
   // Return early if no auctions
   if (totalItems === 0) {
@@ -98,11 +90,11 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
       <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
         <div className="text-2xl font-bold text-slate-900 mb-3">{catalogName}</div>
         <div className="flex items-center justify-between text-sm text-slate-600">
-          <span className="font-medium">{itemsRemaining} of {totalItems} Lots Remaining</span>
+          <span className="font-medium">{endedAuctions} of {totalItems} Lots Completed</span>
           <div className="h-2.5 w-32 bg-slate-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-emerald-600 rounded-full transition-all duration-500 ease-out" 
-              style={{ width: `${(itemsRemaining / totalItems) * 100}%` }}
+            <div
+              className="h-full bg-emerald-600 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${completionPercentage}%` }}
             />
           </div>
         </div>
@@ -115,8 +107,8 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, onSelectAuction }
               key={auction._id}
               auction={auction}
               currentTime={currentTime}
+              currentAuctionId={currentAuctionId}
               onSelectAuction={onSelectAuction}
-              isFirstActive={auction._id === firstActiveAuctionId}
             />
           ))}
         </div>
