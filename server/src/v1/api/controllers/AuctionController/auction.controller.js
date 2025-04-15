@@ -1210,10 +1210,65 @@ export const getbulkAuctionById = async (req, res) => {
 
 // Update the auction //
 
+// export const updateAuction = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { product, startingBid, auctionType, endDate, startDate, category, status , shipping_status } = req.body;
+
+//         if (!mongoose.Types.ObjectId.isValid(id)) {
+//             return validation(res, 'Invalid auction ID.');
+//         }
+
+//         const findAuction = await auctionModel.findById(id);
+//         if (!findAuction) {
+//             return notFound(res, 'Auction not found.');
+//         }
+
+//         if (product) {
+//             findAuction.product = product;
+//         }
+
+//         if (startingBid) {
+//             findAuction.startingBid = startingBid;
+//         }
+
+//         if (auctionType) {
+//             findAuction.auctionType = auctionType;
+//         }
+
+//         if (endDate) {
+//             findAuction.endDate = endDate;
+//         }
+
+//         if (startDate) {
+//             findAuction.startDate = startDate;
+//         }
+
+//         if (category) {
+//             findAuction.category = category;
+//         }
+
+//         if (status) {
+//             findAuction.status = status;
+//         }
+
+//         if(shipping_status){
+//             findAuction.shipping_status = shipping_status
+//         }
+
+//         await findAuction.save();
+//         return success(res, 'Auction updated successfully.', findAuction);
+//     } catch (error) {
+//         console.error('Error updating auction:', error);
+//         return unknownError(res, error.message);
+//     }
+// }
+
+
 export const updateAuction = async (req, res) => {
     try {
         const { id } = req.params;
-        const { product, startingBid, auctionType, endDate, startDate, category, status , shipping_status } = req.body;
+        const { product, startingBid, auctionType, endDate, startDate, category, status, shipping_status } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return validation(res, 'Invalid auction ID.');
@@ -1224,45 +1279,60 @@ export const updateAuction = async (req, res) => {
             return notFound(res, 'Auction not found.');
         }
 
-        if (product) {
-            findAuction.product = product;
-        }
+        // Update fields if provided
+        if (product) findAuction.product = product;
+        if (startingBid) findAuction.startingBid = startingBid;
+        if (auctionType) findAuction.auctionType = auctionType;
+        if (endDate) findAuction.endDate = endDate;
+        if (startDate) findAuction.startDate = startDate;
+        if (category) findAuction.category = category;
+        if (shipping_status) findAuction.shipping_status = shipping_status;
 
-        if (startingBid) {
-            findAuction.startingBid = startingBid;
-        }
-
-        if (auctionType) {
-            findAuction.auctionType = auctionType;
-        }
-
-        if (endDate) {
-            findAuction.endDate = endDate;
-        }
-
-        if (startDate) {
-            findAuction.startDate = startDate;
-        }
-
-        if (category) {
-            findAuction.category = category;
-        }
+        let nextActiveAuction = null;
 
         if (status) {
             findAuction.status = status;
-        }
 
-        if(shipping_status){
-            findAuction.shipping_status = shipping_status
+            if (status === 'ENDED') {
+                let currentLot = parseInt(findAuction.lotNumber);
+
+                // Try to find the next ACTIVE auction
+                while (true) {
+                    currentLot++;
+
+                    const potentialAuction = await auctionModel.findOne({
+                        lotNumber: currentLot.toString(),
+                        status: 'ACTIVE'
+                    });
+
+                    if (potentialAuction) {
+                        nextActiveAuction = potentialAuction;
+                        break;
+                    }
+
+                    // Safeguard to avoid infinite loop
+                    const maxLot = await auctionModel.findOne().sort({ lotNumber: -1 });
+                    if (currentLot > parseInt(maxLot?.lotNumber || "0")) break;
+                }
+            }
         }
 
         await findAuction.save();
-        return success(res, 'Auction updated successfully.', findAuction);
+
+        return success(res, 'Auction updated successfully.', {
+            updatedAuction: findAuction,
+            nextActiveAuction: nextActiveAuction ? {
+                _id: nextActiveAuction._id,
+                lotNumber: nextActiveAuction.lotNumber
+            } : null
+        });
+
     } catch (error) {
         console.error('Error updating auction:', error);
         return unknownError(res, error.message);
     }
-}
+};
+
 
 // Delete the auction  with multiple id //
 
