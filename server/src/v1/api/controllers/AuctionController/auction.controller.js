@@ -445,6 +445,7 @@ export const getbulkAuctions = async (req, res) => {
             priceRange,
             auctionType,
             catalog,
+            Date,
             payment_status,
             shipping_status// New catalog query parameter
         } = req.query;
@@ -482,6 +483,11 @@ export const getbulkAuctions = async (req, res) => {
 
         if (shipping_status){
             matchStage.shipping_status = shipping_status
+        }
+
+        if(Date){
+            Date,
+            matchStage.createdAt=Date
         }
 
         // Search by product title, description, or lot number
