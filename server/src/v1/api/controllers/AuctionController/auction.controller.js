@@ -443,6 +443,8 @@ export const getbulkAuctions = async (req, res) => {
             page,
             limit,
             priceRange,
+            minPrice,
+            maxPrice,
             auctionType,
             catalog,
             Date: queryDate,
@@ -506,6 +508,18 @@ export const getbulkAuctions = async (req, res) => {
                 { 'lotNumber': { $regex: searchQuery, $options: 'i' } }
             ];
         }
+
+
+        if (minPrice || maxPrice) {
+            matchStage["currentBid"] = {};
+            if (minPrice) {
+                matchStage["currentBid"].$gte = parseFloat(minPrice);
+            }
+            if (maxPrice) {
+                matchStage["currentBid"].$lte = parseFloat(maxPrice);
+            }
+        }
+        
 
         // Filter by price range
         if (priceRange) {
