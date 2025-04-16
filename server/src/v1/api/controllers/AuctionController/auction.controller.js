@@ -305,19 +305,19 @@ export const getAuctions = async (req, res) => {
                 }
             },
             {
-              $lookup:{
-                from:'users',
-                localField:'winner',
-                foreignField:'_id',
-                as:'winner'
+                $lookup: {
+                    from: 'users',
+                    localField: 'winner',
+                    foreignField: '_id',
+                    as: 'winner'
 
-              }
+                }
             },
             {
-              $unwind:{
-                path:'$winner',
-                preserveNullAndEmptyArrays:true
-              }
+                $unwind: {
+                    path: '$winner',
+                    preserveNullAndEmptyArrays: true
+                }
             },
 
             {
@@ -354,19 +354,19 @@ export const getAuctions = async (req, res) => {
                     },
                     category: { _id: 1, name: 1 },
                     startingBid: 1,
-                    desciption:1,
+                    desciption: 1,
                     currentBid: 1,
                     currentBidder: 1,
-                    payment_status:1,
-                    shipping_status:1,
+                    payment_status: 1,
+                    shipping_status: 1,
                     status: 1,
                     startDate: 1,
                     endDate: 1,
                     createdBy: 1,
-                    winner:{
-                        _id:1,
-                        name:1,
-                        email:1
+                    winner: {
+                        _id: 1,
+                        name: 1,
+                        email: 1
                     },
                     minBidIncrement: 1,  // ✅ Added Minimum Bid Incremen
                     lotNumber: 1,
@@ -417,7 +417,7 @@ export const getAuctions = async (req, res) => {
 
 
         return success(res, 'Auctions retrieved successfully.', {
-           formattedAuctions,
+            formattedAuctions,
             totalAuction: auctions.length,
             page: pageNumber,
             limit: pageSize,
@@ -445,7 +445,7 @@ export const getbulkAuctions = async (req, res) => {
             priceRange,
             auctionType,
             catalog,
-            Date,
+            Date: queryDate,
             payment_status,
             shipping_status// New catalog query parameter
         } = req.query;
@@ -477,18 +477,26 @@ export const getbulkAuctions = async (req, res) => {
             matchStage.catalog = catalog; // Assuming catalog is a string field
         }
 
-        if(payment_status){
+        if (payment_status) {
             matchStage.payment_status = payment_status
         }
 
-        if (shipping_status){
+        if (shipping_status) {
             matchStage.shipping_status = shipping_status
         }
 
-        if(Date){
-            Date,
-            matchStage.createdAt=Date
+        if (queryDate) {
+            const [year, month, day] = queryDate.split("-").map(Number);
+        
+            const selectedDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)); // Start of day UTC
+            const nextDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)); // End of day UTC
+        
+            matchStage.createdAt = {
+                $gte: selectedDate,
+                $lte: nextDate,
+            };
         }
+        
 
         // Search by product title, description, or lot number
         if (searchQuery) {
@@ -524,6 +532,7 @@ export const getbulkAuctions = async (req, res) => {
             sortStage.startDate = -1;
         }
 
+
         // Aggregation pipeline
         const auctions = await auctionModel.aggregate([
             { $match: matchStage }, // Filter auctions
@@ -556,46 +565,46 @@ export const getbulkAuctions = async (req, res) => {
 
             {
                 $lookup: {
-                  from: "users",
-                  let: { bidderIds: "$bidLogs.bidder" },
-                  pipeline: [
-                    {
-                      $match: {
-                        $expr: {
-                          $in: [
-                            "$_id",
-                            {
-                              $map: {
-                                input: {
-                                  $filter: {
-                                    input: { $ifNull: ["$$bidderIds", []] },
-                                    as: "bidderId",
-                                    cond: {
-                                      $and: [
-                                        { $ne: ["$$bidderId", null] },
-                                        { $ne: ["$$bidderId", ""] },
-                                        { $eq: [{ $strLenCP: "$$bidderId" }, 24] }
-                                      ]
-                                    }
-                                  }
-                                },
-                                as: "bidderId",
-                                in: { $toObjectId: "$$bidderId" }
-                              }
+                    from: "users",
+                    let: { bidderIds: "$bidLogs.bidder" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $in: [
+                                        "$_id",
+                                        {
+                                            $map: {
+                                                input: {
+                                                    $filter: {
+                                                        input: { $ifNull: ["$$bidderIds", []] },
+                                                        as: "bidderId",
+                                                        cond: {
+                                                            $and: [
+                                                                { $ne: ["$$bidderId", null] },
+                                                                { $ne: ["$$bidderId", ""] },
+                                                                { $eq: [{ $strLenCP: "$$bidderId" }, 24] }
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                as: "bidderId",
+                                                in: { $toObjectId: "$$bidderId" }
+                                            }
+                                        }
+                                    ]
+                                }
                             }
-                          ]
+                        },
+                        {
+                            $project: { _id: 1, name: 1, email: 1 }
                         }
-                      }
-                    },
-                    {
-                      $project: { _id: 1, name: 1, email: 1 }
-                    }
-                  ],
-                  as: "bidderlogsdetails"
+                    ],
+                    as: "bidderlogsdetails"
                 }
-              },
-              
-              
+            },
+
+
             {
                 $addFields: {
                     bids: {
@@ -669,23 +678,23 @@ export const getbulkAuctions = async (req, res) => {
                     product: {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
-                        desciption:{$ifNull:["$product.description" , ""]},
-                        image:{$ifNull: ["$product.image", ""]},
-                        estimateprice:{$ifNull: ["$product.estimateprice", ""]},
-                        offerAmount:{$ifNull: ["$product.offerAmount", ""]},
-                        sellPrice:{$ifNull: ["$product.sellPrice", ""]},
-                        ReservePrice:{$ifNull: ["$product.ReservePrice", ""]},
-                        skuNumber:{$ifNull: ["$product.skuNumber", ""]},
-                        stock:{$ifNull: ["$product.stock", ""]},
+                        desciption: { $ifNull: ["$product.description", ""] },
+                        image: { $ifNull: ["$product.image", ""] },
+                        estimateprice: { $ifNull: ["$product.estimateprice", ""] },
+                        offerAmount: { $ifNull: ["$product.offerAmount", ""] },
+                        sellPrice: { $ifNull: ["$product.sellPrice", ""] },
+                        ReservePrice: { $ifNull: ["$product.ReservePrice", ""] },
+                        skuNumber: { $ifNull: ["$product.skuNumber", ""] },
+                        stock: { $ifNull: ["$product.stock", ""] },
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
                     startingBid: 1,
-                    description:1,
+                    description: 1,
                     currentBid: 1,
                     currentBidder: 1,
                     payment_status: 1,
-                    shipping_status:1,
+                    shipping_status: 1,
                     status: 1,
                     startDate: 1,
                     endDate: 1,
@@ -715,48 +724,48 @@ export const getbulkAuctions = async (req, res) => {
                     },
                     bidLogs: {
                         $map: {
-                          input: "$bidLogs",
-                          as: "bid",
-                          in: {
-                            $cond: [
-                              { $and: [ { $ne: ["$$bid.msg", null] }, { $ne: ["$$bid.msg", ""] } ] },
-                              {
-                                msg: "$$bid.msg"
-                              },
-                              {
-                                bidAmount: "$$bid.bidAmount",
-                                bidTime: "$$bid.bidTime",
-                                bidder: {
-                                    $arrayElemAt: [
-                                      {
-                                        $filter: {
-                                          input: "$bidderlogsdetails",
-                                          as: "u",
-                                          cond: {
-                                            $eq: [
-                                              "$$u._id",
-                                              {
-                                                $cond: {
-                                                  if: { $and: [{ $ne: ["$$bid.bidder", null] }, { $ne: ["$$bid.bidder", ""] }] },
-                                                  then: { $toObjectId: "$$bid.bidder" },
-                                                  else: null,
+                            input: "$bidLogs",
+                            as: "bid",
+                            in: {
+                                $cond: [
+                                    { $and: [{ $ne: ["$$bid.msg", null] }, { $ne: ["$$bid.msg", ""] }] },
+                                    {
+                                        msg: "$$bid.msg"
+                                    },
+                                    {
+                                        bidAmount: "$$bid.bidAmount",
+                                        bidTime: "$$bid.bidTime",
+                                        bidder: {
+                                            $arrayElemAt: [
+                                                {
+                                                    $filter: {
+                                                        input: "$bidderlogsdetails",
+                                                        as: "u",
+                                                        cond: {
+                                                            $eq: [
+                                                                "$$u._id",
+                                                                {
+                                                                    $cond: {
+                                                                        if: { $and: [{ $ne: ["$$bid.bidder", null] }, { $ne: ["$$bid.bidder", ""] }] },
+                                                                        then: { $toObjectId: "$$bid.bidder" },
+                                                                        else: null,
+                                                                    },
+                                                                },
+                                                            ],
+                                                        },
+                                                    },
                                                 },
-                                              },
+                                                0,
                                             ],
-                                          },
                                         },
-                                      },
-                                      0,
-                                    ],
-                                  },
-                                  
-                                ipAddress: "$$bid.ipAddress"
-                              }
-                            ]
-                          }
+
+                                        ipAddress: "$$bid.ipAddress"
+                                    }
+                                ]
+                            }
                         }
-                      },
-                      
+                    },
+
                     winnerBidTime: 1,
                     auctionType: 1,
                     participants: {
@@ -924,7 +933,7 @@ export const getAuctionById = async (req, res) => {
                     winner: 1,
                     minBidIncrement: 1,
                     lotNumber: 1,
-                    payment_status:1,
+                    payment_status: 1,
                     bids: 1,
                     winnerBidTime: 1,
                     auctionType: 1,
@@ -966,7 +975,7 @@ export const getAuctionById = async (req, res) => {
 export const getbulkAuctionById = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return badRequest(res, 'Invalid auction ID.');
         }
@@ -1019,44 +1028,44 @@ export const getbulkAuctionById = async (req, res) => {
 
             {
                 $lookup: {
-                  from: "users",
-                  let: { bidderIds: "$bidLogs.bidder" },
-                  pipeline: [
-                    {
-                      $match: {
-                        $expr: {
-                          $in: [
-                            "$_id",
-                            {
-                              $map: {
-                                input: {
-                                  $filter: {
-                                    input: { $ifNull: ["$$bidderIds", []] },
-                                    as: "bidderId",
-                                    cond: {
-                                      $and: [
-                                        { $ne: ["$$bidderId", null] },
-                                        { $ne: ["$$bidderId", ""] },
-                                        { $eq: [{ $strLenCP: "$$bidderId" }, 24] }
-                                      ]
-                                    }
-                                  }
-                                },
-                                as: "bidderId",
-                                in: { $toObjectId: "$$bidderId" }
-                              }
+                    from: "users",
+                    let: { bidderIds: "$bidLogs.bidder" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $in: [
+                                        "$_id",
+                                        {
+                                            $map: {
+                                                input: {
+                                                    $filter: {
+                                                        input: { $ifNull: ["$$bidderIds", []] },
+                                                        as: "bidderId",
+                                                        cond: {
+                                                            $and: [
+                                                                { $ne: ["$$bidderId", null] },
+                                                                { $ne: ["$$bidderId", ""] },
+                                                                { $eq: [{ $strLenCP: "$$bidderId" }, 24] }
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                as: "bidderId",
+                                                in: { $toObjectId: "$$bidderId" }
+                                            }
+                                        }
+                                    ]
+                                }
                             }
-                          ]
+                        },
+                        {
+                            $project: { _id: 1, name: 1, email: 1 }
                         }
-                      }
-                    },
-                    {
-                      $project: { _id: 1, name: 1, email: 1 }
-                    }
-                  ],
-                  as: "bidderlogsdetails"
+                    ],
+                    as: "bidderlogsdetails"
                 }
-              },
+            },
 
             {
                 $addFields: {
@@ -1114,17 +1123,17 @@ export const getbulkAuctionById = async (req, res) => {
                         title: { $ifNull: ["$product.title", ""] },
                         price: { $ifNull: ["$product.price", ""] },
                         description: { $ifNull: ["$product.description", ""] },
-                        image:{$ifNull: ["$product.image", ""]},
-                        estimateprice:{$ifNull: ["$product.estimateprice", ""]},
-                        offerAmount:{$ifNull: ["$product.offerAmount", ""]},
-                        sellPrice:{$ifNull: ["$product.sellPrice", ""]},
-                        ReservePrice:{$ifNull: ["$product.ReservePrice", ""]},
-                        skuNumber:{$ifNull: ["$product.skuNumber", ""]},
-                        stock:{$ifNull: ["$product.stock", ""]},
+                        image: { $ifNull: ["$product.image", ""] },
+                        estimateprice: { $ifNull: ["$product.estimateprice", ""] },
+                        offerAmount: { $ifNull: ["$product.offerAmount", ""] },
+                        sellPrice: { $ifNull: ["$product.sellPrice", ""] },
+                        ReservePrice: { $ifNull: ["$product.ReservePrice", ""] },
+                        skuNumber: { $ifNull: ["$product.skuNumber", ""] },
+                        stock: { $ifNull: ["$product.stock", ""] },
                         _id: { $ifNull: ["$product._id", ""] }
                     },
                     category: { _id: 1, name: 1 },
-                    description:1,
+                    description: 1,
                     startingBid: 1,
                     currentBid: 1,
                     currentBidder: 1,
@@ -1143,47 +1152,47 @@ export const getbulkAuctionById = async (req, res) => {
                     bids: 1,
                     bidLogs: {
                         $map: {
-                          input: "$bidLogs",
-                          as: "bid",
-                          in: {
-                            $cond: [
-                              { $and: [ { $ne: ["$$bid.msg", null] }, { $ne: ["$$bid.msg", ""] } ] },
-                              {
-                                msg: "$$bid.msg"
-                              },
-                              {
-                                bidAmount: "$$bid.bidAmount",
-                                bidTime: "$$bid.bidTime",
-                                bidder: {
-                                    $arrayElemAt: [
-                                      {
-                                        $filter: {
-                                          input: "$bidderlogsdetails",
-                                          as: "u",
-                                          cond: {
-                                            $eq: [
-                                              "$$u._id",
-                                              {
-                                                $cond: {
-                                                  if: { $and: [{ $ne: ["$$bid.bidder", null] }, { $ne: ["$$bid.bidder", ""] }] },
-                                                  then: { $toObjectId: "$$bid.bidder" },
-                                                  else: null,
+                            input: "$bidLogs",
+                            as: "bid",
+                            in: {
+                                $cond: [
+                                    { $and: [{ $ne: ["$$bid.msg", null] }, { $ne: ["$$bid.msg", ""] }] },
+                                    {
+                                        msg: "$$bid.msg"
+                                    },
+                                    {
+                                        bidAmount: "$$bid.bidAmount",
+                                        bidTime: "$$bid.bidTime",
+                                        bidder: {
+                                            $arrayElemAt: [
+                                                {
+                                                    $filter: {
+                                                        input: "$bidderlogsdetails",
+                                                        as: "u",
+                                                        cond: {
+                                                            $eq: [
+                                                                "$$u._id",
+                                                                {
+                                                                    $cond: {
+                                                                        if: { $and: [{ $ne: ["$$bid.bidder", null] }, { $ne: ["$$bid.bidder", ""] }] },
+                                                                        then: { $toObjectId: "$$bid.bidder" },
+                                                                        else: null,
+                                                                    },
+                                                                },
+                                                            ],
+                                                        },
+                                                    },
                                                 },
-                                              },
+                                                0,
                                             ],
-                                          },
                                         },
-                                      },
-                                      0,
-                                    ],
-                                  },
-                                  
-                                ipAddress: "$$bid.ipAddress"
-                              }
-                            ]
-                          }
+
+                                        ipAddress: "$$bid.ipAddress"
+                                    }
+                                ]
+                            }
                         }
-                      },
+                    },
                     winnerBidTime: 1,
                     auctionType: 1,
                     participants: {
@@ -1670,25 +1679,25 @@ export const placeBid = async (req, res) => {
         }
 
 
-          // ✅ Fetch bid increment rule based on current price
+        // ✅ Fetch bid increment rule based on current price
 
-       // ✅ Fetch bid increment rule based on the current bid price
-       const bidRule = await bidIncrementModel
-       .findOne({ price: { $lte: findAuction.currentBid } })
-       .sort({ price: -1 });
+        // ✅ Fetch bid increment rule based on the current bid price
+        const bidRule = await bidIncrementModel
+            .findOne({ price: { $lte: findAuction.currentBid } })
+            .sort({ price: -1 });
 
-    //    console.log("Bid Rule:", bidRule);
+        //    console.log("Bid Rule:", bidRule);
 
-   if (!bidRule) {
-       return badRequest(res, "Bid increment rule not found.");
-   }
+        if (!bidRule) {
+            return badRequest(res, "Bid increment rule not found.");
+        }
 
-   const requiredBid = findAuction.currentBid + bidRule.increment;
+        const requiredBid = findAuction.currentBid + bidRule.increment;
 
-   // Ensure bid is at least the minimum required bid
-   if (bidAmount < requiredBid) {
-       return badRequest(res, `Your bid must be at least $${requiredBid}.`);
-   }
+        // Ensure bid is at least the minimum required bid
+        if (bidAmount < requiredBid) {
+            return badRequest(res, `Your bid must be at least $${requiredBid}.`);
+        }
 
 
         // Update auction with new bid
@@ -1734,10 +1743,10 @@ export const getAuctionDetails = async (req, res) => {
             },
 
             {
-                  $unwind: {
+                $unwind: {
                     path: "$participantsDetails",
                     preserveNullAndEmptyArrays: true
-                  }
+                }
             },
 
             // Fetch Product Details
@@ -1806,16 +1815,16 @@ export const getAuctionDetails = async (req, res) => {
                     status: { $first: "$status" },
                     auctionType: { $first: "$auctionType" },
                     startDate: { $first: "$startDate" },
-                    payment_status:{ $first: "$payment_status" },
+                    payment_status: { $first: "$payment_status" },
                     endDate: { $first: "$endDate" },
-                    participants:{
-                        $push:{
-                            _id:"$participantsDetails._id",
-                            name:"$participantsDetails.name",
-                            email:"$participantsDetails.email"
+                    participants: {
+                        $push: {
+                            _id: "$participantsDetails._id",
+                            name: "$participantsDetails.name",
+                            email: "$participantsDetails.email"
                         }
                     },
-                    winner: { 
+                    winner: {
                         $first: {
                             _id: "$winnerDetails._id",
                             name: "$winnerDetails.name",
@@ -1909,7 +1918,7 @@ export const getUserAuctions = async (req, res) => {
             },
             { $unwind: { path: "$winnerDetails", preserveNullAndEmptyArrays: true } },
 
-    
+
             {
                 $project: {
                     product: {
@@ -1925,7 +1934,7 @@ export const getUserAuctions = async (req, res) => {
                     endDate: 1,
                     lotNumber: 1,
                     auctionType: 1,
-                    payment_status:1,
+                    payment_status: 1,
                     currentBidder: {
                         _id: 1,
                         name: 1,
@@ -2057,37 +2066,37 @@ export const getDashboardStats = async (req, res) => {
         const activeAuctions = await auctionModel.countDocuments({ status: "ACTIVE" });
 
         // --- Total Sales (Only Orders) ---
-    // Total Sales - Orders
-const totalOrderSalesData = await OrderModel.aggregate([
-    { $match: { paymentStatus: "SUCCEEDED" } },
-    {
-        $group: {
-            _id: null,
-            count: { $sum: 1 },
-            amount: { $sum: "$totalAmount" }
-        }
-    }
-]);
-const orderSalesCount = totalOrderSalesData[0]?.count || 0;
-const orderSalesAmount = totalOrderSalesData[0]?.amount || 0;
+        // Total Sales - Orders
+        const totalOrderSalesData = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED" } },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    amount: { $sum: "$totalAmount" }
+                }
+            }
+        ]);
+        const orderSalesCount = totalOrderSalesData[0]?.count || 0;
+        const orderSalesAmount = totalOrderSalesData[0]?.amount || 0;
 
-// Total Sales - Auctions
-const totalAuctionSalesData = await auctionModel.aggregate([
-    { $match: { payment_status: "PAID" } },
-    {
-        $group: {
-            _id: null,
-            count: { $sum: 1 },
-            amount: { $sum: "$currentBid" }
-        }
-    }
-]);
-const auctionSalesCount = totalAuctionSalesData[0]?.count || 0;
-const auctionSalesAmount = totalAuctionSalesData[0]?.amount || 0;
+        // Total Sales - Auctions
+        const totalAuctionSalesData = await auctionModel.aggregate([
+            { $match: { payment_status: "PAID" } },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    amount: { $sum: "$currentBid" }
+                }
+            }
+        ]);
+        const auctionSalesCount = totalAuctionSalesData[0]?.count || 0;
+        const auctionSalesAmount = totalAuctionSalesData[0]?.amount || 0;
 
-// Final Total Sales (Orders + Auctions)
-const totalSalesCount = orderSalesCount + auctionSalesCount;
-const totalSalesAmount = orderSalesAmount + auctionSalesAmount;
+        // Final Total Sales (Orders + Auctions)
+        const totalSalesCount = orderSalesCount + auctionSalesCount;
+        const totalSalesAmount = orderSalesAmount + auctionSalesAmount;
 
         // --- Last Month Sales (Only Orders) ---
         const lastMonthSalesData = await OrderModel.aggregate([
@@ -2111,40 +2120,40 @@ const totalSalesAmount = orderSalesAmount + auctionSalesAmount;
         const salesChange = lastMonthSalesCount ? ((totalSalesCount - lastMonthSalesCount) / lastMonthSalesCount) * 100 : 0;
 
         // --- Monthly Sales (Jan-Dec for Orders) ---
-     // --- Monthly Sales (Orders) ---
-const orderMonthlySales = await OrderModel.aggregate([
-    { $match: { paymentStatus: "SUCCEEDED" } },
-    {
-        $group: {
-            _id: { $month: "$createdAt" },
-            orderSales: { $sum: "$totalAmount" }
-        }
-    },
-    { $sort: { "_id": 1 } }
-]);
+        // --- Monthly Sales (Orders) ---
+        const orderMonthlySales = await OrderModel.aggregate([
+            { $match: { paymentStatus: "SUCCEEDED" } },
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    orderSales: { $sum: "$totalAmount" }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
 
-// --- Monthly Sales (Auctions) ---
-const auctionMonthlySales = await auctionModel.aggregate([
-    { $match: { payment_status: "PAID" } },
-    {
-        $group: {
-            _id: { $month: "$createdAt" },
-            auctionSales: { $sum: "$currentBid" }
-        }
-    },
-    { $sort: { "_id": 1 } }
-]);
+        // --- Monthly Sales (Auctions) ---
+        const auctionMonthlySales = await auctionModel.aggregate([
+            { $match: { payment_status: "PAID" } },
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    auctionSales: { $sum: "$currentBid" }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
 
-// --- Combine Both into One Monthly Sales Array ---
-const monthlySalesData = Array.from({ length: 12 }, (_, i) => {
-    const order = orderMonthlySales.find((s) => s._id === i + 1)?.orderSales || 0;
-    const auction = auctionMonthlySales.find((s) => s._id === i + 1)?.auctionSales || 0;
-    return {
-        month: i + 1,
-        orderSales: order + auction,
-        totalSales: order + auction
-    };
-});
+        // --- Combine Both into One Monthly Sales Array ---
+        const monthlySalesData = Array.from({ length: 12 }, (_, i) => {
+            const order = orderMonthlySales.find((s) => s._id === i + 1)?.orderSales || 0;
+            const auction = auctionMonthlySales.find((s) => s._id === i + 1)?.auctionSales || 0;
+            return {
+                month: i + 1,
+                orderSales: order + auction,
+                totalSales: order + auction
+            };
+        });
 
 
         // --- Weekly Visitors (Users Registered) ---
@@ -2231,11 +2240,11 @@ export const setBidIncrement = async (req, res) => {
 
 
 export const getBidIncrement = async (req, res) => {
-    try{
+    try {
         const increments = await bidIncrementModel.find().sort({ price: 1 });
-        return success(res , "Bid increments retrieved successfully" , increments)
-    }catch(error){
-        return unknownError(res , error)
+        return success(res, "Bid increments retrieved successfully", increments)
+    } catch (error) {
+        return unknownError(res, error)
     }
 }
 
@@ -2312,17 +2321,17 @@ export const stripeWebhookHandler = async (req, res) => {
 
 export const createBulkAuction = async (req, res) => {
     try {
-        const { products, auctionType,  status, category , desciptions , stateDate ,  endDate } = req.body;
+        const { products, auctionType, status, category, desciptions, stateDate, endDate } = req.body;
 
 
         if (!Array.isArray(products) || products.length === 0) {
             return badRequest(res, "Please provide an array of products.");
         }
-        if ( !category) {
+        if (!category) {
             return badRequest(res, "Missing catalog fields.");
         }
 
-        if(!stateDate){
+        if (!stateDate) {
             return badRequest(res, "Missing startDate fields.");
         }
 
@@ -2349,7 +2358,7 @@ export const createBulkAuction = async (req, res) => {
                     onlinePrice: productData.onlinePrice || 0,
                     sellPrice: productData.sellPrice || 0,
                     startDate: stateDate,
-                    endDate:endDate,
+                    endDate: endDate,
                     ReservePrice: productData.ReservePrice || 0,
                     category: categoryExists._id, // ✅ Assign category ID
                     image: productData.image || [],
@@ -2374,14 +2383,14 @@ export const createBulkAuction = async (req, res) => {
                 startingBid: product.sellPrice,
                 currentBid: product.sellPrice,
                 auctionType: product.auctionType,
-                startDate:stateDate,
-                endDate:endDate,
+                startDate: stateDate,
+                endDate: endDate,
                 lotNumber: product.lotNumber,
-                description:desciptions ,
+                description: desciptions,
                 createdBy: req.user._id,
                 status: status || "ACTIVE",
-                catalog:category || "",
-                description:desciptions || "No description",
+                catalog: category || "",
+                description: desciptions || "No description",
             });
         }));
 
@@ -2396,17 +2405,17 @@ export const createBulkAuction = async (req, res) => {
 };
 
 
- export const winner = async (req, res) => {
-    try{
+export const winner = async (req, res) => {
+    try {
 
-    }catch(error){
+    } catch (error) {
 
     }
- }
+}
 
 
 
- export const getWinners = async (req, res) => {
+export const getWinners = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 100;
