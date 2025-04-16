@@ -10,7 +10,9 @@ import config from "@/app/config_BASE_URL";
 
 export function AuctionFilters({ onFilterChange }) {
   const [date, setDate] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 100000]);
+  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(5000);
   const [auctionTypes, setAuctionTypes] = useState({
     "Live Auction": false,
     "Timed Auction": false,
@@ -27,7 +29,7 @@ export function AuctionFilters({ onFilterChange }) {
   useEffect(() => {
     async function fetchCatalogs() {
       try {
-        const response = await fetch(`${config.baseURL}/v1/api/auction/bulk`);
+        const response = await fetch(`${config.baseURL}/v1/api/auction/bulk?page=1&minPrice=${minPrice}&maxPrice=${maxPrice}`);
         if (!response.ok) throw new Error("Failed to fetch catalogs");
         const data = await response.json();
         const catalogNames = data.items?.catalogs?.map((catalog) => catalog.catalogName) || [];
@@ -42,7 +44,63 @@ export function AuctionFilters({ onFilterChange }) {
       }
     }
     fetchCatalogs();
-  }, []);
+  }, [minPrice, maxPrice]);
+
+  // Add effect to sync price inputs with slider
+  useEffect(() => {
+    setPriceRange([minPrice, maxPrice]);
+  }, [minPrice, maxPrice]);
+
+  // Add handler for price input changes
+  const handlePriceInputChange = (type, value) => {
+    const numValue = Number(value);
+    if (isNaN(numValue)) return;
+
+    if (type === 'min') {
+      if (numValue <= maxPrice) {
+        setMinPrice(numValue);
+        onFilterChange({
+          page: 1,
+          minPrice: numValue,
+          maxPrice: maxPrice,
+          category: Object.entries(catalogs).filter(([_, checked]) => checked).map(([catalog]) => catalog).join(",") || "",
+          searchQuery: searchQuery.trim(),
+          auctionType: Object.entries(auctionTypes).filter(([_, checked]) => checked).map(([type]) => auctionTypeMap[type]).join(",") || "",
+          status: Object.entries(status).filter(([_, checked]) => checked).map(([status]) => status.toUpperCase()).join(",") || "ACTIVE",
+          date: date ? new Date(date).toISOString().split('T')[0] : null,
+        });
+      }
+    } else {
+      if (numValue >= minPrice) {
+        setMaxPrice(numValue);
+        onFilterChange({
+          page: 1,
+          minPrice: minPrice,
+          maxPrice: numValue,
+          category: Object.entries(catalogs).filter(([_, checked]) => checked).map(([catalog]) => catalog).join(",") || "",
+          searchQuery: searchQuery.trim(),
+          auctionType: Object.entries(auctionTypes).filter(([_, checked]) => checked).map(([type]) => auctionTypeMap[type]).join(",") || "",
+          status: Object.entries(status).filter(([_, checked]) => checked).map(([status]) => status.toUpperCase()).join(",") || "ACTIVE",
+          date: date ? new Date(date).toISOString().split('T')[0] : null,
+        });
+      }
+    }
+  };
+
+  const handleSliderChange = (value) => {
+    setMinPrice(value[0]);
+    setMaxPrice(value[1]);
+    onFilterChange({
+      page: 1,
+      minPrice: value[0],
+      maxPrice: value[1],
+      category: Object.entries(catalogs).filter(([_, checked]) => checked).map(([catalog]) => catalog).join(",") || "",
+      searchQuery: searchQuery.trim(),
+      auctionType: Object.entries(auctionTypes).filter(([_, checked]) => checked).map(([type]) => auctionTypeMap[type]).join(",") || "",
+      status: Object.entries(status).filter(([_, checked]) => checked).map(([status]) => status.toUpperCase()).join(",") || "ACTIVE",
+      date: date ? new Date(date).toISOString().split('T')[0] : null,
+    });
+  };
 
   const auctionTypeMap = {
     "Live Auction": "LIVE",
@@ -50,26 +108,15 @@ export function AuctionFilters({ onFilterChange }) {
   };
 
   const applyFilters = () => {
-    const selectedCatalogs = Object.entries(catalogs)
-      .filter(([_, checked]) => checked)
-      .map(([catalog]) => catalog)
-      .join(",");
-    const selectedAuctionType = Object.entries(auctionTypes)
-      .filter(([_, checked]) => checked)
-      .map(([type]) => auctionTypeMap[type])
-      .join(",");
-    const selectedStatus = Object.entries(status)
-      .filter(([_, checked]) => checked)
-      .map(([status]) => status.toUpperCase())
-      .join(",");
-
     onFilterChange({
-      category: selectedCatalogs || "", // Map to 'category' which will be used as 'catalog' in the API
-      priceRange: priceRange,
+      page: 1,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      category: Object.entries(catalogs).filter(([_, checked]) => checked).map(([catalog]) => catalog).join(",") || "",
       searchQuery: searchQuery.trim(),
-      auctionType: selectedAuctionType || "",
-      status: selectedStatus || "ACTIVE",
-      date: date ? new Date(date) : null,
+      auctionType: Object.entries(auctionTypes).filter(([_, checked]) => checked).map(([type]) => auctionTypeMap[type]).join(",") || "",
+      status: Object.entries(status).filter(([_, checked]) => checked).map(([status]) => status.toUpperCase()).join(",") || "ACTIVE",
+      date: date ? new Date(date).toISOString().split('T')[0] : null,
     });
   };
 
@@ -93,7 +140,9 @@ export function AuctionFilters({ onFilterChange }) {
 
   const handleResetFilters = () => {
     setDate("");
-    setPriceRange([0, 100000]);
+    setMinPrice(0);
+    setMaxPrice(5000);
+    setPriceRange([0, 5000]);
     setAuctionTypes({ "Live Auction": false, "Timed Auction": false });
     setCatalogs((prev) =>
       Object.keys(prev).reduce((acc, key) => {
@@ -104,8 +153,10 @@ export function AuctionFilters({ onFilterChange }) {
     setStatus({ Active: true, Ended: false });
     setSearchQuery("");
     onFilterChange({
+      page: 1,
+      minPrice: 0,
+      maxPrice: 5000,
       category: "",
-      priceRange: [0, 100000],
       searchQuery: "",
       auctionType: "",
       status: "ACTIVE",
@@ -140,16 +191,41 @@ export function AuctionFilters({ onFilterChange }) {
         <h3 className="text-sm font-medium text-luxury-charcoal">Price Range</h3>
         <div className="px-2">
           <Slider
-            value={priceRange}
-            onValueChange={setPriceRange}
-            max={100000}
-            step={1000}
+            value={[minPrice, maxPrice]}
+            onValueChange={handleSliderChange}
+            max={5000}
+            step={100}
             className="[&_[role=slider]]:border-luxury-gold bg-luxury-gold/20 [&_[role=slider]]:bg-luxury-gold"
           />
-          <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-            <span>${priceRange[0].toLocaleString()}</span>
-            <span>${priceRange[1].toLocaleString()}</span>
+          <div className="mt-4 flex items-center gap-4">
+            <div className="flex-1">
+              <Label htmlFor="min-price" className="text-sm text-muted-foreground">Min Price</Label>
+              <input
+                type="number"
+                id="min-price"
+                value={minPrice}
+                onChange={(e) => handlePriceInputChange('min', e.target.value)}
+                className="w-full border border-luxury-gold/20 p-2 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40 transition-all bg-white/50 backdrop-blur-sm"
+                min={0}
+                max={maxPrice}
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="max-price" className="text-sm text-muted-foreground">Max Price</Label>
+              <input
+                type="number"
+                id="max-price"
+                value={maxPrice}
+                onChange={(e) => handlePriceInputChange('max', e.target.value)}
+                className="w-full border border-luxury-gold/20 p-2 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold/40 hover:border-luxury-gold/40 transition-all bg-white/50 backdrop-blur-sm"
+                min={minPrice}
+                max={5000}
+              />
+            </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Note: Price filter shows items between the selected minimum and maximum prices
+          </p>
         </div>
       </div>
 

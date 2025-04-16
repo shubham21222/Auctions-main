@@ -79,7 +79,6 @@ export default function CatalogPage() {
 
       setLoading(true);
       try {
-        // Fetch auction data
         const response = await fetch(`${config.baseURL}/v1/api/auction/bulkgetbyId/${auctionId}`, {
           method: "GET",
           headers: { Authorization: `${token}` },
@@ -95,7 +94,7 @@ export default function CatalogPage() {
           bids: Array.isArray(auctionData.items.bids) ? auctionData.items.bids : [],
         };
 
-        console.log("Catalog: Fetched Auction Data:", auctionResult);
+        console.log("Catalog: Fetched Auction Data for ID:", auctionId, auctionResult);
 
         setAuction(auctionResult);
         setHeaderData({
@@ -129,7 +128,6 @@ export default function CatalogPage() {
             : [...prev, { ...auctionResult, id: auctionId }];
         });
 
-        // Fetch all auctions for the carousel
         const allAuctionsResponse = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
           method: "GET",
           headers: { Authorization: `${token}` },
@@ -193,37 +191,39 @@ export default function CatalogPage() {
         }
       },
       onAuctionMessage: ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType, nextActiveAuction }) => {
-        console.log("Catalog: Received auctionMessage:", { msgAuctionId, message, actionType, nextActiveAuction });
+        console.log("Catalog: Received auctionMessage:", { msgAuctionId, actionType, message, nextActiveAuction });
         if (msgAuctionId === auctionId) {
           const newMessage = {
             message: message || actionType || "Update",
             actionType,
             sender:
               typeof sender === "object"
-                ? sender.name || (isClerk ? "Clerk" : "Admin")
-                : sender || (isClerk ? "Clerk" : "Admin"),
+                ? sender.name || "Admin"
+                : "Admin",
             timestamp: timestamp || new Date(),
-            bidType: bidType || "message",
+            bidType: bidType || (message ? "message" : actionType),
           };
+
           setAuction((prev) => ({
             ...prev,
             messages: [...(prev?.messages || []), newMessage],
           }));
-          toast.info(`Auction update: ${message || actionType}`);
 
-          // Handle SOLD action for navigation
-          if (actionType === "SOLD" && nextActiveAuction?._id && nextActiveAuction._id !== auctionId) {
-            console.log("Catalog: SOLD detected, navigating to:", nextActiveAuction._id);
+          // Update nextActiveAuction in allAuctions
+          if (nextActiveAuction) {
             setAllAuctions((prev) =>
-              prev.map((a) =>
-                a._id === msgAuctionId
-                  ? { ...a, status: "ENDED" }
-                  : a._id === nextActiveAuction._id
-                  ? { ...a, status: "ACTIVE" }
-                  : a
+              prev.map((auction) =>
+                auction._id === nextActiveAuction._id
+                  ? { ...auction, nextActiveAuction }
+                  : auction
               )
             );
-            router.push(`/catalog/${nextActiveAuction._id}`);
+          }
+
+          if (actionType === "SOLD") {
+            toast.success("Auction has ended and sold!");
+          } else if (message) {
+            toast.info(message);
           }
         }
       },
@@ -253,8 +253,11 @@ export default function CatalogPage() {
       },
     });
 
-    return () => unsubscribe();
-  }, [auctionId, socket, joinAuction, subscribeToEvents, isClerk, router]);
+    return () => {
+      console.log(`Catalog: Unsubscribing from auction ${auctionId}`);
+      unsubscribe();
+    };
+  }, [auctionId, socket, joinAuction, subscribeToEvents, isClerk, router, fetchAuctionData]);
 
   useEffect(() => {
     const liveAuction = liveAuctions.find((a) => a.id === auctionId);

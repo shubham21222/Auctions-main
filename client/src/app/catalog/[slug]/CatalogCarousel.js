@@ -12,7 +12,8 @@ const AuctionCard = ({ auction, currentTime, currentAuctionId, onSelectAuction }
   const endDate = auction.endDate ? new Date(auction.endDate) : null;
   const startDate = new Date(auction.startDate);
   const isEnded = auction.status === "ENDED" || (endDate && endDate < currentTime);
-  const isLive = auction.status === "ACTIVE" && startDate <= currentTime && auction._id === currentAuctionId;
+  const isLive = auction.status === "ACTIVE" && startDate <= currentTime && 
+    (auction._id === currentAuctionId || auction._id === auction.nextActiveAuction?._id);
 
   return (
     <motion.div

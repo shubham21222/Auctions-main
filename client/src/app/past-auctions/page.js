@@ -340,12 +340,11 @@ export default function PastAuctions() {
                   <p><strong className="text-gray-900">Lot Number:</strong> {selectedAuction.lotNumber}</p>
                   {selectedAuction.source === 'api' && (
                     <>
-                      <p><strong className="text-gray-900">Starting Bid:</strong> ${selectedAuction.startingBid}</p>
-                      <p><strong className="text-gray-900">Current Bid:</strong> ${selectedAuction.currentBid}</p>
-                      <p><strong className="text-gray-900">Reserve Price:</strong> ${selectedAuction.product?.ReservePrice || 0}</p>
+                      <p><strong className="text-gray-900">Starting Bid:</strong> ${Number(selectedAuction.startingBid).toFixed(2)}</p>
+                      <p><strong className="text-gray-900">Current Bid:</strong> ${Number(selectedAuction.currentBid).toFixed(2)}</p>
                     </>
                   )}
-                  <p><strong className="text-gray-900">Estimate Price:</strong> {selectedAuction.product?.estimateprice || "N/A"}</p>
+                  <p><strong className="text-gray-900">Estimate Price:</strong> ${Number(selectedAuction.product?.estimateprice || 0).toFixed(2)}</p>
                   {selectedAuction.source === 'api' && (
                     <p><strong className="text-gray-900">Winner:</strong> {selectedAuction.winner ? (typeof selectedAuction.winner === 'string' ? selectedAuction.winner : selectedAuction.winner.name) : "No winner"}</p>
                   )}
@@ -377,7 +376,7 @@ export default function PastAuctions() {
                         {(selectedAuction.bids || []).map((bid, index) => (
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(selectedAuction.bids || []).length - index}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${bid.bidAmount}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${Number(bid.bidAmount).toFixed(2)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bid.bidTime ? format(new Date(bid.bidTime), "PPp") : "N/A"}</td>
                           </tr>
                         ))}

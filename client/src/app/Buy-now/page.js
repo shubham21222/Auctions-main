@@ -61,15 +61,18 @@ export default function Home() {
         }
         
         if (selectedStatus) {
-          params.append("status", selectedStatus); // Keep the original format with space
+          params.append("status", selectedStatus);
         }
         
         if (selectedPriceRange) {
           params.append("sortByPrice", selectedPriceRange);
         }
         
-        params.append("sortField", selectedSortField);
-        params.append("sortOrder", selectedSortOrder);
+        // Only add sort parameters if they are different from defaults
+        if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
+          params.append("sortField", selectedSortField);
+          params.append("sortOrder", selectedSortOrder);
+        }
         
         if (searchQuery) {
           params.append("searchQuery", searchQuery);

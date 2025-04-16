@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
@@ -8,7 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
-import { registerUser, updatePaymentMethod } from "@/redux/authSlice";
+import { registerUser, updatePaymentMethod, verifyEmail } from "@/redux/authSlice";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
@@ -60,7 +60,7 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email, dispatch }) => {
         `${config.baseURL}/v1/api/auth/add-card`,
         { 
           paymentMethodId: paymentMethod.id,
-          BillingDetails: {  // Changed to capital "B"
+          BillingDetails: {
             ...billingDetails,
             name: cardholderName,
             email: email
@@ -155,6 +155,14 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   });
   const dispatch = useDispatch();
   const reduxToken = useSelector((state) => state.auth.token);
+  const isEmailVerified = useSelector((state) => state.auth.isEmailVerified);
+
+  useEffect(() => {
+    if (isEmailVerified && step === 5) {
+      toast.success("Email already verified!");
+      onClose();
+    }
+  }, [isEmailVerified, step, onClose]);
 
   if (!isOpen) return null;
 
@@ -170,7 +178,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const passwordStrength = getPasswordStrength(password);
 
   const getProgress = () => {
-    return (step / 4) * 100;
+    return (step / 5) * 100; // Updated to 5 steps
   };
 
   const handleSubmit = async (skipBilling = false) => {
@@ -184,7 +192,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
       };
 
       if (!skipBilling) {
-        userData.BillingDetails = billingDetails; // Changed to capital "B"
+        userData.BillingDetails = billingDetails;
       }
 
       console.log("Registration payload:", JSON.stringify(userData, null, 2));
@@ -194,7 +202,9 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
       console.log("Registration response:", result);
 
       setLocalToken(result.token);
-      toast.success("Registration successful! Please add a payment method.");
+      toast.success("Registration successful! Please check your email to verify your account.", {
+        duration: 5000,
+      });
       setStep(4);
     } catch (err) {
       console.error("Registration error:", err);
@@ -218,13 +228,40 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   };
 
   const handlePaymentSuccess = () => {
-    toast.success("Sign up completed successfully!");
-    onClose();
+    toast.success("Payment method added successfully!");
+    setStep(5); // Move to email verification step
+  };
+
+  const handleVerifyEmail = async () => {
+    try {
+      const result = await dispatch(verifyEmail(token || reduxToken)).unwrap();
+      toast.success("Email verified successfully!");
+      dispatch(setEmailVerified(true));
+      onClose();
+    } catch (err) {
+      toast.error(err || "Failed to verify email. Please try again.");
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      const response = await axios.post(
+        `${config.baseURL}/auth/send-verification-mail`,
+        { email: email }
+      );
+      if (response.data.status) {
+        toast.success("Verification email resent successfully!");
+      } else {
+        toast.error(response.data.error || "Failed to resend verification email");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to resend verification email");
+    }
   };
 
   return (
-    <> 
-      {/* <Toaster position="top-right" reverseOrder={false} /> */}
+    <>
+      <Toaster position="top-right" reverseOrder={false} />
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -271,7 +308,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
               </p>
 
               <div className="flex justify-between mt-8 mb-6">
-                {[1, 2, 3, 4].map((num) => (
+                {[1, 2, 3, 4, 5].map((num) => (
                   <div
                     key={num}
                     className={`flex items-center ${step >= num ? "text-blue-600" : "text-gray-400"}`}
@@ -331,7 +368,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                         id="terms"
                         className="checkbox checkbox-primary mr-3"
                         checked={acceptedTerms}
-                        onChange={(e) => setAcceptedTerms(!acceptedTerms)}
+                        onChange={() => setAcceptedTerms(!acceptedTerms)}
                       />
                       <label htmlFor="terms" className="label-text text-sm text-gray-700">
                         I accept the{" "}
@@ -604,8 +641,44 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       <button className="btn btn-secondary" onClick={() => setStep(3)}>
                         Previous
                       </button>
-                      <button className="btn btn-outline" onClick={onClose}>
+                      <button className="btn btn-outline" onClick={() => setStep(5)}>
                         Skip Payment
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 5 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="mt-8"
+                >
+                  <div className="space-y-6">
+                    <p className="text-sm text-center text-gray-600">
+                      A verification email has been sent to <strong>{email}</strong>. Please check your inbox (and spam/junk folder) to verify your email address.
+                    </p>
+                    <div className="flex justify-center gap-4">
+                      {/* <button
+                        className="btn btn-primary"
+                        onClick={handleVerifyEmail}
+                        disabled={loading || isEmailVerified}
+                      >
+                        {loading ? "Verifying..." : isEmailVerified ? "Email Verified" : "Verify Email"}
+                      </button> */}
+                      <button
+                        className="btn btn-outline"
+                        onClick={handleResendVerification}
+                        disabled={loading}
+                      >
+                        Resend Verification Email
+                      </button>
+                    </div>
+                    <div className="flex justify-center mt-8">
+                      <button className="btn btn-secondary" onClick={() => setStep(4)}>
+                        Previous
                       </button>
                     </div>
                   </div>

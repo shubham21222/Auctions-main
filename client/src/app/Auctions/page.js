@@ -48,15 +48,18 @@ export default function AuctionCalendar() {
     try {
       const headers = token ? { Authorization: `${token}` } : {};
       const queryParams = new URLSearchParams({
+        page: currentPage,
         ...(filters.category && { catalog: filters.category }),
-        ...(filters.priceRange[1] !== 100000 && { maxPrice: filters.priceRange[1] }),
+        ...(filters.minPrice && { minPrice: filters.minPrice }),
+        ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
         ...(filters.searchQuery && { searchQuery: filters.searchQuery }),
         ...(filters.auctionType && { auctionType: filters.auctionType }),
         ...(filters.status && { status: filters.status }),
-        ...(filters.date && { startDate: filters.date }), // Add startDate to query if date is selected
+        ...(filters.date && { Date: filters.date }),
       }).toString();
 
       const url = `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
+      console.log("API URL:", url); // Add this for debugging
       const auctionsResponse = await fetch(url, {
         method: "GET",
         headers,
