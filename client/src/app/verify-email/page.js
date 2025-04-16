@@ -78,7 +78,7 @@ export default function VerifyEmail() {
               <div className="text-center">
                 <p className="text-red-500 mb-4">{error}</p>
                 <button
-                  onClick={() => router.push("/login")} // Changed to /login for consistency
+                  onClick={() => router.push("/")} // Changed to /login for consistency
                   className="btn btn-primary"
                 >
                   Go to Login
