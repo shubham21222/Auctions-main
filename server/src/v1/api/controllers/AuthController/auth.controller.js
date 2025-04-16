@@ -28,8 +28,103 @@ import { stripeService } from '../../services/Stripe/stripe.service.js';
 
 const generateResetPasswordToken = () => {
     return crypto.randomBytes(20).toString("hex");
-  };
+};
 
+const sendVerificationEmail = async (user) => {
+    const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+
+    const verificationLink = `https://bid.nyelizabeth.com/verify-email?token=${token}`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f7;
+                margin: 0;
+                padding: 0;
+            }
+            .email-container {
+                background-color: #ffffff;
+                width: 90%;
+                max-width: 600px;
+                margin: 30px auto;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                border: 1px solid #e0e0e0;
+            }
+            .email-header {
+                background-color: #1a73e8;
+                padding: 20px;
+                text-align: center;
+                color: white;
+            }
+            .email-body {
+                padding: 30px;
+                color: #333333;
+                line-height: 1.6;
+            }
+            .button {
+                display: inline-block;
+                padding: 12px 25px;
+                margin-top: 20px;
+                background-color: #1a73e8;
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
+                font-size: 16px;
+            }
+            .email-footer {
+                padding: 20px;
+                text-align: center;
+                font-size: 12px;
+                color: #888888;
+            }
+            .highlight {
+                color: #1a73e8;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-header">
+                <h1>Email Verification</h1>
+            </div>
+            <div class="email-body">
+                <p>Hi <strong>${user.name || 'User'}</strong>,</p>
+
+                <p>Thank you for signing up with <span class="highlight">NY Elizabeth</span>!</p>
+
+                <p>Please verify your email address to activate your account. Click the button below to confirm your email:</p>
+
+                <a href="${verificationLink}" class="button">Verify Email</a>
+
+                <p>If you didn’t sign up for an account, you can ignore this email.</p>
+
+                <p>Thanks,<br><strong>The NY Elizabeth Team</strong></p>
+            </div>
+            <div class="email-footer">
+                &copy; ${new Date().getFullYear()} NY Elizabeth. All rights reserved.
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    await sendEmail({
+        to: user.email,
+        subject: "✅ Verify Your Email for NY Elizabeth",
+        html
+    });
+};
 // Register User //
 export const register = async (req, res , next) => {
     const { email, password , BillingDetails, paymentMethodId , temp_password} = req.body;
@@ -245,7 +340,6 @@ export const register = async (req, res , next) => {
             });
             
         }
-        
         if(paymentMethodId){
             const customer = await stripeService.findOrCreateCustomer(email,req.body.name);
             await stripeService.attachCardToCustomer(paymentMethodId, customer.id);
@@ -254,8 +348,10 @@ export const register = async (req, res , next) => {
         }
         // create a new User //
 
-            // Create the new user
-          const newUser = await User.create(userData);
+        // Create the new user
+        const newUser = await User.create(userData);
+        sendVerificationEmail(newUser);
+        
         sendToken(newUser, 201, res);
 
 
@@ -353,7 +449,71 @@ export const login = async (req, res, next) => {
     }
 };
 
+export const sendVerificationMail = async (req, res, next) => {
+    const { email } = req.body;
 
+    try {
+        if (!email) {
+            return badRequest(res, "Please provide an email ");
+        }
+
+        // Find user by email and select password field explicitly
+        const findUser = await User.findOne({ email });
+
+        if (!findUser) {
+            return badRequest(res, "Invalid email ");
+        }
+        if(findUser.isEmailVerified){
+            return badRequest(res, "Email  already verified!");
+        }
+        sendVerificationEmail(findUser);
+
+        return success(res, "Verification mail sent", {
+            success: true
+        });
+
+    } catch (error) {
+        unknownError(res, error);
+    }
+};
+
+export const verifyMail = async (req, res, next) => {
+    const { token } = req.body;
+
+    try {
+        if (!token) {
+            return badRequest(res, "Please provide an token ");
+        }
+        let userId = null;
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            userId = decoded.userId; // or decoded.email, etc.
+            // Now use userId to activate the user or whatever
+        } catch (err) {
+            // Token is invalid or expired
+            console.error('Invalid token:', err.message);
+            return badRequest( res, 'Invalid or expired token' );
+        }
+        // Find user by email and select password field explicitly
+        const findUser = await User.findOne({ _id:userId });
+        if (!findUser) {
+            return badRequest(res, "Invalid email ");
+        }
+
+        if(findUser.isEmailVerified){
+            return badRequest(res, "Email  already verified!");
+        }
+
+        findUser.isEmailVerified = true;
+        findUser.save();
+        return success(res, "Email verified!", {
+            success: true
+        });
+
+    } catch (error) {
+        unknownError(res, error);
+    }
+};
 // Logout User //
 
 export const logout = async (req, res, next) => {

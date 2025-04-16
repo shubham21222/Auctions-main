@@ -38,6 +38,7 @@ export const createUser = async (req, res) => {
         const user = await User.create({
             name,
             email,
+            isEmailVerified:true,
             role,
             password
         });

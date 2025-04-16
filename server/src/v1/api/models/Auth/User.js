@@ -36,7 +36,10 @@ const UserSchema = new mongoose.Schema(
         "Please add a valid email",
       ],
     },
-
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     role: {
       type: String,
       default: "USER",

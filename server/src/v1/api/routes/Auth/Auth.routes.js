@@ -1,11 +1,13 @@
 import express from "express";
-import  {register, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard}  from  "../../controllers/AuthController/auth.controller.js";
+import  {register,sendVerificationMail,verifyMail, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard}  from  "../../controllers/AuthController/auth.controller.js";
 import { IsAuthenticated ,  authorizeRoles, authorizePermission, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 
 const router = express.Router();
 
 router.post("/register", register);
+router.post("/send-verification-mail", sendVerificationMail);
+router.post("/verify-email", verifyMail);
 router.post("/add-card",IsAuthenticated , authorizeRoles('USER'), addCard);
 router.post("/login", login);
 router.post("/logout", logout);
