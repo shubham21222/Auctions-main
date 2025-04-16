@@ -136,9 +136,17 @@ export const getFilteredProducts = async (req, res) => {
         }
 
         let sortStage = {};
-        if (sortByPrice) {
+        // if (sortByPrice) {
+        //     sortStage.price = sortByPrice === "High Price" ? -1 : 1;
+        // } 
+
+        if (sortByPrice == "High Price" || sortByPrice == "Low Price") {
+            matchStage.sortByPrice = sortByPrice;
             sortStage.price = sortByPrice === "High Price" ? -1 : 1;
-        } else if (sortField && sortOrder) {
+        }
+        
+        
+        else if (sortField && sortOrder) {
             if (sortField === "title") {
                 sortStage.title = sortOrder === "asc" ? 1 : -1;
             } else if (sortField === "created_at") {
