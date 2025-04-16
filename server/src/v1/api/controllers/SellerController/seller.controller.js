@@ -1,5 +1,6 @@
 import sellerModel from '../../models/seller/seller.model.js';
 import userModel from '../../models/Auth/User.js';
+import {sendEmail} from "../../Utils/sendEmail.js"
 import categoryModel from '../../models/Category/category.model.js'
 
 import {
@@ -23,20 +24,84 @@ import {
 // create seller //
 
 
+// export const createSeller = async (req, res) => {
+//     try {
+//         const { ...data } = req.body;
+//         data.createdBy = req.user._id;
+//         const createSeller = await sellerModel.create(data);
+//         if (createSeller) {
+//             return sendResponse(res, created, "Seller created successfully", createSeller);
+//         } else {
+//             return sendResponse(res, badRequest, "Unable to create seller");
+//         }
+//     } catch (error) {
+//         return unknownError(res, error.message);
+//     }
+// }
+
+
 export const createSeller = async (req, res) => {
     try {
         const { ...data } = req.body;
         data.createdBy = req.user._id;
+
         const createSeller = await sellerModel.create(data);
+
         if (createSeller) {
-            return sendResponse(res, created, "Seller created successfully", createSeller);
+            // Respond first
+            sendResponse(res, created, "Seller created successfully", createSeller);
+
+            // Email sending can happen after response
+            setImmediate(async () => {
+                try {
+                    const user = await userModel.findById(req.user._id).select("name email");
+
+                    const message = `
+                    <div style="max-width: 600px; margin: 0 auto; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
+                      <h2 style="color: #111827; font-size: 20px;">Hello ${user.name || 'Seller'},</h2>
+                      
+                      <p style="font-size: 16px; line-height: 1.6;">
+                        Thank you for your interest in becoming a seller with <strong>NY Elizabeth</strong>.
+                      </p>
+                      
+                      <p style="font-size: 16px; line-height: 1.6;">
+                        We’ve successfully received your details and product information. Our curation team is currently reviewing your submission to ensure it aligns with our brand values and quality standards.
+                      </p>
+                  
+                      <p style="font-size: 16px; line-height: 1.6;">
+                        We will be in touch with you shortly regarding the next steps in the process.
+                      </p>
+                  
+                      <p style="font-size: 16px; line-height: 1.6;">
+                        In the meantime, if you have any questions or require assistance, feel free to reach out. We're always happy to help.
+                      </p>
+                  
+                      <p style="font-size: 16px; line-height: 1.6; margin-top: 30px;">
+                        Warm regards,<br />
+                        Team NY Elizabeth<br />
+                      </p>
+                    </div>
+                  `;
+                  
+                  
+                    await sendEmail({
+                        to: user.email,
+                        subject: "Thanks for your interest in selling with NY Elizabeth",
+                        html: message,
+                    });
+                } catch (emailError) {
+                    console.error("Email sending failed:", emailError.message);
+                }
+            });
+
         } else {
             return sendResponse(res, badRequest, "Unable to create seller");
         }
     } catch (error) {
+        console.error("Create seller error:", error);
         return unknownError(res, error.message);
     }
-}
+};
 
 
 // get all sellers //
