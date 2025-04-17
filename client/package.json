@@ -44,6 +44,7 @@
     "next": "15.1.3",
     "npm": "^11.1.0",
     "papaparse": "^5.5.2",
+    "rc-slider": "^11.1.8",
     "react": "^18.0.0",
     "react-country-region-selector": "^4.0.2",
     "react-datepicker": "^8.0.0",

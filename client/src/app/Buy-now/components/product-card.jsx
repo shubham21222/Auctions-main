@@ -2,7 +2,6 @@
 
 import { Heart, Share2 } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link" // Import Link for navigation
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
@@ -10,10 +9,12 @@ import axios from "axios" // Import Axios for API calls
 import toast, { Toaster } from "react-hot-toast" // Import React Hot Toast
 import { useSelector } from "react-redux" // Import useSelector to access Redux state
 import config from "@/app/config_BASE_URL"
+import { VerificationModal } from "@/app/components/VerificationModal"
 
-export function ProductCard({ image, name, price, slug }) {
+export function ProductCard({ image, name, price, slug, onViewDetails }) {
   const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
 
   // Access the Redux state for authentication
   const auth = useSelector((state) => state.auth)
@@ -48,41 +49,38 @@ export function ProductCard({ image, name, price, slug }) {
   // Function to handle toggling the wishlist
   const toggleWishlist = async () => {
     try {
-      // Ensure the user is authenticated (token exists)
       if (!auth.token) {
-        console.error("User is not authenticated")
         toast.error("Please log in to add items to your wishlist.")
         return
       }
 
-      // Make the API call to toggle the wishlist
+      // Check if email is verified
+      if (!auth.user?.isEmailVerified) {
+        setIsVerificationModalOpen(true)
+        return
+      }
+
       const response = await axios.post(
         `${config.baseURL}/v1/api/favorite/toggle`,
-        { productId: slug }, // Pass the product ID (slug in this case)
+        { productId: slug },
         {
           headers: {
-            Authorization: `${auth.token}`, // Include the token in the headers
+            Authorization: `${auth.token}`,
           },
         }
       )
 
-      // Log the API response for debugging
       console.log("API Response:", response.data)
 
-      // Update the local state based on the API response
       let isNowFavorited
       if (response.data.isFavorited !== undefined) {
-        // Use the API response if `isFavorited` is provided
         isNowFavorited = response.data.isFavorited
       } else {
-        // Infer the new state by toggling the current `isLiked` value
         isNowFavorited = !isLiked
       }
 
-      // Update the state
       setIsLiked(isNowFavorited)
 
-      // Show success toast message
       if (isNowFavorited) {
         toast.success(`${name} has been added to your wishlist!`)
       } else {
@@ -90,7 +88,6 @@ export function ProductCard({ image, name, price, slug }) {
       }
     } catch (error) {
       console.error("Error toggling wishlist:", error)
-      // toast.error("An error occurred while updating your wishlist.")
     }
   }
 
@@ -104,11 +101,10 @@ export function ProductCard({ image, name, price, slug }) {
       {/* Add the Toaster component for displaying notifications */}
       {/* <Toaster position="top-right" /> */}
 
-      <Link href={`/products/${slug}`}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ y: -10 }}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -10 }}
         className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -127,7 +123,7 @@ export function ProductCard({ image, name, price, slug }) {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={toggleWishlist} // Call the toggleWishlist function
+              onClick={toggleWishlist}
               className={cn(
                 "p-3 rounded-full",
                 "bg-white/90 backdrop-blur-sm",
@@ -157,15 +153,14 @@ export function ProductCard({ image, name, price, slug }) {
                 exit={{ opacity: 0, y: 20 }}
                 className="absolute bottom-0 left-0 right-0 p-4"
               >
-                <Link href={`/products/${slug}`}>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
-                  >
-                    View Details
-                  </motion.button>
-                </Link>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onViewDetails(slug)}
+                  className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
+                >
+                  View Details
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -181,9 +176,14 @@ export function ProductCard({ image, name, price, slug }) {
             </span>
             <span className="text-sm text-gray-400">USD</span>
           </div>
-          </div>
-        </motion.div>
-      </Link>
+        </div>
+      </motion.div>
+
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        email={auth.user?.email}
+      />
     </>
   )
 }

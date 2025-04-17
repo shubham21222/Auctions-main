@@ -8,7 +8,11 @@ import { ProductCard } from "./components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LuxuryBackground } from "../Auctions/components/luxury-background";
 import config from "../config_BASE_URL";
-          
+import { VerificationModal } from "../components/VerificationModal";
+import { useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
+
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
   const [originalProducts, setOriginalProducts] = useState([]);
@@ -16,9 +20,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true); // Controls initial loading state
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const productsPerPage = 18;
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const router = useRouter();
+  const auth = useSelector((state) => state.auth);
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -163,6 +170,20 @@ export default function Home() {
     return items;
   };
 
+  const handleViewDetails = (slug) => {
+    if (!auth.token) {
+      toast.error("Please log in to view product details.");
+      return;
+    }
+
+    if (!auth.user?.isEmailVerified) {
+      setIsVerificationModalOpen(true);
+      return;
+    }
+
+    router.push(`/products/${slug}`);
+  };
+
   return (
     <>
       <Header />
@@ -231,6 +252,7 @@ export default function Home() {
                         name={productData.name}
                         price={productData.price}
                         slug={productData.slug}
+                        onViewDetails={handleViewDetails}
                       />
                     );
                   })}
@@ -278,6 +300,11 @@ export default function Home() {
         </div>
       </main>
       <Footer />
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        email={auth.user?.email}
+      />
     </>
   );
 }

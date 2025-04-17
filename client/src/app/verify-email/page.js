@@ -39,7 +39,7 @@ export default function VerifyEmail() {
           dispatch(setEmailVerified(true));
           // Redirect to login page after 2 seconds
           setTimeout(() => {
-            router.push("/login");
+            router.push("/");
           }, 2000);
         } else {
           setError(response.data.message || "Verification failed");

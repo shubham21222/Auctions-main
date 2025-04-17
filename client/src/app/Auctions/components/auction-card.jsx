@@ -18,6 +18,7 @@ import LoginModal from "@/app/components/LoginModal";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import BillingPaymentModal from "@/app/components/BillingPaymentModal";
 import config from "@/app/config_BASE_URL";
+import { VerificationModal } from "@/app/components/VerificationModal";
 
 export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [currentImage, setCurrentImage] = useState(0);
@@ -25,6 +26,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const router = useRouter();
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const cardRef = useRef(null);
@@ -146,6 +148,12 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
+    // Check if email is verified
+    if (!user?.isEmailVerified) {
+      setIsVerificationModalOpen(true);
+      return;
+    }
+
     // Check wallet balance
     if (walletBalance < auction.currentBid) {
       toast.error("Insufficient wallet balance");
@@ -161,7 +169,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
       return;
     }
 
-    // If both are present, open catalog
+    // If all checks pass, open catalog
     window.open(
       `/catalog/${auction.id}`,
       "_blank",
@@ -333,6 +341,12 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         </CardFooter>
       </motion.div>
 
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        email={user?.email}
+      />
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -343,7 +357,6 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
         isOpen={isBillingPaymentModalOpen}
         onClose={() => setIsBillingPaymentModalOpen(false)}
         onSuccess={() => {
-          // Only open catalog after both billing and payment are confirmed
           toast.success("Billing and payment details added successfully!");
           window.open(
             `/catalog/${auction.id}`,

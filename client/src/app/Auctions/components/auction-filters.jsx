@@ -3,10 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
-import config from "@/app/config_BASE_URL";     
-
+import config from "@/app/config_BASE_URL";
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 export function AuctionFilters({ onFilterChange }) {
   const [date, setDate] = useState("");
@@ -190,14 +190,27 @@ export function AuctionFilters({ onFilterChange }) {
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Price Range</h3>
         <div className="px-2">
-          <Slider
-            value={[minPrice, maxPrice]}
-            onValueChange={handleSliderChange}
-            max={5000}
-            step={100}
-            className="[&_[role=slider]]:border-luxury-gold bg-luxury-gold/20 [&_[role=slider]]:bg-luxury-gold"
-          />
-          <div className="mt-4 flex items-center gap-4">
+          <div className="relative">
+            <Slider
+              range
+              min={0}
+              max={5000}
+              step={100}
+              value={[minPrice, maxPrice]}
+              onChange={handleSliderChange}
+              trackStyle={[{ backgroundColor: '#B8860B' }]}
+              handleStyle={[
+                { borderColor: '#B8860B', backgroundColor: '#B8860B' },
+                { borderColor: '#B8860B', backgroundColor: '#B8860B' }
+              ]}
+              railStyle={{ backgroundColor: '#B8860B20' }}
+            />
+            <div className="flex justify-between mt-2">
+              <span className="text-xs text-muted-foreground">${minPrice}</span>
+              <span className="text-xs text-muted-foreground">${maxPrice}</span>
+            </div>
+          </div>
+          <div className="mt-6 flex items-center gap-4">
             <div className="flex-1">
               <Label htmlFor="min-price" className="text-sm text-muted-foreground">Min Price</Label>
               <input
