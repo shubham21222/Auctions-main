@@ -1,20 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function GoogleTranslate() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState("EN");
   const [isInitialized, setIsInitialized] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const addGoogleTranslateScript = () => {
-      if (!document.querySelector('script[src*="translate.google.com"]')) {
-        const script = document.createElement("script");
-        script.src =
-          "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-        script.async = true;
-        document.body.appendChild(script);
+      // Remove any existing Google Translate elements
+      const existingWidget = document.querySelector('.goog-te-menu-frame');
+      if (existingWidget) {
+        existingWidget.remove();
       }
+      
+      // Remove any existing Google Translate script
+      const existingScript = document.querySelector('script[src*="translate.google.com"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // Create and add new script
+      const script = document.createElement("script");
+      script.src =
+        "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.async = true;
+      document.body.appendChild(script);
     };
 
     window.googleTranslateElementInit = () => {
@@ -33,7 +46,15 @@ export default function GoogleTranslate() {
     };
 
     addGoogleTranslateScript();
-  }, []);
+
+    // Cleanup function
+    return () => {
+      const widget = document.querySelector('.goog-te-menu-frame');
+      if (widget) {
+        widget.remove();
+      }
+    };
+  }, [pathname]); // Re-run effect when pathname changes
 
   const languageCodeMap = {
     EN: "en",
@@ -72,7 +93,7 @@ export default function GoogleTranslate() {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="px-3 py-2  rounded-md bg-white"
+        className="px-3 py-2 rounded-md bg-white"
       >
         {selectedLang} ▼
       </button>

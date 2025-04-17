@@ -235,29 +235,29 @@ export default function AuctionCalendar() {
     <>
       <Header />
       <LuxuryBackground />
-      <div className="container relative mx-auto px-4 mt-[40px] py-12">
-        <div className="mb-12 text-center">
+      <div className="container relative mx-auto px-4 mt-[40px] py-8 md:py-12">
+        <div className="mb-8 md:mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
             <Sparkles className="h-4 w-4" />
             <span>LUXURY AUCTIONS</span>
             <Sparkles className="h-4 w-4" />
           </div>
-          <h1 className="mb-4 text-5xl font-bold tracking-tight text-luxury-charcoal">
+          <h1 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-luxury-charcoal">
             Auction Calendar
           </h1>
-          <p className="mx-auto max-w-2xl text-muted-foreground">
+          <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
             Discover extraordinary pieces from the world&apos;s most prestigious collections. Each auction is carefully
             curated to bring you the finest in luxury.
           </p>
         </div>  
 
-        <div className="mb-8 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">
+        <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-sm text-muted-foreground text-center sm:text-left">
             Showing {displayedAuctions.length} of {totalAuctions} Exceptional Pieces
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-[240px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
+              <SelectTrigger className="w-full sm:w-[240px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -273,7 +273,7 @@ export default function AuctionCalendar() {
               value={auctionsPerPage.toString()}
               onValueChange={(value) => handlePerPageChange(Number(value))}
             >
-              <SelectTrigger className="w-[120px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
+              <SelectTrigger className="w-full sm:w-[120px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
                 <SelectValue placeholder="Items per page" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -286,11 +286,11 @@ export default function AuctionCalendar() {
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
-          <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-4 md:p-6 backdrop-blur-sm">
             <AuctionFilters onFilterChange={handleFilterChange} />
           </aside>
-          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
             {loading ? (
               <>
                 <SkeletonCard />
@@ -315,7 +315,7 @@ export default function AuctionCalendar() {
         </div>
 
         {totalAuctions > 0 && (
-          <div className="mt-8 flex justify-center items-center gap-2">
+          <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
             <Button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -329,7 +329,7 @@ export default function AuctionCalendar() {
                 key={page}
                 onClick={() => handlePageChange(page)}
                 variant={currentPage === page ? "default" : "outline"}
-                className={`w-10 h-10 ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 ${
                   currentPage === page
                     ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
                     : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"

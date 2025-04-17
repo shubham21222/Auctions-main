@@ -349,28 +349,30 @@ export default function CatalogPage() {
   };
 
   return (
-    <div className="max-w-[1400px] flex min-h-screen bg-slate-50">
+    <div className="max-w-[1400px] flex flex-col lg:flex-row min-h-screen bg-slate-50">
       {loading ? (
-        <div className="fixed left-0 top-[70px] h-[calc(100vh-70px)] w-[350px] bg-white border-r border-slate-200 flex items-center justify-center">
+        <div className="lg:fixed left-0 top-[70px] h-[200px] lg:h-[calc(100vh-70px)] w-full lg:w-[350px] bg-white border-b lg:border-r border-slate-200 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
             <p className="text-slate-600 font-medium">Loading auctions...</p>
           </div>
         </div>
       ) : auction && allAuctions.length > 0 ? (
-        <CatalogCarousel
-          catalogName={auction.catalog}
-          auctions={allAuctions.filter((a) => {
-            const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
-            const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
-            return normalizedAuctionCatalog === normalizedCurrentCatalog;
-          })}
-          currentTime={new Date()}
-          currentAuctionId={auctionId}
-          onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
-        />
+        <div className="lg:fixed left-0 top-[70px] h-[200px] lg:h-[calc(100vh-70px)] w-full lg:w-[350px]">
+          <CatalogCarousel
+            catalogName={auction.catalog}
+            auctions={allAuctions.filter((a) => {
+              const normalizedAuctionCatalog = (a.catalog || "").trim().toLowerCase();
+              const normalizedCurrentCatalog = (auction.catalog || "").trim().toLowerCase();
+              return normalizedAuctionCatalog === normalizedCurrentCatalog;
+            })}
+            currentTime={new Date()}
+            currentAuctionId={auctionId}
+            onSelectAuction={(auctionId) => router.push(`/catalog/${auctionId}`)}
+          />
+        </div>
       ) : (
-        <div className="fixed left-0 top-[70px] h-[calc(100vh-70px)] w-[350px] bg-white border-r border-slate-200 flex items-center justify-center">
+        <div className="lg:fixed left-0 top-[70px] h-[200px] lg:h-[calc(100vh-70px)] w-full lg:w-[350px] bg-white border-b lg:border-r border-slate-200 flex items-center justify-center">
           <p className="text-slate-600 font-medium">No auctions available</p>
         </div>
       )}
@@ -378,14 +380,14 @@ export default function CatalogPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="flex-1 min-h-screen relative ml-[350px] bg-gradient-to-br from-slate-50 to-white"
+        className="flex-1 min-h-screen relative lg:ml-[350px] bg-gradient-to-br from-slate-50 to-white"
       >
-        <div className="max-w-6xl mx-auto px-8 py-10">
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="space-y-8"
+            className="space-y-6 lg:space-y-8"
           >
             <CatalogHeader
               productName={headerData.productName}
@@ -394,7 +396,7 @@ export default function CatalogPage() {
               catalog={headerData.catalog}
               status={headerData.status}
             />
-            <div className="mt-8">
+            <div className="mt-6 lg:mt-8">
               <CatalogDetails
                 product={product}
                 auction={auction}

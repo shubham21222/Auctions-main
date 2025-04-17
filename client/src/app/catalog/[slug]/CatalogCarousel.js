@@ -77,9 +77,9 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, currentAuctionId,
   // Return early if no auctions
   if (totalItems === 0) {
     return (
-      <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
-          <div className="text-2xl font-bold text-slate-900 mb-3">{catalogName}</div>
+      <div className="h-full w-full bg-white border-b lg:border-r border-gray-200 overflow-hidden shadow-lg">
+        <div className="p-4 lg:p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="text-xl lg:text-2xl font-bold text-slate-900 mb-2 lg:mb-3">{catalogName}</div>
           <div className="text-sm text-slate-600">No items available</div>
         </div>
       </div>
@@ -87,12 +87,12 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, currentAuctionId,
   }
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-[350px] bg-white border-r border-gray-200 overflow-hidden shadow-lg">
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
-        <div className="text-2xl font-bold text-slate-900 mb-3">{catalogName}</div>
+    <div className="h-full w-full bg-white border-b lg:border-r border-gray-200 overflow-hidden shadow-lg">
+      <div className="p-4 lg:p-6 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-white">
+        <div className="text-xl lg:text-2xl font-bold text-slate-900 mb-2 lg:mb-3">{catalogName}</div>
         <div className="flex items-center justify-between text-sm text-slate-600">
           <span className="font-medium">{endedAuctions} of {totalItems} Lots Completed</span>
-          <div className="h-2.5 w-32 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-2.5 w-24 lg:w-32 bg-slate-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-600 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${completionPercentage}%` }}
@@ -101,7 +101,7 @@ const CatalogCarousel = ({ catalogName, auctions, currentTime, currentAuctionId,
         </div>
       </div>
 
-      <div className="h-[calc(100vh-120px)] overflow-y-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+      <div className="h-[calc(100%-80px)] lg:h-[calc(100vh-120px)] overflow-y-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
         <div className="divide-y divide-gray-200">
           {auctions.map((auction) => (
             <AuctionCard

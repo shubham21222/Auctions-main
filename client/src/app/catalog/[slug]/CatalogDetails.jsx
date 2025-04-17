@@ -194,12 +194,12 @@ export default function CatalogDetails({
   const productImages = Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-120px)]">
-      <div className="flex-1 max-w-[800px] flex flex-col">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-120px)]">
+      <div className="flex-1 max-w-full lg:max-w-[800px] flex flex-col">
         <div className="flex-1 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex flex-col gap-8 pb-6">
-              <div className="relative h-[500px] rounded-xl overflow-hidden bg-slate-100 shadow-md">
+          <div className="bg-white rounded-xl shadow-sm p-4 lg:p-8">
+            <div className="flex flex-col gap-6 lg:gap-8 pb-6">
+              <div className="relative h-[300px] lg:h-[500px] rounded-xl overflow-hidden bg-slate-100 shadow-md">
                 {productImages.length > 0 ? (
                   imageErrors[selectedImageIndex] ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-500">
@@ -227,12 +227,12 @@ export default function CatalogDetails({
               </div>
 
               {productImages.length > 1 && (
-                <div className="flex gap-4 overflow-x-auto py-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                <div className="flex gap-2 lg:gap-4 overflow-x-auto py-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                   {productImages.map((image, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      className={`relative w-16 h-16 lg:w-20 lg:h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                         selectedImageIndex === index ? "border-emerald-600 shadow-md" : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
@@ -254,9 +254,9 @@ export default function CatalogDetails({
                 </div>
               )}
 
-              <div className="space-y-6 px-2">
-                <h1 className="text-3xl font-bold text-slate-900">{product?.name}</h1>
-                <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+              <div className="space-y-4 lg:space-y-6 px-2">
+                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">{product?.name}</h1>
+                <div className="text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[300px] lg:max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                   {renderHTML(auction?.product?.description || product?.description)}
                 </div>
               </div>
@@ -264,12 +264,12 @@ export default function CatalogDetails({
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 mt-auto shadow-lg z-10">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 lg:p-6 mt-auto shadow-lg z-10">
           <div className="max-w-3xl mx-auto space-y-4">
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+            <div className="bg-slate-50 p-4 lg:p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center">
                 <span className="text-slate-600 font-medium">Current Bid</span>
-                <span className="text-4xl font-bold text-slate-900">
+                <span className="text-3xl lg:text-4xl font-bold text-slate-900">
                   ${(auction?.currentBid || 0).toLocaleString()}
                 </span>
               </div>
@@ -294,7 +294,7 @@ export default function CatalogDetails({
                     <Button
                       onClick={handleJoinAuction}
                       disabled={!termsAccepted}
-                      className={`w-full py-6 text-lg font-medium transition-all duration-200 ${
+                      className={`w-full py-4 lg:py-6 text-base lg:text-lg font-medium transition-all duration-200 ${
                         termsAccepted
                           ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                           : "bg-slate-100 text-slate-400 cursor-not-allowed"
@@ -306,7 +306,7 @@ export default function CatalogDetails({
                 ) : (
                   <Button
                     onClick={handleBidSubmit}
-                    className="w-full py-6 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
+                    className="w-full py-4 lg:py-6 text-base lg:text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
                   >
                     Place {isClerk ? "Competitive" : "Online"} Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
                   </Button>
@@ -363,10 +363,10 @@ export default function CatalogDetails({
         </div>
       </div>
 
-      <div className="w-[400px] border-slate-500 bg-white rounded-xl shadow-sm">
-        <div className="h-[500px] flex flex-col">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-900">Auction Updates</h2>
+      <div className="w-full lg:w-[400px] border-slate-500 bg-white rounded-xl shadow-sm">
+        <div className="h-[300px] lg:h-[500px] flex flex-col">
+          <div className="p-4 lg:p-6 border-b border-slate-200">
+            <h2 className="text-lg lg:text-xl font-semibold text-slate-900">Auction Updates</h2>
             {auction?.status === "ACTIVE" && (
               <div className="mt-4 bg-emerald-50 text-emerald-800 px-4 py-3 rounded-lg flex items-center">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
@@ -375,7 +375,7 @@ export default function CatalogDetails({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 pb-[80px]" ref={updatesRef}>
             {[...bidHistory]
               .sort((a, b) => new Date(a.bidTime || a.timestamp) - new Date(b.bidTime || b.timestamp))
               .map((entry, index) => (
