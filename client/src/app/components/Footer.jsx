@@ -16,7 +16,7 @@ const Footer = () => {
               <Link href="/FAQs" >
                 <li href="#" className="hover:underline">FAQ</li>
               </Link>
-              <li><Link href="#"  className="hover:underline">Site Map</Link></li>
+              <li><Link href="/sitemap"  className="hover:underline">Site Map</Link></li>
             </ul>
           </div>
 

@@ -1,0 +1,17 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /Admin/*
+Disallow: /my-account/*
+Disallow: /seller-portal/*
+Disallow: /checkout/*
+Disallow: /payment-success
+Disallow: /success
+Disallow: /verify-email
+Disallow: /forget-password
+
+# Host
+Host: https://yourdomain.com
+
+# Sitemaps
+Sitemap: https://yourdomain.com/sitemap.xml
