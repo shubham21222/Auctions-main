@@ -73,6 +73,7 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("adminAction", async ({ auctionId, actionType, userId }) => {
+      console.log("actionType" , actionType)
       try {
         const user = await User.findById(userId);
         if (!user || !["ADMIN", "clerk"].includes(user.role)) {
