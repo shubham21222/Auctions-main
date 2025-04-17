@@ -59,7 +59,7 @@ export default function GoogleTranslate() {
         script.remove();
       }
     };
-  }, [pathname]); // Re-run effect when pathname changes
+  }, [pathname]);
 
   const languageCodeMap = {
     EN: "en",
