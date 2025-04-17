@@ -1,4 +1,4 @@
 const config = {
-    baseURL: "http://localhost:4000",
+    baseURL: "https://bid.nyelizabeth.com",
 };
 export default config;
