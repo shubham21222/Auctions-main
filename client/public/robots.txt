@@ -3,15 +3,20 @@ User-agent: *
 Allow: /
 Disallow: /Admin/*
 Disallow: /my-account/*
+Disallow: /my-information/*
 Disallow: /seller-portal/*
 Disallow: /checkout/*
+Disallow: /checkout-intent
 Disallow: /payment-success
 Disallow: /success
 Disallow: /verify-email
 Disallow: /forget-password
+Disallow: /reset-password/*
+Disallow: /members/*
 
 # Host
-Host: https://yourdomain.com
+Host: https://bid.nyelizabeth.com
 
 # Sitemaps
-Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://bid.nyelizabeth.com/sitemap.xml
+Sitemap: undefined/sitemap.xml
