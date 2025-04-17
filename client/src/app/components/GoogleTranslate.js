@@ -35,9 +35,10 @@ export default function GoogleTranslate() {
         new window.google.translate.TranslateElement(
           {
             pageLanguage: "en",
-            includedLanguages: "en,fr,es,de,ar,zh,ja",
+            includedLanguages: "en,fr,es,de,ar,zh-CN,ja",
             layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
             autoDisplay: false,
+            multilanguagePage: true
           },
           "google_translate_element"
         );
@@ -53,6 +54,10 @@ export default function GoogleTranslate() {
       if (widget) {
         widget.remove();
       }
+      const script = document.querySelector('script[src*="translate.google.com"]');
+      if (script) {
+        script.remove();
+      }
     };
   }, [pathname]); // Re-run effect when pathname changes
 
@@ -66,12 +71,31 @@ export default function GoogleTranslate() {
     JA: "ja",
   };
 
+  const languageNames = {
+    EN: "English",
+    FR: "Français",
+    ES: "Español",
+    DE: "Deutsch",
+    AR: "العربية",
+    ZH: "中文",
+    JA: "日本語",
+  };
+
   const handleLanguageChange = (langCode) => {
     const tryTranslate = () => {
       const select = document.querySelector(".goog-te-combo");
       if (select) {
-        select.value = languageCodeMap[langCode];
-        select.dispatchEvent(new Event("change", { bubbles: true }));
+        const targetLang = languageCodeMap[langCode];
+        select.value = targetLang;
+        const event = new Event('change', { bubbles: true });
+        select.dispatchEvent(event);
+        
+        // Force translation by clicking the translate button if it exists
+        const translateButton = document.querySelector('.goog-te-menu-value span:first-child');
+        if (translateButton) {
+          translateButton.click();
+        }
+        
         setSelectedLang(langCode);
         setIsOpen(false);
       } else {
@@ -84,6 +108,12 @@ export default function GoogleTranslate() {
       tryTranslate();
     } else {
       console.warn("Google Translate is not initialized yet.");
+      // Retry initialization
+      setTimeout(() => {
+        if (window.google && window.google.translate) {
+          tryTranslate();
+        }
+      }, 1000);
     }
   };
 
@@ -107,7 +137,7 @@ export default function GoogleTranslate() {
               onClick={() => handleLanguageChange(code)}
               className="block px-4 py-2 text-left hover:bg-gray-100 w-full"
             >
-              {code}
+              {languageNames[code]}
             </button>
           ))}
         </div>
