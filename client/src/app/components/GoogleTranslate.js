@@ -35,7 +35,7 @@ export default function GoogleTranslate() {
         new window.google.translate.TranslateElement(
           {
             pageLanguage: "en",
-            includedLanguages: "en,fr,es,de,ar,zh",
+            includedLanguages: "en,fr,es,de,ar,zh,ja",
             layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
             autoDisplay: false,
           },
@@ -63,6 +63,7 @@ export default function GoogleTranslate() {
     DE: "de",
     AR: "ar",
     ZH: "zh-CN",
+    JA: "ja",
   };
 
   const handleLanguageChange = (langCode) => {
