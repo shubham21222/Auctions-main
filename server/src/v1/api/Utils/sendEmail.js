@@ -82,7 +82,6 @@ export const sendEmail = async (options) => {
       "To": options.to,
       "Subject": options.subject,
       "HtmlBody": options.html,
-      "TextBody": options.text || "Plain text version of the email",
       "ReplyTo": process.env.CLIENT_EMAIL_REPLY,
       "MessageStream": "outbound",
       "Attachments": options.Attachments || []
