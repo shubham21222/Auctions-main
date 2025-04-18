@@ -38,6 +38,8 @@ const EndedAuctionsPage = () => {
   const [selectedAuction, setSelectedAuction] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingBids, setLoadingBids] = useState(false);
+  const [selectedCatalog, setSelectedCatalog] = useState(null);
+  const [catalogs, setCatalogs] = useState([]);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
@@ -63,13 +65,16 @@ const EndedAuctionsPage = () => {
         );
 
         if (response.data.status) {
+          const catalogsData = response.data.items.catalogs;
+          setCatalogs(catalogsData);
+          
           // Flatten the catalogs array and filter for ended auctions
-          const allAuctions = response.data.items.catalogs.flatMap(
+          const allAuctions = catalogsData.flatMap(
             (catalog) => catalog.auctions
           );
           const endedAuctions = allAuctions
             .filter((auction) => auction.status === "ENDED")
-            .sort((a, b) => new Date(b.endDate) - new Date(a.endDate)); // Sort by endDate descending
+            .sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
           setWinners(endedAuctions);
         } else {
           setError("Failed to fetch auctions");
@@ -87,6 +92,14 @@ const EndedAuctionsPage = () => {
       fetchAuctions();
     }
   }, [token]);
+
+  const handleCatalogClick = (catalog) => {
+    setSelectedCatalog(catalog);
+    const catalogAuctions = catalog.auctions
+      .filter((auction) => auction.status === "ENDED")
+      .sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+    setWinners(catalogAuctions);
+  };
 
   const handleStatusUpdate = async (auctionId, newStatus) => {
     setUpdating(true);
@@ -214,7 +227,7 @@ const EndedAuctionsPage = () => {
             body: [
               ['Name', auctionData.winner.name || 'N/A'],
               ['Email', auctionData.winner.email || 'N/A'],
-              ['Winning Time', format(new Date(auctionData.winnerBidTime), "PPp")],
+              ['Winning Time', auctionData.winnerBidTime ? format(new Date(auctionData.winnerBidTime), "PPp") : 'N/A'],
               ['Winning Bid', `$${auctionData.currentBid}`]
             ],
             theme: 'grid',
@@ -231,9 +244,9 @@ const EndedAuctionsPage = () => {
           const bidRows = auctionData.bids.map((bid, index) => [
             auctionData.bids.length - index,
             `$${bid.bidAmount}`,
-            format(new Date(bid.bidTime), "PPp"),
-            bid.bidder?.name?.name || 'Unknown',
-            bid.bidder?.name?.email || 'N/A'
+            bid.bidTime ? format(new Date(bid.bidTime), "PPp") : 'N/A',
+            bid.bidder?.name || 'Unknown',
+            bid.bidder?.email || 'N/A'
           ]);
 
           autoTable(doc, {
@@ -265,7 +278,7 @@ const EndedAuctionsPage = () => {
             return [
               auctionData.bidLogs.length - index,
               `$${log.bidAmount}`,
-              format(new Date(log.bidTime), "PPp"),
+              log.bidTime ? format(new Date(log.bidTime), "PPp") : 'N/A',
               log.bidder?.name || 'Unknown',
               log.ipAddress || 'N/A'
             ];
@@ -349,6 +362,39 @@ const EndedAuctionsPage = () => {
         </Badge>
       </div>
 
+      {/* Catalog Selection */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={() => {
+            setSelectedCatalog(null);
+            const allEndedAuctions = catalogs.flatMap(catalog => 
+              catalog.auctions.filter(auction => auction.status === "ENDED")
+            ).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+            setWinners(allEndedAuctions);
+          }}
+          className={`px-4 py-2 rounded-md ${
+            !selectedCatalog 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          All Catalogs
+        </button>
+        {catalogs.map((catalog) => (
+          <button
+            key={catalog._id}
+            onClick={() => handleCatalogClick(catalog)}
+            className={`px-4 py-2 rounded-md ${
+              selectedCatalog?._id === catalog._id
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {catalog.catalogName}
+          </button>
+        ))}
+      </div>
+
       <Card>
         <CardContent className="p-6">
           <div className="overflow-x-auto">
@@ -394,7 +440,7 @@ const EndedAuctionsPage = () => {
                             {winner.product.title}
                           </p>
                           <p className="text-sm text-gray-500">
-                            Starting Price: ${winner.product.price}
+                            Lot #{winner.lotNumber} | Starting Price: ${winner.product.price}
                           </p>
                         </div>
                       </div>
@@ -416,7 +462,7 @@ const EndedAuctionsPage = () => {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-gray-600">
-                        {format(new Date(winner.endDate), "PPp")}
+                        {winner.winnerBidTime ? format(new Date(winner.winnerBidTime), "PPp") : "N/A"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -459,7 +505,7 @@ const EndedAuctionsPage = () => {
                 ))}
                 {winners.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <p className="text-gray-500">No ended auctions found</p>
                     </TableCell>
                   </TableRow>
