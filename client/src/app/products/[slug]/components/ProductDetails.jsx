@@ -6,56 +6,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import MakeOfferModal from "./MakeOfferModal";
-import LoginModal from "@/app/components/LoginModal";
-import SignupModal from "@/app/components/SignupModal";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { selectIsLoggedIn } from "@/redux/authSlice";
+import toast from "react-hot-toast";
 
 export default function ProductDetails({
   isLoading,
   product,
   productId,
-  setShowLoginModal, // Added from ProductPage
-  setShowSignupModal, // Added from ProductPage
+  onAction,
+  isOfferModalOpen,
+  setIsOfferModalOpen,
 }) {
-  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false); // New state for terms checkbox
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const isLoggedIn = useSelector(selectIsLoggedIn);
 
   const handleMakeOfferClick = () => {
-    if (!isLoggedIn) {
-      setIsLoginModalOpen(true);
-      setShowLoginModal(true); // Sync with TopBar
-      return;
-    }
     if (!termsAccepted) {
       toast.error("Please accept the terms and conditions to make an offer.");
       return;
     }
-    setIsOfferModalOpen(true);
-  };
 
-  const handleOpenSignup = () => {
-    setIsLoginModalOpen(false);
-    setIsSignupModalOpen(true);
-    setShowSignupModal(true); // Sync with TopBar
-  };
-
-  const handleOpenLogin = () => {
-    setIsSignupModalOpen(false);
-    setIsLoginModalOpen(true);
-    setShowLoginModal(true); // Sync with TopBar
-  };
-
-  const closeAllModals = () => {
-    setIsOfferModalOpen(false);
-    setIsLoginModalOpen(false);
-    setIsSignupModalOpen(false);
-    setShowLoginModal(false);
-    setShowSignupModal(false);
+    // Always call onAction first, it will handle login and verification checks
+    onAction('offer');
   };
 
   return (
@@ -134,7 +108,7 @@ export default function ProductDetails({
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 text-base py-4 rounded-xl shadow-lg hover:shadow-xl"
                 onClick={handleMakeOfferClick}
-                disabled={!termsAccepted} // Disable button until terms are accepted
+                disabled={!termsAccepted}
               >
                 Make an Offer
               </Button>
@@ -188,16 +162,6 @@ export default function ProductDetails({
         minPrice={product?.price?.min ?? 0}
         product={product}
         productId={productId}
-      />
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={closeAllModals}
-        onOpenSignup={handleOpenSignup}
-      />
-      <SignupModal
-        isOpen={isSignupModalOpen}
-        onClose={closeAllModals}
-        onOpenLogin={handleOpenLogin}
       />
     </>
   );

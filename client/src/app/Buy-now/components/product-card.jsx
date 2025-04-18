@@ -96,6 +96,10 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
     fetchWishlist()
   }, []) // Empty dependency array ensures this runs only once on mount
 
+  const handleViewDetails = () => {
+    onViewDetails(slug);
+  };
+
   return (
     <>
       {/* Add the Toaster component for displaying notifications */}
@@ -156,7 +160,7 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => onViewDetails(slug)}
+                  onClick={handleViewDetails}
                   className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
                 >
                   View Details

@@ -59,9 +59,9 @@ export default function AboutUs() {
                                     </p>
                                 </div>
                             </div>
-                            <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
+                            {/* <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
                                 Learn More
-                            </button>
+                            </button> */}
                         </motion.div>
                     </div>
 
@@ -78,7 +78,7 @@ export default function AboutUs() {
                                 Our Mission
                             </h2>
                             <p className="text-base md:text-lg text-gray-600">
-                                Our mission is to make auctions accessible, transparent, and enjoyable for everyone. Whether you're a seasoned collector or a first-time bidder, we're here to guide you every step of the way.
+                                Our mission is to make auctions accessible, transparent, and enjoyable for everyone. Whether you&apos;re a seasoned collector or a first-time bidder, we&apos;re here to guide you every step of the way.
                             </p>
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
@@ -98,9 +98,9 @@ export default function AboutUs() {
                                     </p>
                                 </div>
                             </div>
-                            <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
+                            {/* <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
                                 Learn More
-                            </button>
+                            </button> */}
                         </motion.div>
 
                         {/* Right Column: Image */}

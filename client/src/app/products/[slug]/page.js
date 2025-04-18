@@ -7,12 +7,22 @@ import Footer from "@/app/components/Footer";
 import ProductDetails from "./components/ProductDetails";
 import config from "@/app/config_BASE_URL";
 import Image from "next/image";
+import { VerificationModal } from "@/app/components/VerificationModal";
+import LoginModal from "@/app/components/LoginModal";
+import { useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 export default function ProductPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0); // Track selected image
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const auth = useSelector((state) => state.auth);
+  const router = useRouter();
 
   useEffect(() => {
     console.log("ProductPage slug:", slug);
@@ -36,7 +46,7 @@ export default function ProductPage() {
               max: parseFloat(apiProduct.price) || 0,
             },
             location: "Beverly Hills, CA",
-            images: apiProduct.image?.map((img) => img.trim()) || [], // Handle multiple images
+            images: apiProduct.image?.map((img) => img.trim()) || [],
           };
           setProduct(transformedProduct);
         } else {
@@ -58,6 +68,35 @@ export default function ProductPage() {
 
   const handleImageClick = (index) => {
     setSelectedImageIndex(index);
+  };
+
+  const handleAction = (action) => {
+    console.log("Full Auth state:", JSON.stringify(auth, null, 2)); // Detailed debug log
+    console.log("User object:", auth.user);
+    console.log("isEmailVerified in user:", auth.user?.isEmailVerified);
+    console.log("isVerified in auth:", auth.isVerified);
+    console.log("isEmailVerified in auth:", auth.isEmailVerified);
+
+    if (!auth.token) {
+      console.log("User not logged in, showing login modal");
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    // Check all possible verification states
+    if (!auth.user?.isEmailVerified) {
+      console.log("User not verified, showing verification modal");
+      setIsVerificationModalOpen(true);
+      return;
+    }
+
+    console.log("User is verified, proceeding with action");
+    // If we reach here, user is logged in and verified
+    // Open the offer modal
+    if (action === 'offer') {
+      console.log("Opening offer modal");
+      setIsOfferModalOpen(true);
+    }
   };
 
   if (!slug) {
@@ -96,7 +135,6 @@ export default function ProductPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Main Image */}
                   <div className="relative aspect-square rounded-xl overflow-hidden shadow-xl">
                     <Image
                       src={product.images[selectedImageIndex] || "/placeholder.svg"}
@@ -106,7 +144,6 @@ export default function ProductPage() {
                       className="transition-all duration-300"
                     />
                   </div>
-                  {/* Thumbnail Images */}
                   {product.images.length > 1 && (
                     <div className="flex gap-2 flex-wrap">
                       {product.images.map((img, index) => (
@@ -135,11 +172,23 @@ export default function ProductPage() {
               isLoading={isLoading}
               product={product}
               productId={slug}
+              onAction={handleAction}
+              isOfferModalOpen={isOfferModalOpen}
+              setIsOfferModalOpen={setIsOfferModalOpen}
             />
           </div>
         </main>
       </div>
       <Footer />
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        email={auth.user?.email}
+      />
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </>
   );
 }
