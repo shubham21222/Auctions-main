@@ -28,7 +28,6 @@ export default function ProductDetails({
       return;
     }
 
-    // Always call onAction first, it will handle login and verification checks
     onAction('offer');
   };
 
