@@ -103,6 +103,7 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard/users", label: "Users" },
     { href: "/Admin/Admin-dashboard/role-permissions", label: "Roles" },
     { href: "/Admin/Admin-dashboard/register-for-role", label: "Staff" },
+    // { href: "/Admin/Admin-dashboard/remove-staff", label: "Remove Staff" },
   ];
 
   return (

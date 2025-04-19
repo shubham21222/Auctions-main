@@ -11,6 +11,7 @@ const UsersPage = () => {
   const [searchQuery, setSearchQuery] = useState(""); // Empty by default
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, userId: null });
   const limit = 10;
 
   // Get token from Redux store (assuming auth slice)
@@ -71,6 +72,35 @@ const UsersPage = () => {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    try {
+      const response = await fetch(`${config.baseURL}/v1/api/user/delete/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.subCode === "User deleted successfully") {
+        toast.success("User deleted successfully!");
+        // Refresh the users list
+        setUsers(users.filter(user => user._id !== userId));
+        setDeleteDialog({ isOpen: false, userId: null });
+      } else {
+        throw new Error(data.message || "Failed to delete user");
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error(error.message || "Failed to delete user");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
@@ -105,7 +135,7 @@ const UsersPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role & Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
-                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th> */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -170,16 +200,14 @@ const UsersPage = () => {
                           Orders: {user.userOrders?.length || 0}
                         </div>
                       </td>
-                      {/* <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {ipAddress}
-                        </div>
-                        {lastActivity && (
-                          <div className="text-xs text-gray-500">
-                            Last activity: {new Date(lastActivity).toLocaleDateString()}
-                          </div>
-                        )}
-                      </td> */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => setDeleteDialog({ isOpen: true, userId: user._id })}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -188,6 +216,30 @@ const UsersPage = () => {
           </div>
         ) : (
           <div className="text-center text-gray-600 py-8">No users found matching your search.</div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {deleteDialog.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete User</h3>
+              <p className="text-gray-600 mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setDeleteDialog({ isOpen: false, userId: null })}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(deleteDialog.userId)}
+                  className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Pagination */}
