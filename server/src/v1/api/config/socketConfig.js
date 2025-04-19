@@ -3,6 +3,7 @@ import Auction from "../models/Auction/auctionModel.js";
 import bidIncrementModel from "../models/Auction/bidIncrementModel.js";
 import mongoose from "mongoose";
 import User from "../models/Auth/User.js";
+import axios from "axios"; // Import axios for API calls
 
 const userSocketMap = {};
 const auctionWatchers = {};
@@ -83,8 +84,92 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "Auction not found." });
         }
 
-        if (actionType === "RESERVE_NOT_MET") {
+        let nextActiveAuction = null;
+        let nextAuctionProductName = null;
+        let nextAuctionCatalogName = null;
+
+        if (actionType === "SOLD") {
+          // Update auction status to ENDED
+          auction.status = "ENDED";
+          if (auction.bids.length > 0 && auction.reserveMet) {
+            const highestBid = auction.bids.reduce(
+              (max, bid) => (bid.bidAmount > max.bidAmount ? bid : max),
+              auction.bids[0]
+            );
+            auction.winner = highestBid.bidder;
+            auction.winnerBidTime = highestBid.bidTime;
+          }
+
+          // Find the next auction by incrementing lot number
+          const currentLot = parseInt(auction.lotNumber);
+          const nextAuction = await Auction.findOne({
+            lotNumber: (currentLot + 1).toString(),
+            status: { $ne: "ENDED" },
+          });
+
+          // Fetch next auction details using the bulkgetbyId API
+          if (nextAuction) {
+            try {
+              const response = await axios.get(
+                `http://localhost:4000/v1/api/auction/bulkgetbyId/${nextAuction._id}`
+              );
+              if (response.data.status && response.data.items) {
+                nextActiveAuction = {
+                  _id: response.data.items._id,
+                  lotNumber: response.data.items.lotNumber,
+                };
+                nextAuctionProductName = response.data.items.product?.title || "Unnamed Item";
+                nextAuctionCatalogName = response.data.items.category?.name || "Uncategorized";
+                console.log(
+                  `Next auction fetched via API: Lot ${nextActiveAuction.lotNumber}, ID: ${nextActiveAuction._id}, Product: ${nextAuctionProductName}, Catalog: ${nextAuctionCatalogName}`
+                );
+              } else {
+                console.warn(`API response for auction ${nextAuction._id} invalid:`, response.data);
+              }
+            } catch (error) {
+              console.error(`Error fetching next auction ${nextAuction._id} via API:`, error.message);
+              nextAuctionProductName = "Unnamed Item";
+              nextAuctionCatalogName = "Uncategorized";
+            }
+          } else {
+            console.log("No upcoming auction found after current lot.");
+          }
+
+          // Save the auction
+          auction.bidLogs.push({
+            msg: actionType,
+          });
+          await auction.save();
+
+          // Emit auctionMessage with next auction details
+          const message = nextActiveAuction
+            ? `Auction has ended and sold. Next auction: ${nextAuctionProductName} in ${nextAuctionCatalogName}. Please join the next product auction.`
+            : "Auction has ended and sold.";
+
+          io.to(auctionId).emit("auctionMessage", {
+            auctionId,
+            actionType,
+            message,
+            sender: { id: userId, name: user.name, role: user.role },
+            timestamp: new Date(),
+            nextActiveAuction: nextActiveAuction,
+            nextAuctionProductName,
+            nextAuctionCatalogName,
+          });
+
+          // Notify winner if applicable
+          if (auction.winner && userSocketMap[auction.winner]) {
+            io.to(userSocketMap[auction.winner]).emit("winnerNotification", {
+              message: "Congratulations! You won the auction.",
+              auctionId,
+              finalBid: auction.currentBid,
+            });
+          }
+        } else if (actionType === "RESERVE_NOT_MET") {
           auction.reserveMet = false;
+          auction.bidLogs.push({
+            msg: actionType,
+          });
           await auction.save();
           io.to(auctionId).emit("auctionMessage", {
             auctionId,
@@ -97,12 +182,11 @@ export const initializeSocket = (server) => {
           auction.bidLogs.push({
             msg: actionType,
           });
-
           await auction.save();
-
           io.to(auctionId).emit("auctionMessage", {
             auctionId,
             actionType,
+            message: actionType,
             sender: { id: userId, name: user.name, role: user.role },
             timestamp: new Date(),
           });
@@ -153,7 +237,6 @@ export const initializeSocket = (server) => {
           return socket.emit("error", { message: "User not found." });
         }
 
-        // Check if the user is authorized to place a competitor bid
         if (bidType === "competitor" && !["ADMIN", "clerk"].includes(user.role)) {
           return socket.emit("error", { message: "Only admins or clerks can place competitor bids." });
         }
@@ -222,7 +305,7 @@ export const initializeSocket = (server) => {
           bidTime: new Date(),
           ipAddress: ipAddress,
           bidType: bidType || "online",
-          Role: user.role, // Store the user's role with the bid
+          Role: user.role,
         };
 
         auction.bidLogs.push({
@@ -381,7 +464,7 @@ export const initializeSocket = (server) => {
                     bidder: "$$bid.bidder",
                     bidAmount: "$$bid.bidAmount",
                     bidTime: "$$bid.bidTime",
-                    bidType: "$$bid.bidType", // Ensure bidType is included
+                    bidType: "$$bid.bidType",
                     Role: "$$bid.Role",
                     ipAddress: "$$bid.ipAddress",
                   },
@@ -458,25 +541,22 @@ export const initializeSocket = (server) => {
           });
         }
 
-            // 🔄 Find next auction by incrementing lot number
-    const currentLot = parseInt(auction.lotNumber);
-    const nextAuction = await Auction.findOne({
-      lotNumber: (currentLot + 1).toString(),
-      status: { $ne: "ENDED" }, // Optional: Only fetch if not ended
-    });
+        // Find next auction by incrementing lot number
+        const currentLot = parseInt(auction.lotNumber);
+        const nextAuction = await Auction.findOne({
+          lotNumber: (currentLot + 1).toString(),
+          status: { $ne: "ENDED" },
+        });
 
-    if (nextAuction) {
-      console.log(`Next auction found: Lot ${nextAuction.lotNumber}, ID: ${nextAuction._id}`);
-      io.emit("nextAuctionInfo", {
-        nextLotNumber: nextAuction.lotNumber,
-        nextAuctionId: nextAuction._id,
-      });
-    } else {
-      console.log("No upcoming auction found after current lot.");
-    }
-
-    // ENDED //
-
+        if (nextAuction) {
+          console.log(`Next auction found: Lot ${nextAuction.lotNumber}, ID: ${nextAuction._id}`);
+          io.emit("nextAuctionInfo", {
+            nextLotNumber: nextAuction.lotNumber,
+            nextAuctionId: nextAuction._id,
+          });
+        } else {
+          console.log("No upcoming auction found after current lot.");
+        }
       } catch (error) {
         console.error("Error ending auction:", error);
       }

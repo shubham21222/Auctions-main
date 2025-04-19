@@ -112,7 +112,7 @@ export default function Dashboard() {
                   <ArrowDownRight className="h-4 w-4 mr-1" />
                 )}
                 <p className="text-xs opacity-80">
-                  {Math.abs(dashboardData?.revenueChange || "0")}% from last month
+                  {dashboardData?.revenueChange || "0%"} from last month
                 </p>
               </div>
             </CardContent>
@@ -138,7 +138,7 @@ export default function Dashboard() {
                   <ArrowDownRight className="h-4 w-4 mr-1" />
                 )}
                 <p className="text-xs opacity-80">
-                  {Math.abs(dashboardData?.userChange || "0")}% from last month
+                  {dashboardData?.userChange || "0%"} from last month
                 </p>
               </div>
             </CardContent>
@@ -184,7 +184,7 @@ export default function Dashboard() {
                   <ArrowDownRight className="h-4 w-4 mr-1" />
                 )}
                 <p className="text-xs opacity-80">
-                  {Math.abs(dashboardData?.salesChange || "0")}% since last period
+                  {dashboardData?.salesChange || "0%"} since last period
                 </p>
               </div>
             </CardContent>

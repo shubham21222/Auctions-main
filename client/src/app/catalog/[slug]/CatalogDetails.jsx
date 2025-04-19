@@ -342,7 +342,7 @@ export default function CatalogDetails({
                     onClick={handleSendMessage}
                     className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
                   >
-                    Send
+                    Measures
                   </Button>
                 </div>
 
@@ -370,7 +370,7 @@ export default function CatalogDetails({
             {auction?.status === "ACTIVE" && (
               <div className="mt-4 bg-emerald-50 text-emerald-800 px-4 py-3 rounded-lg flex items-center">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-                Live Auction
+                {auction?.auctionType === "TIMED" ? "Timed Auction" : "Live Auction"}
               </div>
             )}
           </div>
@@ -383,7 +383,9 @@ export default function CatalogDetails({
                   {entry.message ? (
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-medium">{entry.message}</span>
+                        <span className={`text-blue-600 font-medium ${entry.actionType === "SOLD" ? "text-green-600" : ""}`}>
+                          {entry.message}
+                        </span>
                         <span className="text-sm text-slate-500">({entry.sender || (isClerk ? "Clerk" : "Admin")})</span>
                       </div>
                       <span className="text-xs text-slate-400 whitespace-nowrap">

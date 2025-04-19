@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const AuctionControls = ({
   currentAuction,

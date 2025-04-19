@@ -219,17 +219,45 @@ const AdminLiveAuctionPage = () => {
         const responseData = await response.json();
         const nextActiveAuction = responseData.items?.nextActiveAuction;
 
+        // Fetch full details of the next active auction
+        let nextAuctionProductName = null;
+        let nextAuctionCatalogName = null;
+        if (nextActiveAuction?._id) {
+          try {
+            const nextAuctionResponse = await fetch(
+              `${config.baseURL}/v1/api/auction/bulkgetbyId/${nextActiveAuction._id}`,
+              {
+                method: "GET",
+                headers: { Authorization: `${token}` },
+              }
+            );
+            if (nextAuctionResponse.ok) {
+              const nextAuctionData = await nextAuctionResponse.json();
+              if (nextAuctionData.status && nextAuctionData.items) {
+                nextAuctionProductName = nextAuctionData.items.product?.title || "Unnamed Item";
+                nextAuctionCatalogName = nextAuctionData.items.catalog || "Uncategorized";
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching next auction details:", error);
+          }
+        }
+
         toast.success("Auction marked as sold and status updated to ENDED");
         setCurrentAuction((prev) => ({ ...prev, status: "ENDED" }));
         await fetchAuctionData();
 
-        // Emit SOLD action with nextActiveAuction
+        // Emit SOLD action with nextActiveAuction and additional details
         if (socket) {
           socket.emit("auctionMessage", {
             auctionId,
             actionType: "SOLD",
-            message: "Auction has ended and sold.",
+            message: nextActiveAuction
+              ? `Auction has ended and sold. Next auction: ${nextAuctionProductName} in ${nextAuctionCatalogName}. Please join the next product auction.`
+              : "Auction has ended and sold.",
             nextActiveAuction: nextActiveAuction || null,
+            nextAuctionProductName,
+            nextAuctionCatalogName,
           });
         }
       }

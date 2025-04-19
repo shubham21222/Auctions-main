@@ -190,8 +190,8 @@ export default function CatalogPage() {
           toast.success(`New ${bidType} bid: $${bidAmount.toLocaleString()}`);
         }
       },
-      onAuctionMessage: ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType, nextActiveAuction }) => {
-        console.log("Catalog: Received auctionMessage:", { msgAuctionId, actionType, message, nextActiveAuction });
+      onAuctionMessage: ({ auctionId: msgAuctionId, message, actionType, sender, timestamp, bidType, nextActiveAuction, nextAuctionProductName, nextAuctionCatalogName }) => {
+        console.log("Catalog: Received auctionMessage:", { msgAuctionId, actionType, message, nextActiveAuction, nextAuctionProductName, nextAuctionCatalogName });
         if (msgAuctionId === auctionId) {
           const newMessage = {
             message: message || actionType || "Update",
@@ -202,6 +202,9 @@ export default function CatalogPage() {
                 : "Admin",
             timestamp: timestamp || new Date(),
             bidType: bidType || (message ? "message" : actionType),
+            nextActiveAuction,
+            nextAuctionProductName,
+            nextAuctionCatalogName,
           };
 
           setAuction((prev) => ({
@@ -214,14 +217,19 @@ export default function CatalogPage() {
             setAllAuctions((prev) =>
               prev.map((auction) =>
                 auction._id === nextActiveAuction._id
-                  ? { ...auction, nextActiveAuction }
+                  ? { ...auction, ...nextActiveAuction, nextAuctionProductName, nextAuctionCatalogName }
                   : auction
               )
             );
           }
 
           if (actionType === "SOLD") {
-            toast.success("Auction has ended and sold!");
+            toast.success(message, { duration: 5000 });
+            if (nextActiveAuction?._id) {
+              setTimeout(() => {
+                router.push(`/catalog/${nextActiveAuction._id}`);
+              }, 3000);
+            }
           } else if (message) {
             toast.info(message);
           }

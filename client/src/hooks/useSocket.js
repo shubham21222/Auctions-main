@@ -19,10 +19,9 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const userId = useSelector((state) => state.auth._id);
   const token = useSelector((state) => state.auth.token);
-  const isAdmin = useSelector((state) => state.auth.isAdmin); // Existing admin flag
-  const role = useSelector((state) => state.auth.role); // New role field
+  const isAdmin = useSelector((state) => state.auth.isAdmin);
+  const role = useSelector((state) => state.auth.role);
 
-  // Determine if the user is effectively an admin (either isAdmin or role is "clerk")
   const isEffectiveAdmin = isAdmin || role === "clerk";
 
   const addNotification = useCallback((type, message) => {
@@ -41,7 +40,7 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           mode,
           userId,
-          isAdmin: isEffectiveAdmin, // Use effective admin status
+          isAdmin: isEffectiveAdmin,
         });
         console.log(`Set auction ${auctionId} mode to: ${mode}`);
         setAuctionModes((prev) => ({
@@ -156,7 +155,7 @@ export const useSocket = () => {
           userId,
           bidType,
           bidAmount,
-          isAdmin: isEffectiveAdmin, // Pass effective admin status
+          isAdmin: isEffectiveAdmin,
         });
 
         console.log(
@@ -187,7 +186,7 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           message,
           userId,
-          isAdmin: isEffectiveAdmin, // Use effective admin status
+          isAdmin: isEffectiveAdmin,
         });
         console.log(`Sent message to auction ${auctionId}: ${message}`);
       }
@@ -202,7 +201,7 @@ export const useSocket = () => {
           auctionId: normalizeId(auctionId),
           actionType,
           userId,
-          isAdmin: isEffectiveAdmin, // Use effective admin status
+          isAdmin: isEffectiveAdmin,
         });
         console.log(
           `Performed admin action ${actionType} on auction ${auctionId}`
@@ -210,6 +209,23 @@ export const useSocket = () => {
       }
     },
     [socket, userId, isEffectiveAdmin]
+  );
+
+  const performClerkAction = useCallback(
+    (auctionId, actionType) => {
+      if (socket && auctionId && actionType) {
+        socket.emit("clerkAction", {
+          auctionId: normalizeId(auctionId),
+          actionType,
+          userId,
+          isClerk: role === "clerk",
+        });
+        console.log(
+          `Performed clerk action ${actionType} on auction ${auctionId}`
+        );
+      }
+    },
+    [socket, userId, role]
   );
 
   useEffect(() => {
@@ -220,7 +236,7 @@ export const useSocket = () => {
 
       socketIo = io(config.baseURL, {
         query: { userId },
-        auth: { token, isAdmin: isEffectiveAdmin }, // Use effective admin status
+        auth: { token, isAdmin: isEffectiveAdmin },
         transports: ["websocket"],
         reconnection: true,
         reconnectionAttempts: 5,
@@ -283,7 +299,7 @@ export const useSocket = () => {
 
       socketIo.on(
         "auctionMessage",
-        ({ auctionId, message, actionType, sender, timestamp, bidType }) => {
+        ({ auctionId, message, actionType, sender, timestamp, bidType, nextActiveAuction, nextAuctionProductName, nextAuctionCatalogName }) => {
           console.log("Received auctionMessage:", {
             auctionId,
             message,
@@ -291,6 +307,9 @@ export const useSocket = () => {
             sender,
             timestamp,
             bidType,
+            nextActiveAuction,
+            nextAuctionProductName,
+            nextAuctionCatalogName,
           });
           const displayMessage = message || actionType || "Update";
           addNotification("info", displayMessage);
@@ -310,6 +329,9 @@ export const useSocket = () => {
                             : sender || "Admin",
                         timestamp: timestamp || new Date(),
                         bidType: bidType || "message",
+                        nextActiveAuction,
+                        nextAuctionProductName,
+                        nextAuctionCatalogName,
                       },
                     ],
                   }
@@ -410,7 +432,9 @@ export const useSocket = () => {
       };
     };
 
-    initializeSocket();
+    const cleanup = initializeSocket();
+
+    return cleanup;
   }, [userId, token, isEffectiveAdmin, addNotification]);
 
   useEffect(() => {
@@ -454,50 +478,14 @@ export const useSocket = () => {
         onLatestBidRemoved: callbacks.onLatestBidRemoved || (() => {}),
         onAuctionModeUpdate: callbacks.onAuctionModeUpdate || (() => {}),
       };
+
       const bidUpdateHandler = (data) => {
-        const msgAuctionId = normalizeId(data.auctionId);
-        if (msgAuctionId === normalizedAuctionId) {
-          console.log(`Received bid update for auction ${msgAuctionId}:`, data);
+        const normalizedMsgAuctionId = normalizeId(data.auctionId);
+        if (normalizedMsgAuctionId === normalizedAuctionId) {
           handlers.onBidUpdate(data);
-
-          setLiveAuctions((prev) =>
-            prev.map((auction) => {
-              if (normalizeId(auction.id) !== msgAuctionId) return auction;
-
-              // Check if this bid already exists in the history (within 1 second)
-              const bidTime = new Date(data.timestamp || new Date()).getTime();
-              const hasDuplicate = (auction.bids || []).some((existingBid) => {
-                const existingTime = new Date(existingBid.bidTime).getTime();
-                return (
-                  existingBid.bidAmount === data.bidAmount &&
-                  Math.abs(existingTime - bidTime) < 1000
-                );
-              });
-
-              // Only add the bid if it's not a duplicate
-              const updatedBids = hasDuplicate
-                ? auction.bids
-                : [
-                    ...(auction.bids || []),
-                    {
-                      bidder: data.bidderId,
-                      bidAmount: data.bidAmount,
-                      bidTime: data.timestamp || new Date(),
-                      bidType: data.bidType,
-                    },
-                  ];
-
-              return {
-                ...auction,
-                currentBid: data.bidAmount,
-                currentBidder: data.bidderId,
-                minBidIncrement: data.minBidIncrement,
-                bids: updatedBids,
-              };
-            })
-          );
         }
       };
+
       const auctionMessageHandler = ({
         auctionId: msgAuctionId,
         message,
@@ -505,6 +493,9 @@ export const useSocket = () => {
         sender,
         timestamp,
         bidType,
+        nextActiveAuction,
+        nextAuctionProductName,
+        nextAuctionCatalogName,
       }) => {
         const normalizedMsgAuctionId = normalizeId(msgAuctionId);
         if (normalizedMsgAuctionId === normalizedAuctionId) {
@@ -515,6 +506,9 @@ export const useSocket = () => {
             sender,
             timestamp,
             bidType,
+            nextActiveAuction,
+            nextAuctionProductName,
+            nextAuctionCatalogName,
           });
         }
       };
@@ -522,10 +516,7 @@ export const useSocket = () => {
       const watcherUpdateHandler = ({ auctionId: msgAuctionId, watchers }) => {
         const normalizedMsgAuctionId = normalizeId(msgAuctionId);
         if (normalizedMsgAuctionId === normalizedAuctionId) {
-          handlers.onWatcherUpdate({
-            auctionId: normalizedMsgAuctionId,
-            watchers,
-          });
+          handlers.onWatcherUpdate({ auctionId: normalizedMsgAuctionId, watchers });
         }
       };
 
@@ -555,10 +546,6 @@ export const useSocket = () => {
             auctionId: normalizedMsgAuctionId,
             mode,
           });
-          setAuctionModes((prev) => ({
-            ...prev,
-            [normalizedMsgAuctionId]: mode,
-          }));
         }
       };
 
@@ -576,22 +563,23 @@ export const useSocket = () => {
         socket.off("auctionModeUpdate", auctionModeUpdateHandler);
       };
     },
-    [socket, setLiveAuctions]
+    [socket]
   );
 
   return {
     socket,
     liveAuctions,
     setLiveAuctions,
+    notifications,
     joinAuction,
-    placeBid,
     getAuctionData,
+    placeBid,
+    getBidIncrement,
     sendMessage,
     performAdminAction,
+    performClerkAction,
     updateAuctionMode,
     auctionModes,
-    notifications,
-    getBidIncrement,
     isConnected,
     subscribeToEvents,
   };
