@@ -276,3 +276,30 @@ export const getProductById = async (req, res) => {
     }
 };
 
+
+
+// bulkDeleteProducts //
+
+export const bulkDeleteProducts = async (req, res) => {
+    try {
+        const { productIds } = req.body;
+
+        // Validate input
+        if (!Array.isArray(productIds) || productIds.length === 0) {
+            return badRequest(res, "Please provide an array of product IDs to delete.");
+        }
+
+        // Delete products by IDs
+        const deleteResult = await ProductModel.deleteMany({
+            _id: { $in: productIds }
+        });
+
+        if (deleteResult.deletedCount === 0) {
+            return badRequest(res, "No products were deleted. Check if the provided IDs exist.");
+        }
+
+        return success(res, `Successfully deleted ${deleteResult.deletedCount} product(s).`);
+    } catch (error) {
+        return unknownError(res, error.message);
+    }
+};
