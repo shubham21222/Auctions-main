@@ -448,6 +448,7 @@ export const getbulkAuctions = async (req, res) => {
             auctionType,
             catalog,
             Date: queryDate,
+            upcoming,
             payment_status,
             shipping_status// New catalog query parameter
         } = req.query;
@@ -486,6 +487,13 @@ export const getbulkAuctions = async (req, res) => {
         if (shipping_status) {
             matchStage.shipping_status = shipping_status
         }
+
+        if (upcoming === 'true') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of the day
+            matchStage.startDate = { $gte: today };
+        }
+             
 
         if (queryDate) {
             const [year, month, day] = queryDate.split("-").map(Number);
