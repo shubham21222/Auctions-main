@@ -2,8 +2,6 @@
 
 import Footer from "../components/Footer";
 import Header from "../components/Header";
-import { AuctionCard } from "./components/auction-card";
-import { AuctionFilters } from "./components/auction-filters";
 import { LuxuryBackground } from "./components/luxury-background";
 import {
   Select,
@@ -13,179 +11,213 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sparkles } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
+// Updated CatalogCard component with 3 images and improved layout
+function CatalogCard({ catalog }) {
+  const router = useRouter();
+  const firstAuction = catalog.auctions[0];
+  const secondAuction = catalog.auctions[1];
+  const thirdAuction = catalog.auctions[2];
+  
+  const images = [
+    firstAuction?.product?.image?.[0] || "/placeholder.svg",
+    secondAuction?.product?.image?.[0] || "/placeholder.svg",
+    thirdAuction?.product?.image?.[0] || "/placeholder.svg"
+  ];
+  
+  const [currentMainImage, setCurrentMainImage] = useState(0);
+  const auctionCount = catalog.auctions.length;
+
+  const handleViewCatalog = () => {
+    router.push(`/catalog-details/${firstAuction._id}`);
+  };
+
+  const handleThumbnailClick = (index) => {
+    // Swap the clicked image with the main image
+    const newImages = [...images];
+    [newImages[0], newImages[index + 1]] = [newImages[index + 1], newImages[0]];
+    images.splice(0, images.length, ...newImages);
+  };
+
+  // Format date for display
+  const auctionDate = firstAuction?.startTime 
+    ? new Date(firstAuction.startTime).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+      })
+    : 'Date TBD';
+
+  return (
+    <div className="group relative overflow-hidden bg-white/90 backdrop-blur-md rounded-xl p-5 flex flex-row gap-8 items-start 
+                    shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.1)] 
+                    transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20">
+      {/* Left: Main Image with Thumbnails */}
+      <div className="flex-shrink-0 w-[300px] relative group/images">
+        <div className="flex gap-2">
+          {/* Thumbnails on left */}
+          <div className="flex flex-col gap-2 w-[70px]">
+            {images.slice(1, 3).map((image, index) => (
+              <div key={index} 
+                   onClick={() => handleThumbnailClick(index)}
+                   className="relative aspect-[4/3] overflow-hidden rounded-md bg-gray-50
+                            hover:ring-2 ring-luxury-gold/50 transition-all duration-300
+                            cursor-pointer transform hover:scale-95 active:scale-90">
+                <img
+                  src={image}
+                  alt={`${catalog.catalogName} - Thumbnail ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300
+                           hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors duration-300" />
+              </div>
+            ))}
+          </div>
+
+          {/* Main Image */}
+          <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50">
+            <img
+              src={images[0]}
+              alt={`${catalog.catalogName} - Main Image`}
+              className="w-full h-full object-cover transition-all duration-700 ease-out
+                       group-hover/images:scale-110 group-hover/images:rotate-1"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 
+                          group-hover/images:opacity-100 transition-opacity duration-300" />
+          </div>
+        </div>
+
+        {/* Hover Overlay */}
+        <div className="absolute -bottom-1 left-0 right-0 h-20 bg-gradient-to-t from-white/90 to-transparent 
+                     opacity-0 group-hover/images:opacity-100 transition-opacity duration-300" />
+      </div>
+
+      {/* Middle: Content with enhanced typography and animations */}
+      <div className="flex-1 py-2 relative">
+        <h3 className="text-2xl font-semibold text-gray-800 mb-4 transition-all duration-300 
+                     group-hover:text-luxury-gold group-hover:translate-x-1">{catalog.catalogName}</h3>
+        <p className="text-gray-600 text-sm mb-6 line-clamp-2 transition-all duration-300 
+                    group-hover:text-gray-700">
+          Join us for {catalog.catalogName}, an exclusive auction featuring a curated collection of fine items from renowned designers...
+        </p>
+        <div className="flex flex-col gap-3 relative">
+          <div className="flex items-center gap-2 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+            <svg className="w-4 h-4 text-luxury-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="group-hover:text-gray-700 transition-colors duration-300">
+              Starts on: {auctionDate}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+            <svg className="w-4 h-4 text-luxury-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="group-hover:text-gray-700 transition-colors duration-300">
+              Beverly Hills, CA, US
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-medium text-red-500 transition-all duration-300 group-hover:translate-x-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{Math.floor(Math.random() * 5) + 1} Days Left</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Action with enhanced button effects */}
+      <div className="flex-shrink-0 pt-2">
+        <button
+          onClick={handleViewCatalog}
+          className="relative inline-flex items-center justify-center px-8 py-3 overflow-hidden font-medium text-white 
+                   transition duration-300 ease-out border-2 border-[#006D7E] rounded-lg shadow-md group/btn"
+        >
+          <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full 
+                        bg-[#006D7E] group-hover/btn:translate-x-0 ease">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </span>
+          <span className="absolute flex items-center justify-center w-full h-full text-[#006D7E] transition-all 
+                        duration-300 transform group-hover/btn:translate-x-full ease">
+            Explore
+          </span>
+          <span className="relative invisible">Explore</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function AuctionCalendar() {
-  const [allAuctions, setAllAuctions] = useState([]);
-  const [displayedAuctions, setDisplayedAuctions] = useState([]);
+  const [catalogs, setCatalogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [sortOption, setSortOption] = useState("date-desc");
-  const [filters, setFilters] = useState({
-    category: "",
-    priceRange: [0, 100000],
-    searchQuery: "",
-    auctionType: "",
-    status: "ACTIVE",
-    date: null,
-  });
+  const [sortOption, setSortOption] = useState("name-asc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalAuctions, setTotalAuctions] = useState(0);
-  const [auctionsPerPage, setAuctionsPerPage] = useState(20);
+  const [catalogsPerPage, setCatalogsPerPage] = useState(20);
+  const [totalCatalogs, setTotalCatalogs] = useState(0);
 
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const token = useSelector((state) => state.auth.token);
-  const walletBalance = useSelector((state) =>
-    state.auth.user?.walletBalance ? Number(state.auth.user.walletBalance) : 0
-  );
 
-  const fetchAuctions = async () => {
+  const fetchCatalogs = async () => {
     setLoading(true);
     try {
       const headers = token ? { Authorization: `${token}` } : {};
-      const queryParams = new URLSearchParams({
-        page: currentPage,
-        ...(filters.category && { catalog: filters.category }),
-        ...(filters.minPrice && { minPrice: filters.minPrice }),
-        ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-        ...(filters.searchQuery && { searchQuery: filters.searchQuery }),
-        ...(filters.auctionType && { auctionType: filters.auctionType }),
-        ...(filters.status && { status: filters.status }),
-        ...(filters.date && { Date: filters.date }),
-      }).toString();
-
-      const url = `${config.baseURL}/v1/api/auction/bulk${queryParams ? `?${queryParams}` : ""}`;
-      console.log("API URL:", url); // Add this for debugging
-      const auctionsResponse = await fetch(url, {
+      const url = `${config.baseURL}/v1/api/auction/bulk`;
+      const response = await fetch(url, {
         method: "GET",
         headers,
       });
-      if (!auctionsResponse.ok) throw new Error("Failed to fetch auctions");
-      const auctionsData = await auctionsResponse.json();
+      if (!response.ok) throw new Error("Failed to fetch catalogs");
+      const data = await response.json();
 
-      if (auctionsData.status) {
-        const auctionItems = auctionsData.items?.catalogs?.flatMap((catalog) =>
-          catalog.auctions.map((auction) => ({
-            ...auction,
-            catalogName: catalog.catalogName,
-            images: auction.product?.image || ["/placeholder.svg"],
-          }))
-        ) || [];
+      if (data.status) {
+        let fetchedCatalogs = data.items?.catalogs || [];
 
-        let enrichedAuctions = auctionItems.map((auction) => ({
-          id: auction._id,
-          title: auction.product?.title || "Untitled Auction",
-          images: auction.images,
-          endDateTime: auction.endDate || "N/A",
-          endDateRaw: auction.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          startDateRaw: auction.startDate,
-          currentBid: auction.currentBid,
-          startingBid: auction.startingBid,
-          status: auction.status,
-          auctionType: auction.auctionType,
-          lotNumber: auction.lotNumber,
-          catalogName: auction.catalogName,
-          featured: true,
-          product: { _id: auction.product?._id || "" },
-          winner: auction.winner ? auction.winner.name : null,
-          currentBidder: auction.currentBidder,
-          bids: auction.bids || [],
-        }));
-
-        // Apply date filter if date is provided
-        if (filters.date) {
-          const filterDate = new Date(filters.date);
-          filterDate.setHours(0, 0, 0, 0); // Set to start of day
-
-          enrichedAuctions = enrichedAuctions.filter((auction) => {
-            if (!auction.startDateRaw) return false;
-            const auctionDate = new Date(auction.startDateRaw);
-            auctionDate.setHours(0, 0, 0, 0); // Set to start of day for comparison
-            return auctionDate.toDateString() === filterDate.toDateString();
-          });
-        }
-
-        enrichedAuctions = [...enrichedAuctions].sort((a, b) => {
+        // Sort catalogs based on sortOption
+        fetchedCatalogs = [...fetchedCatalogs].sort((a, b) => {
           switch (sortOption) {
-            case "title-asc":
-              return a.title.localeCompare(b.title);
-            case "title-desc":
-              return b.title.localeCompare(a.title);
-            case "price-asc":
-              return a.currentBid - b.currentBid;
-            case "price-desc":
-              return b.currentBid - a.currentBid;
-            case "date-asc":
-              return new Date(a.startDateRaw) - new Date(b.startDateRaw);
-            case "date-desc":
+            case "name-asc":
+              return a.catalogName.localeCompare(b.catalogName);
+            case "name-desc":
+              return b.catalogName.localeCompare(a.catalogName);
+            case "items-asc":
+              return a.auctions.length - b.auctions.length;
+            case "items-desc":
+              return b.auctions.length - a.auctions.length;
             default:
-              return new Date(b.startDateRaw) - new Date(a.startDateRaw);
+              return 0;
           }
         });
 
-        setAllAuctions(enrichedAuctions);
-        setTotalAuctions(enrichedAuctions.length);
+        setCatalogs(fetchedCatalogs);
+        setTotalCatalogs(fetchedCatalogs.length);
       } else {
-        throw new Error(auctionsData.message);
+        throw new Error(data.message);
       }
     } catch (error) {
-      console.error("Error fetching auctions:", error);
-      setAllAuctions([]);
-      setDisplayedAuctions([]);
-      setTotalAuctions(0);
-      toast.error("Failed to load auctions.");
+      console.error("Error fetching catalogs:", error);
+      setCatalogs([]);
+      toast.error("Failed to load catalogs.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const startIndex = (currentPage - 1) * auctionsPerPage;
-    const endIndex = startIndex + auctionsPerPage;
-    const paginatedAuctions = allAuctions.slice(startIndex, endIndex);
-    setDisplayedAuctions(paginatedAuctions);
-  }, [allAuctions, currentPage, auctionsPerPage]);
-
-  useEffect(() => {
-    let isSubscribed = true;
-    let timeoutId;
-
-    const fetchData = async () => {
-      if (!isSubscribed) return;
-      setLoading(true);
-      try {
-        await fetchAuctions();
-      } finally {
-        if (isSubscribed) {
-          setLoading(false);
-        }
-      }
-    };
-
-    // Debounce the fetch to prevent rapid re-fetches
-    timeoutId = setTimeout(fetchData, 300);
-
-    const timeInterval = setInterval(() => {
-      if (isSubscribed) {
-        setCurrentTime(new Date());
-      }
-    }, 1000);
-
-    return () => {
-      isSubscribed = false;
-      clearTimeout(timeoutId);
-      clearInterval(timeInterval);
-    };
-  }, [token, filters, sortOption]);
-
-  const handleFilterChange = (newFilters) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
-    setCurrentPage(1);
-  };
+    fetchCatalogs();
+  }, [token, sortOption]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -194,13 +226,13 @@ export default function AuctionCalendar() {
   };
 
   const handlePerPageChange = (newPerPage) => {
-    setAuctionsPerPage(newPerPage);
+    setCatalogsPerPage(newPerPage);
     setCurrentPage(1);
   };
 
-  const totalPages = Math.ceil(totalAuctions / auctionsPerPage);
+  const totalPages = Math.ceil(totalCatalogs / catalogsPerPage);
 
-  const getPageNumbers = useCallback(() => {
+  const getPageNumbers = () => {
     const maxPagesToShow = 5;
     const half = Math.floor(maxPagesToShow / 2);
     let start = Math.max(1, currentPage - half);
@@ -215,7 +247,12 @@ export default function AuctionCalendar() {
       pages.push(i);
     }
     return pages;
-  }, [currentPage, totalPages]);
+  };
+
+  const displayedCatalogs = catalogs.slice(
+    (currentPage - 1) * catalogsPerPage,
+    currentPage * catalogsPerPage
+  );
 
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
@@ -224,9 +261,6 @@ export default function AuctionCalendar() {
         <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
         <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
         <div className="h-4 bg-gray-200 rounded w-1/3 animate-shimmer" />
-      </div>
-      <div className="p-6 pt-0">
-        <div className="h-10 bg-gray-200 rounded w-full animate-shimmer" />
       </div>
     </div>
   );
@@ -243,17 +277,16 @@ export default function AuctionCalendar() {
             <Sparkles className="h-4 w-4" />
           </div>
           <h1 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-luxury-charcoal">
-            Auction Calendar
+            Auction Catalog
           </h1>
           <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
-            Discover extraordinary pieces from the world&apos;s most prestigious collections. Each auction is carefully
-            curated to bring you the finest in luxury.
+            Explore our curated catalogs featuring the finest luxury items from prestigious collections.
           </p>
-        </div>  
+        </div>
 
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-sm text-muted-foreground text-center sm:text-left">
-            Showing {displayedAuctions.length} of {totalAuctions} Exceptional Pieces
+            Showing {displayedCatalogs.length} of {totalCatalogs} Catalogs
           </span>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Select value={sortOption} onValueChange={setSortOption}>
@@ -261,16 +294,14 @@ export default function AuctionCalendar() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="title-asc">By title (A-Z)</SelectItem>
-                <SelectItem value="title-desc">By title (Z-A)</SelectItem>
-                <SelectItem value="price-asc">By price (Low to High)</SelectItem>
-                <SelectItem value="price-desc">By price (High to Low)</SelectItem>
-                <SelectItem value="date-asc">By date (Oldest)</SelectItem>
-                <SelectItem value="date-desc">By date (Newest)</SelectItem>
+                <SelectItem value="name-asc">By name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">By name (Z-A)</SelectItem>
+                <SelectItem value="items-asc">By items (Low to High)</SelectItem>
+                <SelectItem value="items-desc">By items (High to Low)</SelectItem>
               </SelectContent>
             </Select>
             <Select
-              value={auctionsPerPage.toString()}
+              value={catalogsPerPage.toString()}
               onValueChange={(value) => handlePerPageChange(Number(value))}
             >
               <SelectTrigger className="w-full sm:w-[120px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
@@ -286,35 +317,25 @@ export default function AuctionCalendar() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="h-fit rounded-xl border border-luxury-gold/20 bg-white/80 p-4 md:p-6 backdrop-blur-sm">
-            <AuctionFilters onFilterChange={handleFilterChange} />
-          </aside>
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 auto-rows-min">
-            {loading ? (
-              <>
-                <SkeletonCard />
-                <SkeletonCard />
-                <SkeletonCard />
-              </>
-            ) : displayedAuctions.length === 0 ? (
-              <p className="col-span-full text-center text-muted-foreground">
-                No auctions available for the selected filters.
-              </p>
-            ) : (
-              displayedAuctions.map((auction) => (
-                <AuctionCard
-                  key={auction.id}
-                  auction={auction}
-                  walletBalance={walletBalance}
-                  currentTime={currentTime}
-                />
-              ))
-            )}
-          </div>
+        <div className="space-y-4">
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : displayedCatalogs.length === 0 ? (
+            <p className="text-center text-muted-foreground">
+              No catalogs available.
+            </p>
+          ) : (
+            displayedCatalogs.map((catalog) => (
+              <CatalogCard key={catalog.catalogName} catalog={catalog} />
+            ))
+          )}
         </div>
 
-        {totalAuctions > 0 && (
+        {totalCatalogs > 0 && (
           <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
             <Button
               onClick={() => handlePageChange(currentPage - 1)}
