@@ -21,7 +21,8 @@ import {
     getbulkAuctionById,
     getWinners,
     deleteCatalog,
-    updateCatalog
+    updateCatalog,
+    addcalender
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
@@ -94,6 +95,7 @@ router.get("/getWinners" , getWinners)
 
 router.post("/deleteCatalog" ,  IsAuthenticated , authorizeBackendRole  ,deleteCatalog)
 
+router.post("/addCalender" , IsAuthenticated , addcalender)
 
 
 export default router;

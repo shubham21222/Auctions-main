@@ -95,3 +95,30 @@ export const sendEmail = async (options) => {
     throw new Error('Failed to send email');
   }
 };
+
+export const sendAuctionInviteEmail = async (auction , userEmail) => {
+  try {
+    const emailOptions = {
+      "From": process.env.CLIENT_EMAIL,
+      "To": userEmail,  // Assuming inviteeEmail is provided in the auction object
+      "Subject": `You're Invited: ${auction.auctionProduct.title} Auction`,
+      "HtmlBody": `
+        <h1>You're Invited to an Auction!</h1>
+        <p><strong>Title:</strong> ${auction.auctionProduct.title}</p>
+        <p><strong>Start Date:</strong> ${new Date(auction.startDate).toLocaleString()}</p>
+        <p>We are excited to have you join our auction event. Stay tuned for more details.</p>
+        <p>Best regards, <br> The  Team</p>
+      `,
+      "ReplyTo": process.env.CLIENT_EMAIL_REPLY,
+      "MessageStream": "outbound",
+      "Attachments": auction.attachments || []  // Optional attachments if needed
+    };
+
+    const info = await client.sendEmail(emailOptions);
+    console.log('Auction invite email sent: %s', info.MessageID);
+    return info;
+  } catch (error) {
+    console.error('Error sending auction invite email:', error);
+    throw new Error('Failed to send auction invite email');
+  }
+};

@@ -28,7 +28,9 @@ import moment from "moment"; // Install moment.js if not installed
 import mongoose from "mongoose"
 import { response } from "express"
 import { ObjectId } from "mongodb"
+import {createAuctionCalendarEvent} from "../calenderController/googlecalander.controller.js"
 import dotenv from "dotenv"
+import { UnknownError } from "postmark/dist/client/errors/Errors.js"
 dotenv.config()
 
 
@@ -2545,6 +2547,26 @@ export const getWinners = async (req, res) => {
     }
 };
 
+
+
+export const addcalender = async (req, res) => {
+    try {
+      const user = req.user; // user object from auth middleware
+      const auctionId = req.query.auctionId;
+  
+      if (!auctionId) {
+        return badRequest(res, "Auction ID is required");
+      }
+  
+      // Call function to create event in calendar and send email
+      await createAuctionCalendarEvent(auctionId, user);
+  
+      return success(res, "Auction event added to your calendar and invite sent.");
+    } catch (error) {
+      console.error('Add to calendar error:', error.message);
+      return unknownError(res, "Internal Error");
+    }
+  };
 
 
 
