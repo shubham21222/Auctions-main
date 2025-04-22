@@ -6,6 +6,10 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import EditProductDialog from "./EditProductDialog";
 import { useState } from "react";
 import config from "@/app/config_BASE_URL";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import Image from "next/image";
 
 export default function ProductTable({ 
   products, 
@@ -15,7 +19,9 @@ export default function ProductTable({
   totalPages, 
   totalItems, 
   productsPerPage, 
-  handlePageChange 
+  handlePageChange,
+  selectedProducts,
+  setSelectedProducts
 }) {
   // Ensure products is an array
   if (!Array.isArray(products)) {
@@ -23,6 +29,8 @@ export default function ProductTable({
   }
 
   const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    
     try {
       const response = await fetch(`${config.baseURL}/v1/api/product/delete/${id}`, {
         method: "DELETE",
@@ -43,89 +51,125 @@ export default function ProductTable({
     setDialogOpen(false);
   };
 
-  // Generate pagination items with truncation
-  const getPaginationItems = () => {
-    const items = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        items.push(i);
-      }
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedProducts(products.map(product => product._id));
     } else {
-      const leftBound = Math.max(2, currentPage - 1);
-      const rightBound = Math.min(totalPages - 1, currentPage + 1);
-
-      items.push(1);
-      if (leftBound > 2) items.push("...");
-      for (let i = leftBound; i <= rightBound; i++) {
-        items.push(i);
-      }
-      if (rightBound < totalPages - 1) items.push("...");
-      items.push(totalPages);
+      setSelectedProducts([]);
     }
+  };
 
-    return items;
+  const handleSelectProduct = (productId, checked) => {
+    if (checked) {
+      setSelectedProducts(prev => [...prev, productId]);
+    } else {
+      setSelectedProducts(prev => prev.filter(id => id !== productId));
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.length === 0 ? (
-          <div className="col-span-full text-center text-gray-500">No products found</div>
-        ) : (
-          products.map((product) => (
-            <Card key={product._id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardContent className="p-0">
-                <img
-                  src={product.image?.[0] || "https://via.placeholder.com/300"}
-                  alt={product.title}
-                  className="w-full h-48 object-cover rounded-t-md"
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedProducts.length === products.length}
+                  onCheckedChange={handleSelectAll}
                 />
-              </CardContent>
-
-              <CardHeader>
-                <CardTitle>{product.title}</CardTitle>
-                <CardDescription>{product.description}</CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-primary">${product.price}</span>
-                  <Badge variant="outline">{product.category?.name || "N/A"}</Badge>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-500">Status: {product.status || "N/A"}</span>
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex justify-between">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <EditProductDialog
-                    product={product}
-                    fetchProducts={fetchProducts}
-                    token={token}
-                    onClose={handleCloseDialog}
-                  />
-                </Dialog>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500"
-                  onClick={() => handleDelete(product._id)}
-                >
-                  Delete
-                </Button>
-              </CardFooter>
-            </Card>
-          ))
-        )}
+              </TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-gray-500">
+                  No products found
+                </TableCell>
+              </TableRow>
+            ) : (
+              products.map((product) => (
+                <TableRow key={product._id} className="hover:bg-gray-50">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedProducts.includes(product._id)}
+                      onCheckedChange={(checked) => handleSelectProduct(product._id, checked)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      {/* <div className="relative w-12 h-12 rounded-md overflow-hidden">
+                        <Image
+                          src={product.image?.[0] || "https://via.placeholder.com/300"}
+                          alt={product.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div> */}
+                      <div>
+                        <p className="font-medium text-gray-900">{product.title}</p>
+                        <p className="text-sm text-gray-500 line-clamp-1">{product.description}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{product.category?.name || "N/A"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold text-primary">${product.price}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={product.status === "Not Sold" ? "default" : "secondary"}
+                      className="capitalize"
+                    >
+                      {product.status || "N/A"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-gray-100"
+                        onClick={() => window.open(`/products/${product._id}`, '_blank')}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="hover:bg-gray-100">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <EditProductDialog
+                          product={product}
+                          fetchProducts={fetchProducts}
+                          token={token}
+                          onClose={handleCloseDialog}
+                        />
+                      </Dialog>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-red-50 text-red-500"
+                        onClick={() => handleDelete(product._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination Controls */}
@@ -139,20 +183,18 @@ export default function ProductTable({
             Previous
           </Button>
 
-          {getPaginationItems().map((item, index) => (
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <Button
-              key={index}
-              onClick={() => typeof item === "number" && handlePageChange(item)}
-              disabled={item === "..."}
+              key={page}
+              onClick={() => handlePageChange(page)}
+              variant={currentPage === page ? "default" : "outline"}
               className={`px-4 py-2 rounded-full ${
-                currentPage === item
-                  ? "bg-blue-800 text-white"
-                  : item === "..."
-                  ? "bg-transparent text-gray-500 cursor-default"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              } transition-all`}
+                currentPage === page
+                  ? "bg-primary text-white"
+                  : "border-primary/20 text-primary hover:bg-primary/10"
+              }`}
             >
-              {item}
+              {page}
             </Button>
           ))}
 
