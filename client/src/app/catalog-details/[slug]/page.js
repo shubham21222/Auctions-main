@@ -9,9 +9,7 @@ import config from "@/app/config_BASE_URL";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { Button } from "@/components/ui/button";
-import LoginModal from "@/app/components/LoginModal";
-import { VerificationModal } from "@/app/components/VerificationModal";
-import BillingPaymentModal from "@/app/components/BillingPaymentModal";
+import SignupModal from "@/app/components/SignupModal";
 import {
   Select,
   SelectContent,
@@ -30,9 +28,7 @@ export default function CatalogDetails() {
   const [hoveredLot, setHoveredLot] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isBillingPaymentModalOpen, setIsBillingPaymentModalOpen] = useState(false);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   
   const auth = useSelector((state) => state.auth);
   const { token, user, isLoggedIn } = auth;
@@ -138,45 +134,40 @@ export default function CatalogDetails() {
     }
   };
 
-  const handleOpenSignup = () => {
-    setIsLoginModalOpen(false);
-    toast.info("Please implement the signup modal logic.");
-  };
-
-  // Updated handleBidNow function with correct status check
   const handleBidNow = (lotId, status) => {
     if (status === "ENDED") {
       toast.error("This auction has ended");
       return;
     }
 
-    // Check 1: Login Check
+    window.location.href = `/item/${lotId}`;
+  };
+
+  const handleRegisterAuction = () => {
     if (!isLoggedIn) {
-      setIsLoginModalOpen(true);
-      return;
+      setIsSignupModalOpen(true);
+    } else {
+      toast.info("You are already registered for this auction.");
     }
+  };
 
-    // Check 2: Email Verification Check
-    if (!user?.isEmailVerified) {
-      setIsVerificationModalOpen(true);
-      return;
-    }
+  const handleAddToCalendar = () => {
+    if (!catalog?.currentAuction) return;
 
-    // Check 3: Billing and Payment Method Check
-    const hasBillingDetails = user?.BillingDetails?.length > 0 || auth?.billingDetails;
-    const hasPaymentMethod = user?.paymentMethodId || auth?.paymentMethodId;
-
-    if (!hasBillingDetails || !hasPaymentMethod) {
-      setIsBillingPaymentModalOpen(true);
-      return;
-    }
-
-    // If all checks pass, open catalog
-    window.open(
-      `/catalog/${lotId}`,
-      "_blank",
-      "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
-    );
+    const title = catalog.currentAuction.catalog;
+    const description = catalog.currentAuction.description || "Join us for this exciting auction event.";
+    const location = "Beverly Hills, CA, United States";
+    
+    // Format dates for Google Calendar
+    const startDate = new Date(catalog.currentAuction.startDate);
+    const endDate = new Date(startDate.getTime() + (2 * 60 * 60 * 1000)); // 2 hours duration
+    
+    const start = startDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const end = endDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(description)}&location=${encodeURIComponent(location)}`;
+    
+    window.open(url, "_blank");
   };
 
   // Parse estimateprice
@@ -270,12 +261,18 @@ export default function CatalogDetails() {
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-2">
-              <Button className="bg-luxury-gold text-white hover:bg-luxury-charcoal whitespace-nowrap">
-                Register for Auction
-              </Button>
+              {!isLoggedIn && (
+                <Button 
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal whitespace-nowrap"
+                  onClick={handleRegisterAuction}
+                >
+                  Register for Auction
+                </Button>
+              )}
               <Button
                 variant="outline"
                 className="border-luxury-gold text-luxury-gold whitespace-nowrap"
+                onClick={handleAddToCalendar}
               >
                 Add To Calendar
               </Button>
@@ -439,32 +436,13 @@ export default function CatalogDetails() {
         )}
       </div>
 
-      {/* Add Modals at the end of the component */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onOpenSignup={handleOpenSignup}
-      />
-
-      <VerificationModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        email={user?.email}
-      />
-
-      <BillingPaymentModal
-        isOpen={isBillingPaymentModalOpen}
-        onClose={() => setIsBillingPaymentModalOpen(false)}
-        onSuccess={() => {
-          toast.success("Billing and payment details added successfully!");
-          window.open(
-            `/catalog/${catalog?.currentAuction?._id}`,
-            "_blank",
-            "width=1400,height=800,left=100,top=100,scrollbars=yes,resizable=yes"
-          );
+      {/* Modals */}
+      <SignupModal
+        isOpen={isSignupModalOpen}
+        onClose={() => setIsSignupModalOpen(false)}
+        onOpenLogin={() => {
+          setIsSignupModalOpen(false);
         }}
-        token={token}
-        email={user?.email}
       />
       <Footer />
     </>

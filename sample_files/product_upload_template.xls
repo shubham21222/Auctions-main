@@ -1,0 +1,4 @@
+Title,Description,StartPrice,LowEst,HighEst,Reserve Price,sortByPrice,ImageFile.1,ImageFile.2
+"Vintage Watch","Luxury vintage watch from 1950",1000,800,1200,900,"High Price","https://example.com/watch1.jpg","https://example.com/watch2.jpg"
+"Antique Vase","Chinese Ming dynasty vase",5000,4000,6000,4500,"High Price","https://example.com/vase1.jpg","https://example.com/vase2.jpg"
+"Art Deco Lamp","Beautiful art deco table lamp",750,600,900,700,"High Price","https://example.com/lamp1.jpg","https://example.com/lamp2.jpg" 
