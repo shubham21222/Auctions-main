@@ -20,7 +20,7 @@ export default function AddCategoryDialog({ fetchCategories }) {
   const handleAddCategory = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
+      const response = await axios.post(  
         `${config.baseURL}/v1/api/category/create`,
         newCategory,
         {
