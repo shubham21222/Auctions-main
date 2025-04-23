@@ -18,19 +18,23 @@ import config from "@/app/config_BASE_URL";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
-// Updated CatalogCard component with 3 images and improved layout
-function CatalogCard({ catalog }) {
+function CatalogCard({
+  catalog,
+  isUpcoming = false,
+  isLive = false,
+  timeRemaining = null,
+}) {
   const router = useRouter();
   const firstAuction = catalog.auctions[0];
   const secondAuction = catalog.auctions[1];
   const thirdAuction = catalog.auctions[2];
-  
+
   const images = [
     firstAuction?.product?.image?.[0] || "/placeholder.svg",
     secondAuction?.product?.image?.[0] || "/placeholder.svg",
-    thirdAuction?.product?.image?.[0] || "/placeholder.svg"
+    thirdAuction?.product?.image?.[0] || "/placeholder.svg",
   ];
-  
+
   const [currentMainImage, setCurrentMainImage] = useState(0);
   const auctionCount = catalog.auctions.length;
 
@@ -38,39 +42,59 @@ function CatalogCard({ catalog }) {
     router.push(`/catalog-details/${firstAuction._id}`);
   };
 
-  const handleThumbnailClick = (index) => {
-    // Swap the clicked image with the main image
+  const handleThumbnailClick = (e, index) => {
+    e.stopPropagation(); // Prevent card click when clicking thumbnails
     const newImages = [...images];
     [newImages[0], newImages[index + 1]] = [newImages[index + 1], newImages[0]];
     images.splice(0, images.length, ...newImages);
   };
 
   // Format date for display
-  const auctionDate = firstAuction?.startTime 
-    ? new Date(firstAuction.startTime).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
+  const auctionDate = firstAuction?.startDate
+    ? new Date(firstAuction.startDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "numeric",
       })
-    : 'Date TBD';
+    : "Date TBD";
+
+  // Format start date for upcoming message (e.g., "11 May")
+  const upcomingMessageDate = firstAuction?.startDate
+    ? new Date(firstAuction.startDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+      })
+    : "TBD";
+
+  const isCatalogUpcoming =
+    !isLive && !isUpcoming && firstAuction?.startDate
+      ? new Date(firstAuction.startDate) > new Date()
+      : false;
 
   return (
-    <div className="group relative overflow-hidden bg-white/90 backdrop-blur-md rounded-xl p-5 flex flex-row gap-8 items-start 
-                    shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.1)] 
-                    transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20">
+    <div
+      onClick={handleViewCatalog}
+      className="group relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-6 flex flex-row gap-10 items-start 
+                    shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.15)] 
+                    transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20
+                    hover:border-luxury-gold/20 cursor-pointer"
+    >
       {/* Left: Main Image with Thumbnails */}
-      <div className="flex-shrink-0 w-[300px] relative group/images">
-        <div className="flex gap-2">
+      <div className="flex-shrink-0 w-[450px] relative group/images">
+        <div className="flex gap-4">
           {/* Thumbnails on left */}
-          <div className="flex flex-col gap-2 w-[70px]">
+          <div className="flex flex-col gap-4 w-[120px]">
             {images.slice(1, 3).map((image, index) => (
-              <div key={index} 
-                   onClick={() => handleThumbnailClick(index)}
-                   className="relative aspect-[4/3] overflow-hidden rounded-md bg-gray-50
+              <div
+                key={index}
+                onClick={(e) => handleThumbnailClick(e, index)}
+                className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50
                             hover:ring-2 ring-luxury-gold/50 transition-all duration-300
-                            cursor-pointer transform hover:scale-95 active:scale-90">
+                            cursor-pointer transform hover:scale-95 active:scale-90
+                            shadow-sm hover:shadow-md"
+              >
                 <img
                   src={image}
                   alt={`${catalog.catalogName} - Thumbnail ${index + 1}`}
@@ -83,77 +107,189 @@ function CatalogCard({ catalog }) {
           </div>
 
           {/* Main Image */}
-          <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50">
+          <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-50 shadow-md">
             <img
               src={images[0]}
               alt={`${catalog.catalogName} - Main Image`}
               className="w-full h-full object-cover transition-all duration-700 ease-out
                        group-hover/images:scale-110 group-hover/images:rotate-1"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 
-                          group-hover/images:opacity-100 transition-opacity duration-300" />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 
+                          group-hover/images:opacity-100 transition-opacity duration-300"
+            />
+            {/* Premium Badge */}
+            <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
+                          transform -rotate-12 shadow-lg">
+              Premium
+            </div>
           </div>
         </div>
 
         {/* Hover Overlay */}
-        <div className="absolute -bottom-1 left-0 right-0 h-20 bg-gradient-to-t from-white/90 to-transparent 
-                     opacity-0 group-hover/images:opacity-100 transition-opacity duration-300" />
+        <div
+          className="absolute -bottom-1 left-0 right-0 h-24 bg-gradient-to-t from-white/95 to-transparent 
+                     opacity-0 group-hover/images:opacity-100 transition-opacity duration-300"
+        />
       </div>
 
       {/* Middle: Content with enhanced typography and animations */}
-      <div className="flex-1 py-2 relative">
-        <h3 className="text-2xl font-semibold text-gray-800 mb-4 transition-all duration-300 
-                     group-hover:text-luxury-gold group-hover:translate-x-1">{catalog.catalogName}</h3>
-        <p className="text-gray-600 text-sm mb-6 line-clamp-2 transition-all duration-300 
-                    group-hover:text-gray-700">
-          Join us for {catalog.catalogName}, an exclusive auction featuring a curated collection of fine items from renowned designers...
+      <div className="flex-1 py-3 relative">
+        <h3
+          className="text-3xl font-semibold text-gray-800 mb-4 transition-all duration-300 
+                     group-hover:text-luxury-gold group-hover:translate-x-1"
+        >
+          {catalog.catalogName}
+        </h3>
+        <p
+          className="text-gray-600 text-base mb-6 line-clamp-2 transition-all duration-300 
+                    group-hover:text-gray-700"
+        >
+          Join us for {catalog.catalogName}, an exclusive auction featuring a
+          curated collection of fine items from renowned designers...
         </p>
-        <div className="flex flex-col gap-3 relative">
-          <div className="flex items-center gap-2 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
-            <svg className="w-4 h-4 text-luxury-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <div className="flex flex-col gap-4 relative">
+          <div className="flex items-center gap-3 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+            <svg
+              className="w-5 h-5 text-luxury-gold"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             <span className="group-hover:text-gray-700 transition-colors duration-300">
               Starts on: {auctionDate}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
-            <svg className="w-4 h-4 text-luxury-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <div className="flex items-center gap-3 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+            <svg
+              className="w-5 h-5 text-luxury-gold"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
             <span className="group-hover:text-gray-700 transition-colors duration-300">
               Beverly Hills, CA, US
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-red-500 transition-all duration-300 group-hover:translate-x-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{Math.floor(Math.random() * 5) + 1} Days Left</span>
-          </div>
+          {isLive ? (
+            <div className="flex items-center gap-3 text-sm font-medium text-green-500">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>Live Now</span>
+            </div>
+          ) : isUpcoming || isCatalogUpcoming ? (
+            <div className="flex items-center gap-3 text-sm font-medium text-red-500">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>
+                Auctions in {upcomingMessageDate}, bid early to get - don&apos;t
+                miss the chance! <br />
+                {timeRemaining && (
+                  <>
+                    Starts in: {timeRemaining.days}d {timeRemaining.hours}h{" "}
+                    {timeRemaining.minutes}m {timeRemaining.seconds}s
+                  </>
+                )}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>Scheduled</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Right: Action with enhanced button effects */}
-      <div className="flex-shrink-0 pt-2">
-        <button
-          onClick={handleViewCatalog}
+      <div className="flex-shrink-0 pt-3">
+        <div
           className="relative inline-flex items-center justify-center px-8 py-3 overflow-hidden font-medium text-white 
-                   transition duration-300 ease-out border-2 border-[#006D7E] rounded-lg shadow-md group/btn"
+                   transition duration-300 ease-out border-2 border-[#006D7E] rounded-lg shadow-md group/btn
+                   hover:shadow-lg hover:shadow-luxury-gold/20"
         >
-          <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full 
-                        bg-[#006D7E] group-hover/btn:translate-x-0 ease">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          <span
+            className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full 
+                        bg-[#006D7E] group-hover/btn:translate-x-0 ease"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M14 5l7 7m0 0l-7 7m7-7H3"
+              />
             </svg>
           </span>
-          <span className="absolute flex items-center justify-center w-full h-full text-[#006D7E] transition-all 
-                        duration-300 transform group-hover/btn:translate-x-full ease">
-            Explore
+          <span
+            className="absolute flex items-center justify-center w-full h-full text-[#006D7E] transition-all 
+                        duration-300 transform group-hover/btn:translate-x-full ease"
+          >
+            {isLive ? "Bid Now" : "Explore"}
           </span>
-          <span className="relative invisible">Explore</span>
-        </button>
+          <span className="relative invisible">
+            {isLive ? "Bid Now" : "Explore"}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -161,11 +297,14 @@ function CatalogCard({ catalog }) {
 
 export default function AuctionCalendar() {
   const [catalogs, setCatalogs] = useState([]);
+  const [upcomingCatalogs, setUpcomingCatalogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [sortOption, setSortOption] = useState("name-asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [catalogsPerPage, setCatalogsPerPage] = useState(20);
   const [totalCatalogs, setTotalCatalogs] = useState(0);
+  const [timers, setTimers] = useState({});
 
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const token = useSelector((state) => state.auth.token);
@@ -215,9 +354,82 @@ export default function AuctionCalendar() {
     }
   };
 
+  const fetchUpcomingCatalogs = async () => {
+    setUpcomingLoading(true);
+    try {
+      const headers = token ? { Authorization: `${token}` } : {};
+      const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+      if (!response.ok) throw new Error("Failed to fetch upcoming catalogs");
+      const data = await response.json();
+
+      if (data.status) {
+        setUpcomingCatalogs(data.items?.catalogs || []);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching upcoming catalogs:", error);
+      setUpcomingCatalogs([]);
+      toast.error("Failed to load upcoming catalogs.");
+    } finally {
+      setUpcomingLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCatalogs();
+    fetchUpcomingCatalogs();
   }, [token, sortOption]);
+
+  useEffect(() => {
+    const updateTimers = () => {
+      const newTimers = {};
+      upcomingCatalogs.forEach((catalog) => {
+        const startDate = catalog.auctions[0]?.startDate;
+        if (!startDate) {
+          newTimers[catalog.catalogName] = {
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+          };
+          return;
+        }
+
+        const now = new Date();
+        const start = new Date(startDate);
+        const timeDiff = start - now;
+
+        if (timeDiff <= 0) {
+          newTimers[catalog.catalogName] = {
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+          };
+        } else {
+          const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor(
+            (timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+          );
+          const minutes = Math.floor(
+            (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+          newTimers[catalog.catalogName] = { days, hours, minutes, seconds };
+        }
+      });
+      setTimers(newTimers);
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    return () => clearInterval(interval);
+  }, [upcomingCatalogs]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -230,7 +442,47 @@ export default function AuctionCalendar() {
     setCurrentPage(1);
   };
 
-  const totalPages = Math.ceil(totalCatalogs / catalogsPerPage);
+  // Filter live and upcoming catalogs
+  const liveCatalogs = upcomingCatalogs.filter((catalog) => {
+    const startDate = catalog.auctions[0]?.startDate;
+    if (!startDate) return false;
+    const now = new Date();
+    const start = new Date(startDate);
+    return start <= now;
+  });
+
+  const upcomingCatalogsFiltered = upcomingCatalogs.filter((catalog) => {
+    const startDate = catalog.auctions[0]?.startDate;
+    if (!startDate) return true;
+    const now = new Date();
+    const start = new Date(startDate);
+    return start > now;
+  });
+
+  // Filter catalogs to exclude those in live or upcoming sections to avoid duplicates
+  const displayedCatalogs = catalogs
+    .filter((catalog) => {
+      const isInLive = liveCatalogs.some(
+        (live) => live.catalogName === catalog.catalogName
+      );
+      const isInUpcoming = upcomingCatalogsFiltered.some(
+        (upcoming) => upcoming.catalogName === catalog.catalogName
+      );
+      return !isInLive && !isInUpcoming;
+    })
+    .slice((currentPage - 1) * catalogsPerPage, currentPage * catalogsPerPage);
+
+  const totalPages = Math.ceil(
+    catalogs.filter((catalog) => {
+      const isInLive = liveCatalogs.some(
+        (live) => live.catalogName === catalog.catalogName
+      );
+      const isInUpcoming = upcomingCatalogsFiltered.some(
+        (upcoming) => upcoming.catalogName === catalog.catalogName
+      );
+      return !isInLive && !isInUpcoming;
+    }).length / catalogsPerPage
+  );
 
   const getPageNumbers = () => {
     const maxPagesToShow = 5;
@@ -249,11 +501,6 @@ export default function AuctionCalendar() {
     return pages;
   };
 
-  const displayedCatalogs = catalogs.slice(
-    (currentPage - 1) * catalogsPerPage,
-    currentPage * catalogsPerPage
-  );
-
   const SkeletonCard = () => (
     <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
       <div className="relative aspect-[4/3] bg-gray-200 animate-shimmer" />
@@ -270,104 +517,181 @@ export default function AuctionCalendar() {
       <Header />
       <LuxuryBackground />
       <div className="container relative mx-auto px-4 mt-[40px] py-8 md:py-12">
-        <div className="mb-8 md:mb-12 text-center">
-          <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
-            <Sparkles className="h-4 w-4" />
-            <span>LUXURY AUCTIONS</span>
-            <Sparkles className="h-4 w-4" />
+        {/* Live Auctions Section */}
+        {liveCatalogs.length > 0 && (
+          <div className="mb-12">
+            <div className="mb-6 text-center">
+              <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
+                <Sparkles className="h-4 w-4" />
+                <span>LIVE AUCTIONS</span>
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h2 className="mb-4 text-2xl md:text-3xl font-bold tracking-tight text-luxury-charcoal">
+                Live Auctions
+              </h2>
+              <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
+                Join our ongoing auctions and place your bids on exclusive
+                luxury items.
+              </p>
+            </div>
+            <div className="space-y-4">
+              {liveCatalogs.map((catalog) => (
+                <CatalogCard
+                  key={catalog.catalogName}
+                  catalog={catalog}
+                  isLive={true}
+                />
+              ))}
+            </div>
           </div>
-          <h1 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-luxury-charcoal">
-            Auction Catalog
-          </h1>
-          <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
-            Explore our curated catalogs featuring the finest luxury items from prestigious collections.
-          </p>
-        </div>
+        )}
 
-        <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-sm text-muted-foreground text-center sm:text-left">
-            Showing {displayedCatalogs.length} of {totalCatalogs} Catalogs
-          </span>
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full sm:w-[240px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="name-asc">By name (A-Z)</SelectItem>
-                <SelectItem value="name-desc">By name (Z-A)</SelectItem>
-                <SelectItem value="items-asc">By items (Low to High)</SelectItem>
-                <SelectItem value="items-desc">By items (High to Low)</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={catalogsPerPage.toString()}
-              onValueChange={(value) => handlePerPageChange(Number(value))}
-            >
-              <SelectTrigger className="w-full sm:w-[120px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
-                <SelectValue placeholder="Items per page" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="20">20 per page</SelectItem>
-                <SelectItem value="30">30 per page</SelectItem>
-                <SelectItem value="100">100 per page</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Upcoming Auctions Section */}
+        {upcomingCatalogsFiltered.length > 0 && (
+          <div className="mb-12">
+            <div className="mb-6 text-center">
+              <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
+                <Sparkles className="h-4 w-4" />
+                <span>UPCOMING AUCTIONS</span>
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h2 className="mb-4 text-2xl md:text-3xl font-bold tracking-tight text-luxury-charcoal">
+                Upcoming Auctions
+              </h2>
+              <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
+                Get ready for our upcoming auctions featuring exclusive luxury
+                items.
+              </p>
+            </div>
+            <div className="space-y-4">
+              {upcomingLoading ? (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
+              ) : (
+                upcomingCatalogsFiltered.map((catalog) => (
+                  <CatalogCard
+                    key={catalog.catalogName}
+                    catalog={catalog}
+                    isUpcoming={true}
+                    timeRemaining={timers[catalog.catalogName]}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="space-y-4">
-          {loading ? (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          ) : displayedCatalogs.length === 0 ? (
-            <p className="text-center text-muted-foreground">
-              No catalogs available.
-            </p>
-          ) : (
-            displayedCatalogs.map((catalog) => (
-              <CatalogCard key={catalog.catalogName} catalog={catalog} />
-            ))
-          )}
-        </div>
+        {/* All Catalogs Section - Only show if there are live auctions */}
+        {liveCatalogs.length > 0 && (
+          <>
+            <div className="mb-8 md:mb-12 text-center">
+              <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
+                <Sparkles className="h-4 w-4" />
+                <span>LUXURY AUCTIONS</span>
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h1 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-luxury-charcoal">
+                Auction Catalog
+              </h1>
+              <p className="mx-auto max-w-2xl text-sm md:text-base text-muted-foreground px-4">
+                Explore our curated catalogs featuring the finest luxury items from
+                prestigious collections.
+              </p>
+            </div>
 
-        {totalCatalogs > 0 && (
-          <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
-            >
-              Previous
-            </Button>
+            <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-sm text-muted-foreground text-center sm:text-left">
+                Showing {displayedCatalogs.length} of {totalCatalogs} Catalogs
+              </span>
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                <Select value={sortOption} onValueChange={setSortOption}>
+                  <SelectTrigger className="w-full sm:w-[240px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="name-asc">By name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">By name (Z-A)</SelectItem>
+                    <SelectItem value="items-asc">
+                      By items (Low to High)
+                    </SelectItem>
+                    <SelectItem value="items-desc">
+                      By items (High to Low)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={catalogsPerPage.toString()}
+                  onValueChange={(value) => handlePerPageChange(Number(value))}
+                >
+                  <SelectTrigger className="w-full sm:w-[120px] border-luxury-gold/20 bg-white/80 backdrop-blur-sm">
+                    <SelectValue placeholder="Items per page" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="10">10 per page</SelectItem>
+                    <SelectItem value="20">20 per page</SelectItem>
+                    <SelectItem value="30">30 per page</SelectItem>
+                    <SelectItem value="100">100 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-            {getPageNumbers().map((page) => (
-              <Button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                variant={currentPage === page ? "default" : "outline"}
-                className={`w-8 h-8 sm:w-10 sm:h-10 ${
-                  currentPage === page
-                    ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
-                    : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
-                }`}
-              >
-                {page}
-              </Button>
-            ))}
+            <div className="space-y-4">
+              {loading ? (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
+              ) : displayedCatalogs.length === 0 ? (
+                <p className="text-center text-muted-foreground">
+                  No additional catalogs available.
+                </p>
+              ) : (
+                displayedCatalogs.map((catalog) => (
+                  <CatalogCard key={catalog.catalogName} catalog={catalog} />
+                ))
+              )}
+            </div>
 
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
-            >
-              Next
-            </Button>
-          </div>
+            {totalCatalogs > 0 && (
+              <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
+                <Button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                >
+                  Previous
+                </Button>
+
+                {getPageNumbers().map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    variant={currentPage === page ? "default" : "outline"}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 ${
+                      currentPage === page
+                        ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                        : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
+                    }`}
+                  >
+                    {page}
+                  </Button>
+                ))}
+
+                <Button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
       <Footer />

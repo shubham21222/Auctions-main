@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar, Clock, MapPin, Heart, ChevronRight } from "lucide-react";
+import { AuctionFilters } from "../auction-filters";
 
 export default function CatalogDetails() {
   const { slug } = useParams();
@@ -29,6 +30,16 @@ export default function CatalogDetails() {
   const [currentPage, setCurrentPage] = useState(1);
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    page: 1,
+    minPrice: 0,
+    maxPrice: 5000,
+    category: "",
+    searchQuery: "",
+    auctionType: "",
+    status: "ACTIVE",
+    date: null,
+  });
   
   const auth = useSelector((state) => state.auth);
   const { token, user, isLoggedIn } = auth;
@@ -103,30 +114,63 @@ export default function CatalogDetails() {
     return () => clearInterval(interval);
   }, [catalog]);
 
-  // Sort and Paginate Auctions
-  const sortedAuctions = catalog?.auctions
-    ? [...catalog.auctions].sort((a, b) => {
-        switch (sortOption) {
-          case "lot-asc":
-            return parseInt(a.lotNumber) - parseInt(b.lotNumber);
-          case "lot-desc":
-            return parseInt(b.lotNumber) - parseInt(a.lotNumber);
-          case "price-asc":
-            return a.product.sellPrice - b.product.sellPrice;
-          case "price-desc":
-            return b.product.sellPrice - a.product.sellPrice;
-          default:
-            return 0;
-        }
-      })
+  // Updated sorting and filtering logic
+  const filteredAndSortedAuctions = catalog?.auctions
+    ? [...catalog.auctions]
+        .filter((auction) => {
+          // Price filter
+          const price = auction.product?.sellPrice || 0;
+          if (price < filters.minPrice || price > filters.maxPrice) return false;
+
+          // Date filter
+          if (filters.date) {
+            const auctionDate = new Date(auction.startDate).toISOString().split('T')[0];
+            if (auctionDate !== filters.date) return false;
+          }
+
+          // Status filter
+          if (filters.status && auction.status !== filters.status) return false;
+
+          // Search query filter
+          if (filters.searchQuery) {
+            const searchLower = filters.searchQuery.toLowerCase();
+            const titleMatch = auction.product?.title?.toLowerCase().includes(searchLower);
+            const lotMatch = auction.lotNumber?.toString().includes(searchLower);
+            if (!titleMatch && !lotMatch) return false;
+          }
+
+          // Auction type filter
+          if (filters.auctionType && auction.auctionType !== filters.auctionType) return false;
+
+          return true;
+        })
+        .sort((a, b) => {
+          switch (sortOption) {
+            case "lot-asc":
+              return parseInt(a.lotNumber) - parseInt(b.lotNumber);
+            case "lot-desc":
+              return parseInt(b.lotNumber) - parseInt(a.lotNumber);
+            case "price-asc":
+              return (a.product?.sellPrice || 0) - (b.product?.sellPrice || 0);
+            case "price-desc":
+              return (b.product?.sellPrice || 0) - (a.product?.sellPrice || 0);
+            default:
+              return 0;
+          }
+        })
     : [];
 
   const auctionsPerPage = parseInt(viewOption);
-  const totalPages = Math.ceil(sortedAuctions.length / auctionsPerPage);
-  const displayedAuctions = sortedAuctions.slice(
+  const totalPages = Math.ceil(filteredAndSortedAuctions.length / auctionsPerPage);
+  const displayedAuctions = filteredAndSortedAuctions.slice(
     (currentPage - 1) * auctionsPerPage,
     currentPage * auctionsPerPage
   );
+
+  // Update page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -140,6 +184,14 @@ export default function CatalogDetails() {
       return;
     }
 
+    window.location.href = `/item/${lotId}`;
+  };
+
+  const handleCardClick = (lotId, status) => {
+    if (status === "ENDED") {
+      toast.error("This auction has ended");
+      return;
+    }
     window.location.href = `/item/${lotId}`;
   };
 
@@ -177,6 +229,11 @@ export default function CatalogDetails() {
     return `${min} - ${max}`;
   };
 
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    // You can add additional filter logic here if needed
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -206,234 +263,241 @@ export default function CatalogDetails() {
           <span className="text-luxury-charcoal">{catalog.currentAuction?.catalog}</span>
         </div>
 
-        {/* Catalog Header */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row items-start justify-between gap-8">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-luxury-charcoal mb-2">
-                {catalog.currentAuction?.catalog}
-              </h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{catalog.currentAuction?.auctionHouse || "NY Elizabeth"}</span>
-                <span>•</span>
-                <MapPin className="h-4 w-4" />
-                <span>Beverly Hills, CA, United States</span>
-                <span>•</span>
-                <Calendar className="h-4 w-4" />
-                <span>
-                  Starts on: {new Date(catalog.currentAuction?.startDate).toLocaleDateString()}
-                </span>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters Sidebar */}
+          <div className="lg:w-80 flex-shrink-0">
+            <div className="bg-white rounded-lg  shadow-sm sticky top-24">
+              <h2 className="text-lg font-semibold text-luxury-charcoal mb-6">Filters</h2>
+              <AuctionFilters onFilterChange={handleFilterChange} />
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Catalog Header */}
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row items-start justify-between gap-8">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold text-luxury-charcoal mb-2">
+                    {catalog.currentAuction?.catalog}
+                  </h1>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{catalog.currentAuction?.auctionHouse || "NY Elizabeth"}</span>
+                    <span>•</span>
+                    <MapPin className="h-4 w-4" />
+                    <span>Beverly Hills, CA, United States</span>
+                    <span>•</span>
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      Starts on: {new Date(catalog.currentAuction?.startDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2">
+                  {!isLoggedIn && (
+                    <Button 
+                      className="bg-luxury-gold text-white hover:bg-luxury-charcoal whitespace-nowrap"
+                      onClick={handleRegisterAuction}
+                    >
+                      Register for Auction
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="border-luxury-gold text-luxury-gold whitespace-nowrap"
+                    onClick={handleAddToCalendar}
+                  >
+                    Add To Calendar
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Countdown Timer */}
-            {/* <div className="bg-white rounded-lg p-4 min-w-[300px]">
-              <h3 className="text-lg font-semibold text-luxury-charcoal mb-4">
-                Live Bidding Starts In:
-              </h3>
-              <div className="flex gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-luxury-gold">
-                    {timeRemaining.days}
-                  </div>
-                  <div className="text-sm text-muted-foreground">days</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-luxury-gold">
-                    {timeRemaining.hours}
-                  </div>
-                  <div className="text-sm text-muted-foreground">hrs</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-luxury-gold">
-                    {timeRemaining.minutes}
-                  </div>
-                  <div className="text-sm text-muted-foreground">mins</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-luxury-gold">
-                    {timeRemaining.seconds}
-                  </div>
-                  <div className="text-sm text-muted-foreground">secs</div>
-                </div>
-              </div>
-            </div> */}
+            {/* Catalog Description */}
+            <div className="bg-white rounded-lg p-6 mb-8">
+              <h2 className="text-xl font-semibold text-luxury-charcoal mb-4">
+                Auction Details
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                {catalog.currentAuction?.description || "No description available"}
+              </p>
+            </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2">
-              {!isLoggedIn && (
-                <Button 
-                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal whitespace-nowrap"
-                  onClick={handleRegisterAuction}
-                >
-                  Register for Auction
-                </Button>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-8">
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lot-asc">Lot Number: Lowest</SelectItem>
+                  <SelectItem value="lot-desc">Lot Number: Highest</SelectItem>
+                  <SelectItem value="price-asc">Price: Lowest</SelectItem>
+                  <SelectItem value="price-desc">Price: Highest</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={viewOption} onValueChange={setViewOption}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="View" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12">12 per page</SelectItem>
+                  <SelectItem value="24">24 per page</SelectItem>
+                  <SelectItem value="48">48 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Lots Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {displayedAuctions.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-lg text-gray-500">No auctions match your filters</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setFilters({
+                      page: 1,
+                      minPrice: 0,
+                      maxPrice: 5000,
+                      category: "",
+                      searchQuery: "",
+                      auctionType: "",
+                      status: "ACTIVE",
+                      date: null,
+                    })}
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              ) : (
+                displayedAuctions.map((auction) => (
+                  <div
+                    key={auction._id}
+                    className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 cursor-pointer"
+                    onClick={() => handleCardClick(auction._id, auction.status)}
+                    onMouseEnter={() => setHoveredLot(auction._id)}
+                    onMouseLeave={() => setHoveredLot(null)}
+                  >
+                    <div className="relative aspect-[4/3]">
+                      <Image
+                        src={auction.product?.image?.[0] || "/placeholder.svg"}
+                        alt={auction.product?.title}
+                        fill
+                        className={`object-cover transition-all duration-700 ease-in-out transform group-hover:scale-105 ${
+                          hoveredLot === auction._id ? "opacity-0" : "opacity-100"
+                        }`}
+                      />
+                      <Image
+                        src={
+                          auction.product?.image?.[1] ||
+                          auction.product?.image?.[0] ||
+                          "/placeholder.svg"
+                        }
+                        alt={auction.product?.title}
+                        fill
+                        className={`object-cover transition-all duration-700 ease-in-out transform group-hover:scale-105 ${
+                          hoveredLot === auction._id ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <div className="absolute top-2 right-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="bg-white/90 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-transform duration-300"
+                          onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to card
+                        >
+                          <Heart className="h-4 w-4 text-luxury-gold hover:fill-luxury-gold transition-colors duration-300" />
+                        </Button>
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <span className="bg-luxury-gold/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
+                          Lot {auction.lotNumber}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4 border-t border-gray-100">
+                      <h3 className="text-sm font-semibold text-luxury-charcoal mb-2 line-clamp-2 group-hover:text-luxury-gold transition-colors duration-300">
+                        {auction.product?.title}
+                      </h3>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-luxury-gold">
+                              Estimated Price
+                            </p>
+                            <p className="text-sm font-semibold">
+                              ${parseEstimatePrice(auction.product?.estimateprice)}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="text-xs font-medium text-gray-500">
+                              Current Bid
+                            </p>
+                            <p className="text-sm font-semibold text-luxury-charcoal">
+                              ${Number(auction.currentBid).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          className={`w-full rounded-lg py-2 transition-all duration-300 ${
+                            auction.status === "ENDED"
+                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : "bg-luxury-gold text-white hover:bg-luxury-charcoal hover:shadow-lg hover:shadow-luxury-gold/20"
+                          }`}
+                          disabled={auction.status === "ENDED"}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent click from bubbling to card
+                            handleBidNow(auction._id, auction.status);
+                          }}
+                        >
+                          {auction.status === "ENDED" ? "Auction Ended" : "Bid Now"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
-              <Button
-                variant="outline"
-                className="border-luxury-gold text-luxury-gold whitespace-nowrap"
-                onClick={handleAddToCalendar}
-              >
-                Add To Calendar
-              </Button>
             </div>
-          </div>
-        </div>
 
-        {/* Catalog Description */}
-        <div className="bg-white rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-luxury-charcoal mb-4">
-            Auction Details
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            {catalog.currentAuction?.description || "No description available"}
-          </p>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <Select value={sortOption} onValueChange={setSortOption}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="lot-asc">Lot Number: Lowest</SelectItem>
-              <SelectItem value="lot-desc">Lot Number: Highest</SelectItem>
-              <SelectItem value="price-asc">Price: Lowest</SelectItem>
-              <SelectItem value="price-desc">Price: Highest</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={viewOption} onValueChange={setViewOption}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="View" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="12">12 per page</SelectItem>
-              <SelectItem value="24">24 per page</SelectItem>
-              <SelectItem value="48">48 per page</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Lots Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {displayedAuctions.map((auction) => (
-            <div
-              key={auction._id}
-              className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1"
-              onMouseEnter={() => setHoveredLot(auction._id)}
-              onMouseLeave={() => setHoveredLot(null)}
-            >
-              <div className="relative aspect-[4/3]">
-                <Image
-                  src={auction.product?.image?.[0] || "/placeholder.svg"}
-                  alt={auction.product?.title}
-                  fill
-                  className={`object-cover transition-all duration-700 ease-in-out transform group-hover:scale-105 ${
-                    hoveredLot === auction._id ? "opacity-0" : "opacity-100"
-                  }`}
-                />
-                <Image
-                  src={
-                    auction.product?.image?.[1] ||
-                    auction.product?.image?.[0] ||
-                    "/placeholder.svg"
-                  }
-                  alt={auction.product?.title}
-                  fill
-                  className={`object-cover transition-all duration-700 ease-in-out transform group-hover:scale-105 ${
-                    hoveredLot === auction._id ? "opacity-100" : "opacity-0"
-                  }`}
-                />
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="absolute top-2 right-2">
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
+                <Button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-white/90 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-transform duration-300"
-                  >
-                    <Heart className="h-4 w-4 text-luxury-gold hover:fill-luxury-gold transition-colors duration-300" />
-                  </Button>
-                </div>
-                <div className="absolute bottom-2 left-2">
-                  <span className="bg-luxury-gold/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
-                    Lot {auction.lotNumber}
-                  </span>
-                </div>
-              </div>
-              <div className="p-4 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-luxury-charcoal mb-2 line-clamp-2 group-hover:text-luxury-gold transition-colors duration-300">
-                  {auction.product?.title}
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-luxury-gold">
-                        Estimated Price
-                      </p>
-                      <p className="text-sm font-semibold">
-                        ${parseEstimatePrice(auction.product?.estimateprice)}
-                      </p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-xs font-medium text-gray-500">
-                        Current Bid
-                      </p>
-                      <p className="text-sm font-semibold text-luxury-charcoal">
-                        ${Number(auction.product?.sellPrice).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className={`w-full rounded-lg py-2 transition-all duration-300 ${
-                      auction.status === "ENDED"
-                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                        : "bg-luxury-gold text-white hover:bg-luxury-charcoal hover:shadow-lg hover:shadow-luxury-gold/20"
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    variant={currentPage === page ? "default" : "outline"}
+                    className={`w-8 h-8 ${
+                      currentPage === page
+                        ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                        : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
                     }`}
-                    disabled={auction.status === "ENDED"}
-                    onClick={() => handleBidNow(auction._id, auction.status)}
                   >
-                    {auction.status === "ENDED" ? "Auction Ended" : "Bid Now"}
+                    {page}
                   </Button>
-                </div>
+                ))}
+                <Button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                >
+                  Next
+                </Button>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex flex-wrap justify-center items-center gap-2">
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
-            >
-              Previous
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                variant={currentPage === page ? "default" : "outline"}
-                className={`w-8 h-8 ${
-                  currentPage === page
-                    ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
-                    : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
-                }`}
-              >
-                {page}
-              </Button>
-            ))}
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
-            >
-              Next
-            </Button>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Modals */}

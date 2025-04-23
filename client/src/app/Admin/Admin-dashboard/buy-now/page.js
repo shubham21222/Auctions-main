@@ -54,7 +54,7 @@ export default function BuyNow() {
       return;
     }
 
-    setIsDeleting(true);
+    setIsDeleting(true);  
     try {
       const response = await fetch(`${config.baseURL}/v1/api/product/bulkdelete`, {
         method: "POST",
