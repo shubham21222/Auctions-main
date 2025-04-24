@@ -69,7 +69,7 @@ export default function LatestProducts() {
                                 const productData = {
                                     image: product.image[0],
                                     name: product.title,
-                                    price: product.price || "Price Unavailable",
+                                    price: product.offerAmount || "Price Unavailable",
                                     slug: product._id,
                                 };
                                 return (
@@ -78,6 +78,8 @@ export default function LatestProducts() {
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ duration: 0.3, delay: index * 0.1 }}
+                                        className="cursor-pointer"
+                                        onClick={() => window.location.href = `/products/${product._id}`}
                                     >
                                         <ProductCard
                                             image={productData.image}
