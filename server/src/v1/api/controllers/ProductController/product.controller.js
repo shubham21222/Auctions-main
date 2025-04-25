@@ -25,70 +25,121 @@ import mongoose from "mongoose";
 // Create a new product
 
 
-export const createProduct = async (req, res) => {
-    try {
-        // Check if the request body is an array or single object
-        const productsData = Array.isArray(req.body) ? req.body : [req.body];
-        
-        // Array to store created products
-        const createdProducts = [];
-        
-        // Check for existing titles
-        const existingTitles = await ProductModel.find({
-            title: { $in: productsData.map(product => product.title) }
-        });
-        
-        const existingTitleSet = new Set(existingTitles.map(product => product.title));
-        
-        // Validate and create products
-        for (const productData of productsData) {
-            const { 
-                title, 
-                price, 
-                estimateprice, 
-                offerAmount, 
-                category, 
-                image, 
-                status, 
-                sortByPrice, 
-                description, 
-                created_at, 
-                details 
-            } = productData;
+    // export const createProduct = async (req, res) => {
+    //     try {
+    //         // Check if the request body is an array or single object
+    //         const productsData = Array.isArray(req.body) ? req.body : [req.body];
+            
+    //         // Array to store created products
+    //         const createdProducts = [];
+            
+    //         // Check for existing titles
+    //         const existingTitles = await ProductModel.find({
+    //             title: { $in: productsData.map(product => product.title) }
+    //         });
+    //         const existingTitleSet = new Set(existingTitles.map(product => product.title));
+    //         // Validate and create products
+    //         for (const productData of productsData) {
+    //             const { 
+    //                 title, 
+    //                 price, 
+    //                 estimateprice, 
+    //                 offerAmount, 
+    //                 category, 
+    //                 image, 
+    //                 status, 
+    //                 sortByPrice, 
+    //                 description, 
+    //                 created_at, 
+    //                 details,
+    //                 link
+    //             } = productData;
 
-            // Skip if title already exists
-            if (existingTitleSet.has(title)) {
-                continue; // Skip this product if title exists
+    //             // Skip if title already exists
+    //             if (existingTitleSet.has(title)) {
+    //                 continue; // Skip this product if title exists
+    //             }
+
+    //             // Create new product
+    //             const product = new ProductModel({
+    //                 title,
+    //                 link,
+    //                 price,
+    //                 estimateprice,
+    //                 offerAmount,
+    //                 category,
+    //                 image,
+    //                 status,
+    //                 sortByPrice,
+    //                 description,
+    //                 created_at: created_at || Date.now(),
+    //                 details
+    //             });
+
+    //             const savedProduct = await product.save();
+    //             createdProducts.push(savedProduct);
+    //         }
+
+    //         if (createdProducts.length === 0) {
+    //             return badRequest(res, "No products were created. All submitted titles may already exist.");
+    //         }
+
+    //         return success(res, `Successfully created ${createdProducts.length} product(s)`, createdProducts);
+    //     } catch (error) {
+    //         return unknownError(res, error.message);
+    //     }
+    // };
+
+    export const createProduct = async (req, res) => {
+        try {
+            // Check if the request body is an array or single object
+            const productsData = Array.isArray(req.body) ? req.body : [req.body];
+    
+            // Array to store created products
+            const createdProducts = [];
+    
+            // Create and save each product
+            for (const productData of productsData) {
+                const { 
+                    title, 
+                    price, 
+                    estimateprice, 
+                    offerAmount, 
+                    category, 
+                    image, 
+                    status, 
+                    sortByPrice, 
+                    description, 
+                    created_at, 
+                    details,
+                    link
+                } = productData;
+    
+                const product = new ProductModel({
+                    title,
+                    link,
+                    price,
+                    estimateprice,
+                    offerAmount,
+                    category,
+                    image,
+                    status,
+                    sortByPrice,
+                    description,
+                    created_at: created_at || Date.now(),
+                    details
+                });
+    
+                const savedProduct = await product.save();
+                createdProducts.push(savedProduct);
             }
-
-            // Create new product
-            const product = new ProductModel({
-                title,
-                price,
-                estimateprice,
-                offerAmount,
-                category,
-                image,
-                status,
-                sortByPrice,
-                description,
-                created_at: created_at || Date.now(),
-                details
-            });
-
-            const savedProduct = await product.save();
-            createdProducts.push(savedProduct);
+    
+            return success(res, `Successfully created ${createdProducts.length} product(s)`, createdProducts);
+        } catch (error) {
+            return unknownError(res, error.message);
         }
-
-        if (createdProducts.length === 0) {
-            return badRequest(res, "No products were created. All submitted titles may already exist.");
-        }
-
-        return success(res, `Successfully created ${createdProducts.length} product(s)`, createdProducts);
-    } catch (error) {
-        return unknownError(res, error.message);
-    }
-};
+    };
+    
 
 
 // get all products
@@ -194,6 +245,7 @@ export const getFilteredProducts = async (req, res) => {
                     updated_at: 1,
                     details: 1,
                     favorite: 1,
+                    link:1,
                     category: { _id: 1, name: 1 }
                 }
             }
