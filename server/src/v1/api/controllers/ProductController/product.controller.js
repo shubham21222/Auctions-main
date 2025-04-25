@@ -355,3 +355,60 @@ export const bulkDeleteProducts = async (req, res) => {
         return unknownError(res, error.message);
     }
 };
+
+export const adjustAllEstimatePricesByPercentage = async (req, res) => {
+    try {
+        const { percentage } = req.body;
+
+        // Validate percentage
+        if (typeof percentage !== "number" || isNaN(percentage)) {
+            return badRequest(res, "Percentage must be a valid number");
+        }
+
+        // Limit percentage range (e.g., -100% to +100%)
+        if (Math.abs(percentage) > 100) {
+            return badRequest(res, "Percentage cannot exceed ±100%");
+        }
+
+        // Find all products
+        const products = await ProductModel.find({});
+
+        if (products.length === 0) {
+            return badRequest(res, "No products found to update");
+        }
+
+        // Update estimate price for each product
+        const updatedProducts = [];
+        for (const product of products) {
+            // Parse estimateprice range (e.g., "$1275 - $1870")
+            const priceRange = product.estimateprice.replace(/\$/g, "").split(" - ").map(str => str.trim());
+            if (priceRange.length !== 2) {
+                return badRequest(res, `Invalid estimate price format for product: ${product.title}`);
+            }
+
+            const [minPrice, maxPrice] = priceRange.map(parseFloat);
+            if (isNaN(minPrice) || isNaN(maxPrice)) {
+                return badRequest(res, `Invalid estimate price format for product: ${product.title}`);
+            }
+
+            // Calculate new estimate prices
+            const newMinPrice = minPrice * (1 + percentage / 100);
+            const newMaxPrice = maxPrice * (1 + percentage / 100);
+
+            // Ensure estimate prices are non-negative
+            if (newMinPrice < 0 || newMaxPrice < 0) {
+                return badRequest(res, `Cannot set negative estimate price for product: ${product.title}`);
+            }
+
+            // Format new estimateprice (e.g., "$1372.5 - $2057")
+            product.estimateprice = `$${newMinPrice.toFixed(2)} - $${newMaxPrice.toFixed(2)}`;
+            product.updated_at = Date.now();
+            const savedProduct = await product.save();
+            updatedProducts.push(savedProduct);
+        }
+
+        return success(res, `Successfully updated estimate prices for ${updatedProducts.length} product(s)`, updatedProducts);
+    } catch (error) {
+        return unknownError(res, error.message);
+    }
+};

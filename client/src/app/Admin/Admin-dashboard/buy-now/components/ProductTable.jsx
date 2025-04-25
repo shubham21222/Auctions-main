@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
+import ProductDetailsDialog from "./ProductDetailsDialog";
 
 export default function ProductTable({ 
   products, 
@@ -46,9 +47,11 @@ export default function ProductTable({
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setSelectedProductId(null);
   };
 
   const handleSelectAll = (checked) => {
@@ -67,6 +70,11 @@ export default function ProductTable({
     }
   };
 
+  const handleRowClick = (productId) => {
+    setSelectedProductId(productId);
+    setDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -81,7 +89,7 @@ export default function ProductTable({
               </TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
+              {/* <TableHead>Price</TableHead> */}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -95,8 +103,12 @@ export default function ProductTable({
               </TableRow>
             ) : (
               products.map((product) => (
-                <TableRow key={product._id} className="hover:bg-gray-50">
-                  <TableCell>
+                <TableRow 
+                  key={product._id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleRowClick(product._id)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedProducts.includes(product._id)}
                       onCheckedChange={(checked) => handleSelectProduct(product._id, checked)}
@@ -121,9 +133,9 @@ export default function ProductTable({
                   <TableCell>
                     <Badge variant="outline">{product.category?.name || "N/A"}</Badge>
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <span className="font-semibold text-primary">${product.price}</span>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     <Badge 
                       variant={product.status === "Not Sold" ? "default" : "secondary"}
@@ -132,7 +144,7 @@ export default function ProductTable({
                       {product.status || "N/A"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
@@ -171,6 +183,14 @@ export default function ProductTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Product Details Dialog */}
+      <ProductDetailsDialog
+        productId={selectedProductId}
+        token={token}
+        isOpen={dialogOpen}
+        onClose={handleCloseDialog}
+      />
 
       {/* Pagination Controls */}
       {totalPages > 1 && (

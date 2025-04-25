@@ -1,12 +1,10 @@
 import { Error } from 'mongoose';
 import mongoose from 'mongoose';
 
-
 //send success response --------------------------------------------------------
 async function success(res, message, items) {
     sendResponse(res, 200, true, message, "", items);
 };
-
 
 //send created response --------------------------------------------------------
 async function created(res, message, items) {
@@ -43,9 +41,9 @@ async function serverValidation(res, error) {
     });
     sendResponse(res, 400, false, 'Server Validation Errors', 'ValidationError', responseErrors);
 }
+
 //send error response ----------------------------------------------------------
 async function unknownError(res, error) {
-   
     if (error instanceof Error) {
         if (error.name == "ValidationError") {
             const errormessage = await this.validation(error.message);
@@ -89,13 +87,6 @@ async function alreadyExist(e) {
 
 async function onError(res, message, error) {
     sendResponse(res, 400, false, message, error, null);
-    // res.status(400);
-    // res.json({
-    //     status: false,
-    //     message: message,
-    //     error: '',
-    //     items: {}
-    // });
 };
 
 async function sendResponse(res, statusCode, status, message, error, items) {
@@ -109,24 +100,17 @@ async function sendResponse(res, statusCode, status, message, error, items) {
     if (res.tokenInfo) {
         response.tokenInfo = res.tokenInfo
     }
-    res.status(200);
+    res.status(statusCode); // Use statusCode instead of hard-coded 200
     res.json(response);
 }
-
-
 
 async function invalid(res, message, items) {
     sendResponse(res, 301, false, message, '', items);
 };
-//====================================================================================================
-
 
 // Validate MongoDB ObjectId
-async function isValidObjectId(res, id, message = "Invalid ID format") {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return badRequest(res, message, "Invalid ObjectId");
-    }
-    return true;
+function isValidObjectId(id) {
+    return mongoose.Types.ObjectId.isValid(id);
 }
 
 // -------------------------------------------------------------------------------------------------- 

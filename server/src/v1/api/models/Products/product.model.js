@@ -1,6 +1,4 @@
-import express from "express";
 import mongoose from "mongoose";
-import Schema from "mongoose";
 
 const productSchema = new mongoose.Schema({
     title: { type: String, required: true },
@@ -31,13 +29,13 @@ const productSchema = new mongoose.Schema({
         value: { type: mongoose.Schema.Types.Mixed, required: true }
       }
     ],
-    stock: { type: Number, default: 1 }, // Add stock field with default value of 1
+    stock: { type: Number, default: 1 },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
-    type:{type:String , default: ""},
-    link:{type:String , default:""},
-  }, {
+    type: { type: String, default: "" },
+    link: { type: String, default: "" },
+}, {
     timestamps: true
-  });
-  
-  export default mongoose.model('Product', productSchema);
+});
+
+export default mongoose.model('Product', productSchema);

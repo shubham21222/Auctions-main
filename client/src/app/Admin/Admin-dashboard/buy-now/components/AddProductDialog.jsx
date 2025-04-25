@@ -22,6 +22,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
     stock: 1,
     status: "Not Sold",
     sortByPrice: "High Price",
+    link: "" // Added link field
   });
 
   const [imageInputs, setImageInputs] = useState([
@@ -147,6 +148,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             status: "Not Sold",
             sortByPrice: String(product.sortByPrice || "High Price").trim(),
             image: images,
+            link: String(product.Link || "").trim() // Added link field
           };
         });
 
@@ -265,6 +267,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         offerAmount: Number(newProduct.offerAmount || 0),
         stock: Number(newProduct.stock || 1),
         image: imageUrls,
+        link: newProduct.link // Ensure link is included
       };
 
       if (!payload.title || !payload.price || !payload.category) {
@@ -306,6 +309,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         stock: 1,
         status: "Not Sold",
         sortByPrice: "High Price",
+        link: "" // Reset link field
       });
       setImageInputs([{ type: 'url', value: '', file: null }]);
       onClose();
@@ -337,6 +341,8 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
               </div>
               <FormField label="Description" id="description" value={newProduct.description} 
                 onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
+              <FormField label="Product URL" id="link" type="url" value={newProduct.link} 
+                onChange={(e) => setNewProduct({ ...newProduct, link: e.target.value })} />
             </div>
 
             {/* Pricing Section */}
@@ -424,7 +430,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
               <div className="flex items-center gap-2">
                 <Input
                   type="file"
-                  accept=".xls"
+                  accept=".xls,.xlsx"
                   onChange={handleExcelFileChange}
                   className="flex-1"
                 />
@@ -442,11 +448,11 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
                   variant="outline"
                   onClick={() => {
                     const excelBuffer = createExcelTemplate();
-                    const blob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+                    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.download = 'product_upload_template.xls';
+                    link.download = 'product_upload_template.xlsx';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);

@@ -72,7 +72,7 @@ export default function ProductDetails({
           {isLoading ? (
             <Skeleton className="w-24 h-4" />
           ) : (
-            <p className="text-sm text-gray-500">Estimate Price</p>
+            <p className="text-sm text-gray-500">Price Estimate</p>
           )}
           {isLoading ? (
             <Skeleton className="w-48 h-8" />
@@ -98,7 +98,7 @@ export default function ProductDetails({
               />
               <label htmlFor="terms" className="text-gray-600 text-sm">
                 I agree to the{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
+                <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">
                   Terms and Conditions
                 </Link>
               </label>
@@ -144,12 +144,9 @@ export default function ProductDetails({
             {isLoading ? (
               <Skeleton className="w-32 h-4" />
             ) : (
-              <Link
-                href="/privacy-policy"
-                className="text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-              >
-                View Policy for Payment
-              </Link>
+              <p className="text-gray-600">
+                Your $100 deposit is refundable if your bid is not accepted. Payments above $500 require a bank wire or Zelle
+              </p>
             )}
           </div>
         </div>
