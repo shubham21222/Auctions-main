@@ -99,7 +99,7 @@ export const sendEmail = async (options) => {
 export const sendAuctionInviteEmail = async (auction , userEmail) => {
   try {
     const emailOptions = {
-      "From": process.env.CLIENT_EMAIL,
+      "From": `"Ny Elizabeth" <${process.env.CLIENT_EMAIL}>`,
       "To": userEmail,  // Assuming inviteeEmail is provided in the auction object
       "Subject": `You're Invited: ${auction.auctionProduct.title} Auction`,
       "HtmlBody": `
