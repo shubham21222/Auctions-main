@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import ProductDetailsDialog from "./ProductDetailsDialog";
+import { toast } from "react-hot-toast";
 
 export default function ProductTable({ 
   products, 
@@ -24,6 +25,39 @@ export default function ProductTable({
   selectedProducts,
   setSelectedProducts
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState(null);
+
+  const handleBulkDelete = async (productIds) => {
+    if (!confirm(`Are you sure you want to delete ${productIds.length} products?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${config.baseURL}/v1/api/product/bulkdelete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productIds }),
+      });
+
+      if (!response.ok) throw new Error("Failed to delete products");
+      
+      toast.success("Products deleted successfully");
+      setSelectedProducts([]);
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting products:", error);
+      toast.error("Failed to delete products");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Ensure products is an array
   if (!Array.isArray(products)) {
     return <div className="text-center text-gray-500">No products available</div>;
@@ -45,9 +79,6 @@ export default function ProductTable({
       console.error("Error deleting product:", error);
     }
   };
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
@@ -77,6 +108,55 @@ export default function ProductTable({
 
   return (
     <div className="space-y-6">
+      {/* Bulk Actions */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-4">
+          <Checkbox
+            checked={selectedProducts.length === products.length}
+            onCheckedChange={handleSelectAll}
+            className="h-5 w-5"
+          />
+          <span className="text-sm text-gray-600">
+            {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                // Fetch all products using the filter API with a large limit
+                const response = await fetch(`${config.baseURL}/v1/api/product/filter?limit=1000`, {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+                if (!response.ok) throw new Error("Failed to fetch all products");
+                const data = await response.json();
+                const allProductIds = data.items.items.map(product => product._id);
+                setSelectedProducts(allProductIds);
+                toast.success(`Selected ${allProductIds.length} products`);
+              } catch (error) {
+                console.error("Error fetching all products:", error);
+                toast.error("Failed to select all products");
+              }
+            }}
+            className="text-primary hover:text-primary/80"
+          >
+            Select All Products
+          </Button>
+          {selectedProducts.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => handleBulkDelete(selectedProducts)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Selected"}
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <Table>
           <TableHeader>

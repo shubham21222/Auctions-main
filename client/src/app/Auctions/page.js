@@ -39,14 +39,22 @@ function CatalogCard({
   const auctionCount = catalog.auctions.length;
 
   const handleViewCatalog = () => {
-    router.push(`/catalog-details/${firstAuction._id}`);
+    window.open(`/catalog-details/${firstAuction._id}`, '_blank');
   };
 
   const handleThumbnailClick = (e, index) => {
     e.stopPropagation(); // Prevent card click when clicking thumbnails
-    const newImages = [...images];
-    [newImages[0], newImages[index + 1]] = [newImages[index + 1], newImages[0]];
-    images.splice(0, images.length, ...newImages);
+    setCurrentMainImage(index);
+  };
+
+  const nextImage = (e) => {
+    e.stopPropagation();
+    setCurrentMainImage((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    setCurrentMainImage((prev) => (prev - 1 + images.length) % images.length);
   };
 
   // Format date for display
@@ -60,12 +68,22 @@ function CatalogCard({
       })
     : "Date TBD";
 
-  // Format start date for upcoming message (e.g., "11 May")
   const upcomingMessageDate = firstAuction?.startDate
-    ? new Date(firstAuction.startDate).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-      })
+    ? (() => {
+        const date = new Date(firstAuction.startDate);
+        const day = date.getDate();
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const ordinal = (day) => {
+          if (day > 3 && day < 21) return 'th';
+          switch (day % 10) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+          }
+        };
+        return `${day}${ordinal(day)} ${month}`;
+      })()
     : "TBD";
 
   const isCatalogUpcoming =
@@ -86,14 +104,14 @@ function CatalogCard({
         <div className="flex gap-4">
           {/* Thumbnails on left */}
           <div className="flex flex-col gap-4 w-[120px]">
-            {images.slice(1, 3).map((image, index) => (
+            {images.map((image, index) => (
               <div
                 key={index}
                 onClick={(e) => handleThumbnailClick(e, index)}
-                className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50
+                className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50
                             hover:ring-2 ring-luxury-gold/50 transition-all duration-300
                             cursor-pointer transform hover:scale-95 active:scale-90
-                            shadow-sm hover:shadow-md"
+                            shadow-sm hover:shadow-md ${currentMainImage === index ? 'ring-2 ring-luxury-gold' : ''}`}
               >
                 <img
                   src={image}
@@ -106,18 +124,47 @@ function CatalogCard({
             ))}
           </div>
 
-          {/* Main Image */}
+          {/* Main Image with Carousel Controls */}
           <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-50 shadow-md">
-            <img
-              src={images[0]}
-              alt={`${catalog.catalogName} - Main Image`}
-              className="w-full h-full object-cover transition-all duration-700 ease-out
-                       group-hover/images:scale-110 group-hover/images:rotate-1"
-            />
-            <div
-              className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 
-                          group-hover/images:opacity-100 transition-opacity duration-300"
-            />
+            <div className="relative w-full h-full">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`${catalog.catalogName} - Main Image ${index + 1}`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out
+                           ${currentMainImage === index ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                />
+              ))}
+            </div>
+            
+            {/* Carousel Controls */}
+            <button
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full
+                       opacity-0 group-hover/images:opacity-100 transition-opacity duration-300
+                       hover:bg-black/70 focus:outline-none"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full
+                       opacity-0 group-hover/images:opacity-100 transition-opacity duration-300
+                       hover:bg-black/70 focus:outline-none"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            {/* Image Counter */}
+            <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-sm">
+              {currentMainImage + 1} / {images.length}
+            </div>
+
             {/* Premium Badge */}
             <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
                           transform -rotate-12 shadow-lg">
@@ -209,7 +256,7 @@ function CatalogCard({
               <span>Live Now</span>
             </div>
           ) : isUpcoming || isCatalogUpcoming ? (
-            <div className="flex items-center gap-3 text-sm font-medium text-red-500">
+            <div className="flex items-center gap-3 text-sm font-medium text-green-700">
               <svg
                 className="w-5 h-5"
                 fill="none"
