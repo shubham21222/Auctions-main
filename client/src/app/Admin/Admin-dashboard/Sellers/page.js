@@ -107,7 +107,7 @@ const SellersPage = () => {
       const response = await fetch(
         `${config.baseURL}/v1/api/seller/delete/${sellerId}`,
         {
-          method: "DELETE",
+          method: "POST",
           headers: {
             Authorization: `${token}`,
           },

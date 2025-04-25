@@ -6,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import config from "@/app/config_BASE_URL";
+import { createExcelTemplate } from './createExcelTemplate';
 
 export default function AddProductDialog({ fetchProducts, token, onClose, open, onOpenChange }) {
   const [newProduct, setNewProduct] = useState({
@@ -316,7 +317,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-white">
+      <DialogContent className="sm:max-w-[600px] bg-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
@@ -325,89 +326,135 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <FormField label="Title" id="title" value={newProduct.title} 
-              onChange={(e) => setNewProduct({ ...newProduct, title: e.target.value })} />
-            <FormField label="Description" id="description" value={newProduct.description} 
-              onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
-            <FormField label="Price" id="price" type="number" value={newProduct.price} 
-              onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
-            <FormField label="Estimate Price" id="estimateprice" value={newProduct.estimateprice} 
-              onChange={(e) => setNewProduct({ ...newProduct, estimateprice: e.target.value })} />
-            <FormField label="Offer Amount" id="offerAmount" type="number" value={newProduct.offerAmount} 
-              onChange={(e) => setNewProduct({ ...newProduct, offerAmount: e.target.value })} />
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Title" id="title" value={newProduct.title} 
+                  onChange={(e) => setNewProduct({ ...newProduct, title: e.target.value })} />
+                <FormField label="Price" id="price" type="number" value={newProduct.price} 
+                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
+              </div>
+              <FormField label="Description" id="description" value={newProduct.description} 
+                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
+            </div>
 
-            <SelectField
-              label="Category (Required for Excel Upload)"
-              id="category"
-              value={newProduct.category}
-              onChange={(value) => setNewProduct({ ...newProduct, category: value })}
-              categories={categories}
-              className="bg-white"
-            />
+            {/* Pricing Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Pricing Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Estimate Price" id="estimateprice" value={newProduct.estimateprice} 
+                  onChange={(e) => setNewProduct({ ...newProduct, estimateprice: e.target.value })} />
+                <FormField label="Offer Amount" id="offerAmount" type="number" value={newProduct.offerAmount} 
+                  onChange={(e) => setNewProduct({ ...newProduct, offerAmount: e.target.value })} />
+              </div>
+            </div>
 
-            {imageInputs.map((input, index) => (
-              <div key={index} className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Image {index + 1}</Label>
-                <div className="col-span-3 flex gap-2">
-                  {input.type === 'url' ? (
-                    <Input
-                      type="url"
-                      placeholder="Enter image URL"
-                      value={input.value}
-                      onChange={(e) => handleImageChange(index, e.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      type="file"
-                      onChange={(e) => handleImageChange(index, e.target.value, e.target.files[0])}
-                    />
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleImageTypeToggle(index)}
-                  >
-                    {input.type === 'url' ? 'File' : 'URL'}
-                  </Button>
-                  {index > 0 && (
+            {/* Category Selection */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Category</h3>
+              <SelectField
+                label="Category (Required for Excel Upload)"
+                id="category"
+                value={newProduct.category}
+                onChange={(value) => setNewProduct({ ...newProduct, category: value })}
+                categories={categories}
+                className="bg-white"
+              />
+            </div>
+
+            {/* Images Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Product Images</h3>
+              <div className="space-y-2">
+                {imageInputs.map((input, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    {input.type === 'url' ? (
+                      <Input
+                        type="url"
+                        placeholder="Enter image URL"
+                        value={input.value}
+                        onChange={(e) => handleImageChange(index, e.target.value)}
+                        className="flex-1"
+                      />
+                    ) : (
+                      <Input
+                        type="file"
+                        onChange={(e) => handleImageChange(index, e.target.value, e.target.files[0])}
+                        className="flex-1"
+                      />
+                    )}
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => removeImage(index)}
+                      onClick={() => handleImageTypeToggle(index)}
+                      className="shrink-0"
                     >
-                      <X className="h-4 w-4" />
+                      {input.type === 'url' ? 'File' : 'URL'}
                     </Button>
-                  )}
-                </div>
+                    {index > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeImage(index)}
+                        className="shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addMoreImage}
+                  className="flex items-center gap-2 w-full"
+                >
+                  <Plus className="h-4 w-4" /> Add More Images
+                </Button>
               </div>
-            ))}
-            
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addMoreImage}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" /> Add More Images
-            </Button>
+            </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Upload Excel</Label>
-              <div className="col-span-3 flex gap-2">
+            {/* Excel Upload Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Bulk Upload</h3>
+              <div className="flex items-center gap-2">
                 <Input
                   type="file"
-                  accept=".xlsx, .xls"
+                  accept=".xls"
                   onChange={handleExcelFileChange}
+                  className="flex-1"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleExcelUpload}
                   disabled={!excelFile}
+                  className="shrink-0"
                 >
                   Upload Excel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const excelBuffer = createExcelTemplate();
+                    const blob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'product_upload_template.xls';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-2 shrink-0"
+                >
+                  <Download className="h-4 w-4" /> Sample
                 </Button>
               </div>
             </div>
@@ -423,23 +470,23 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
 
 function FormField({ label, id, type = "text", value, onChange }) {
   return (
-    <div className="grid grid-cols-4 items-center gap-4">
-      <Label htmlFor={id} className="text-right">
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-sm font-medium">
         {label}
       </Label>
-      <Input id={id} type={type} value={value} onChange={onChange} className="col-span-3" />
+      <Input id={id} type={type} value={value} onChange={onChange} />
     </div>
   );
 }
 
 function SelectField({ label, id, value, onChange, categories }) {
   return (
-    <div className="grid grid-cols-4 items-center gap-4">
-      <Label htmlFor={id} className="text-right">
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-sm font-medium">
         {label}
       </Label>
       <Select onValueChange={onChange} value={value} className="bg-white">
-        <SelectTrigger className="col-span-3">
+        <SelectTrigger>
           <SelectValue placeholder="Select category" />
         </SelectTrigger>
         <SelectContent className="bg-white">

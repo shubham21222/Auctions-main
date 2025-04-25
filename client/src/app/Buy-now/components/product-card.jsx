@@ -96,7 +96,11 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
     fetchWishlist()
   }, []) // Empty dependency array ensures this runs only once on mount
 
-  const handleViewDetails = () => {
+  const handleCardClick = (e) => {
+    // Prevent click if clicking on wishlist or share button
+    if (e.target.closest('button')) {
+      return;
+    }
     onViewDetails(slug);
   };
 
@@ -109,9 +113,10 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ y: -10 }}
-        className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500"
+        className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={handleCardClick}
       >
         <div className="relative aspect-square overflow-hidden">
           <Image
@@ -127,7 +132,10 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={toggleWishlist}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWishlist();
+              }}
               className={cn(
                 "p-3 rounded-full",
                 "bg-white/90 backdrop-blur-sm",
@@ -143,6 +151,7 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
               className="p-3 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-all duration-300"
             >
               <Share2 className="w-5 h-5" />
@@ -160,7 +169,10 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleViewDetails}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewDetails(slug);
+                  }}
                   className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
                 >
                   View Details
