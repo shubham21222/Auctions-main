@@ -78,7 +78,7 @@ const client = new postmark.ServerClient(process.env.SERVER_TOKEN);
 export const sendEmail = async (options) => {
   try {
     const emailOptions = {
-      "From": `"Ny Elizabeth" <${process.env.CLIENT_EMAIL}>`,
+      "From": `"NY Elizabeth" <${process.env.CLIENT_EMAIL}>`,
       "To": options.to,
       "Subject": options.subject,
       "HtmlBody": options.html,
@@ -99,7 +99,7 @@ export const sendEmail = async (options) => {
 export const sendAuctionInviteEmail = async (auction , userEmail) => {
   try {
     const emailOptions = {
-      "From": `"Ny Elizabeth" <${process.env.CLIENT_EMAIL}>`,
+      "From": `"NY Elizabeth" <${process.env.CLIENT_EMAIL}>`,
       "To": userEmail,  // Assuming inviteeEmail is provided in the auction object
       "Subject": `You're Invited: ${auction.auctionProduct.title} Auction`,
       "HtmlBody": `

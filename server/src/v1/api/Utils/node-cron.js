@@ -124,7 +124,7 @@ export const sendPaymentEmail = async (email, paymentLink, auctionTitle, bidAmou
       `;
   
       const emailOptions = {
-        "From": `"Ny Elizabeth" <${process.env.CLIENT_EMAIL}>`,
+        "From": `"NY Elizabeth" <${process.env.CLIENT_EMAIL}>`,
         To: email,
         Subject: subject,
         HtmlBody: html,
