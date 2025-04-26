@@ -195,6 +195,41 @@ export default function CatalogDetails() {
     window.location.href = `/item/${lotId}`;
   };
 
+  const handleContextMenu = (e, lotId, status) => {
+    e.preventDefault(); // Prevent default context menu
+    
+    // Create and show custom context menu
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'fixed bg-white shadow-lg rounded-lg py-2 z-50';
+    contextMenu.style.left = `${e.pageX}px`;
+    contextMenu.style.top = `${e.pageY}px`;
+    
+    const menuItem = document.createElement('div');
+    menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+    menuItem.textContent = 'Open in new tab';
+    menuItem.onclick = () => {
+      if (status === "ENDED") {
+        toast.error("This auction has ended");
+        return;
+      }
+      window.open(`/item/${lotId}`, '_blank');
+      document.body.removeChild(contextMenu);
+    };
+    
+    contextMenu.appendChild(menuItem);
+    document.body.appendChild(contextMenu);
+    
+    // Remove context menu when clicking outside
+    const removeMenu = (e) => {
+      if (!contextMenu.contains(e.target)) {
+        document.body.removeChild(contextMenu);
+        document.removeEventListener('click', removeMenu);
+      }
+    };
+    
+    document.addEventListener('click', removeMenu);
+  };
+
   const handleRegisterAuction = () => {
     if (!isLoggedIn) {
       setIsSignupModalOpen(true);
@@ -378,6 +413,7 @@ export default function CatalogDetails() {
                     key={auction._id}
                     className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 cursor-pointer"
                     onClick={() => handleCardClick(auction._id, auction.status)}
+                    onContextMenu={(e) => handleContextMenu(e, auction._id, auction.status)}
                     onMouseEnter={() => setHoveredLot(auction._id)}
                     onMouseLeave={() => setHoveredLot(null)}
                   >

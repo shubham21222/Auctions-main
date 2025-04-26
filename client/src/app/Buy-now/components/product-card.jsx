@@ -104,6 +104,37 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
     onViewDetails(slug);
   };
 
+  const handleContextMenu = (e) => {
+    e.preventDefault(); // Prevent default context menu
+    
+    // Create and show custom context menu
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'fixed bg-white shadow-lg rounded-lg py-2 z-50';
+    contextMenu.style.left = `${e.pageX}px`;
+    contextMenu.style.top = `${e.pageY}px`;
+    
+    const menuItem = document.createElement('div');
+    menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+    menuItem.textContent = 'Open in new tab';
+    menuItem.onclick = () => {
+      window.open(`/products/${slug}`, '_blank');
+      document.body.removeChild(contextMenu);
+    };
+    
+    contextMenu.appendChild(menuItem);
+    document.body.appendChild(contextMenu);
+    
+    // Remove context menu when clicking outside
+    const removeMenu = (e) => {
+      if (!contextMenu.contains(e.target)) {
+        document.body.removeChild(contextMenu);
+        document.removeEventListener('click', removeMenu);
+      }
+    };
+    
+    document.addEventListener('click', removeMenu);
+  };
+
   return (
     <>
       {/* Add the Toaster component for displaying notifications */}
@@ -117,6 +148,7 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleCardClick}
+        onContextMenu={handleContextMenu}
       >
         <div className="relative aspect-square overflow-hidden">
           <Image

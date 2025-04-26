@@ -38,8 +38,43 @@ function CatalogCard({
   const [currentMainImage, setCurrentMainImage] = useState(0);
   const auctionCount = catalog.auctions.length;
 
-  const handleViewCatalog = () => {
+  const handleViewCatalog = (e) => {
+    // If it's a right click, let the browser handle it
+    if (e.button === 2) return;
+    
     window.open(`/catalog-details/${firstAuction._id}`, '_blank');
+  };
+
+  const handleContextMenu = (e) => {
+    // Prevent default context menu
+    e.preventDefault();
+    
+    // Create and show custom context menu
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'fixed bg-white shadow-lg rounded-lg py-2 z-50';
+    contextMenu.style.left = `${e.pageX}px`;
+    contextMenu.style.top = `${e.pageY}px`;
+    
+    const menuItem = document.createElement('div');
+    menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+    menuItem.textContent = 'Open in new tab';
+    menuItem.onclick = () => {
+      window.open(`/catalog-details/${firstAuction._id}`, '_blank');
+      document.body.removeChild(contextMenu);
+    };
+    
+    contextMenu.appendChild(menuItem);
+    document.body.appendChild(contextMenu);
+    
+    // Remove context menu when clicking outside
+    const removeMenu = (e) => {
+      if (!contextMenu.contains(e.target)) {
+        document.body.removeChild(contextMenu);
+        document.removeEventListener('click', removeMenu);
+      }
+    };
+    
+    document.addEventListener('click', removeMenu);
   };
 
   const handleThumbnailClick = (e, index) => {
@@ -59,13 +94,29 @@ function CatalogCard({
 
   // Format date for display
   const auctionDate = firstAuction?.startDate
-    ? new Date(firstAuction.startDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-      })
+    ? (() => {
+        const date = new Date(firstAuction.startDate);
+        const day = date.getDate();
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        const ordinal = (day) => {
+          if (day > 3 && day < 21) return 'th';
+          switch (day % 10) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+          }
+        };
+        // Convert to PST
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const time = pstDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: 'numeric',
+          timeZone: 'America/Los_Angeles'
+        });
+        return `${month} ${day}${ordinal(day)}, ${year} at ${time} PST`;
+      })()
     : "Date TBD";
 
   const upcomingMessageDate = firstAuction?.startDate
@@ -94,6 +145,7 @@ function CatalogCard({
   return (
     <div
       onClick={handleViewCatalog}
+      onContextMenu={handleContextMenu}
       className="group relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-6 flex flex-row gap-10 items-start 
                     shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.15)] 
                     transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20
