@@ -10,7 +10,8 @@ import {
     deleteProduct,
     getProductById,
     bulkDeleteProducts,
-    adjustAllEstimatePricesByPercentage
+    adjustAllEstimatePricesByPercentage,
+    getProductBySku // Added new endpoint
 } from "../../controllers/ProductController/product.controller.js";
 
 import { IsAuthenticated, authorizeBackendRole } from "../../middlewares/authicationmiddleware.js";
@@ -23,5 +24,6 @@ router.delete("/delete/:productId", IsAuthenticated, authorizeBackendRole, delet
 router.get("/:productId", getProductById);
 router.post("/bulkdelete", IsAuthenticated, authorizeBackendRole, bulkDeleteProducts);
 router.patch("/adjust-all-estimate-prices", IsAuthenticated, authorizeBackendRole, adjustAllEstimatePricesByPercentage);
+router.get("/sku", getProductBySku); // New route for SKU search
 
 export default router;

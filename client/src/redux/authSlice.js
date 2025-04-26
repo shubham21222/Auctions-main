@@ -98,7 +98,7 @@ export const verifyEmail = createAsyncThunk(
       const verifyResponse = await axios.post(
         `${config.baseURL}/v1/api/auth/verify/${token}`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `${token}` } }
       );
 
       console.log("Verify response:", verifyResponse.data);

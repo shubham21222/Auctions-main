@@ -32,7 +32,7 @@ const useAuth = () => {
           `${config.baseURL}/v1/api/auth/verify/${token}`,
           {},
           {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `${token}` },
           }
         );
 

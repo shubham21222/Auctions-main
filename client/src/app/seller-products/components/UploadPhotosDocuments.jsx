@@ -29,7 +29,7 @@ const UploadBox = ({ label, setFormData, token }) => {
                 const response = await fetch(`${config.baseURL}/v1/api/uploadImg/upload-multiple`, {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `${token}`,
                     },
                     body: formData,
                 });

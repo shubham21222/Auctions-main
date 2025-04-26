@@ -9,6 +9,7 @@ import config from "@/app/config_BASE_URL";
 import Image from "next/image";
 import { VerificationModal } from "@/app/components/VerificationModal";
 import LoginModal from "@/app/components/LoginModal";
+import SignupModal from "@/app/components/SignupModal";
 import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -19,6 +20,7 @@ export default function ProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const auth = useSelector((state) => state.auth);
@@ -97,6 +99,16 @@ export default function ProductPage() {
       console.log("Opening offer modal");
       setIsOfferModalOpen(true);
     }
+  };
+
+  const handleOpenSignup = () => {
+    setIsLoginModalOpen(false);
+    setIsSignupModalOpen(true);
+  };
+
+  const handleOpenLogin = () => {
+    setIsSignupModalOpen(false);
+    setIsLoginModalOpen(true);
   };
 
   if (!slug) {
@@ -188,6 +200,12 @@ export default function ProductPage() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
+        onOpenSignup={handleOpenSignup}
+      />
+      <SignupModal
+        isOpen={isSignupModalOpen}
+        onClose={() => setIsSignupModalOpen(false)}
+        onOpenLogin={handleOpenLogin}
       />
     </>
   );

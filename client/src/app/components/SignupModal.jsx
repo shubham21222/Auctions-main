@@ -299,13 +299,19 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                 />
               </div>
 
-              <h2 className="text-2xl font-bold text-center text-gray-900">Create an account</h2>
-              <p className="text-sm text-center text-gray-600 mt-3">
-                Already have an account?{" "}
-                <button onClick={handleLoginClick} className="text-blue-600 hover:underline">
-                  Login
-                </button>
-              </p>
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Create an account</h2>
+                <p className="text-sm text-gray-600 mt-3">
+                  Already have an account?{" "}
+                  <button 
+                    type="button"
+                    onClick={handleLoginClick} 
+                    className="text-blue-600 hover:underline focus:outline-none"
+                  >
+                    Login
+                  </button>
+                </p>
+              </div>
 
               <div className="flex justify-between mt-8 mb-6">
                 {[1, 2, 3, 4, 5].map((num) => (

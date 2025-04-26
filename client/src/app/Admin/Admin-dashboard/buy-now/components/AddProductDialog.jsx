@@ -14,6 +14,7 @@ import { createExcelTemplate } from './createExcelTemplate';
 export default function AddProductDialog({ fetchProducts, token, onClose, open, onOpenChange }) {
   const [newProduct, setNewProduct] = useState({
     title: "",
+    sku: "", // Added SKU field
     description: "",
     price: "",
     estimateprice: "",
@@ -22,7 +23,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
     stock: 1,
     status: "Not Sold",
     sortByPrice: "High Price",
-    link: "" // Added link field
+    link: ""
   });
 
   const [imageInputs, setImageInputs] = useState([
@@ -139,6 +140,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
 
           return {
             title: String(product.Title || "").trim(),
+            sku: String(product.SKU || "").trim(), // Added SKU
             description: String(product.Description || "").trim(),
             price: Number(product.StartPrice || 0),
             estimateprice: estimateprice,
@@ -148,7 +150,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             status: "Not Sold",
             sortByPrice: String(product.sortByPrice || "High Price").trim(),
             image: images,
-            link: String(product.Link || "").trim() // Added link field
+            link: String(product.Link || "").trim()
           };
         });
 
@@ -190,7 +192,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
 
           console.log("Product payload:", payload);
 
-          if (!payload.title || !payload.price || !payload.category) {
+          if (!payload.title || !payload.sku || !payload.price || !payload.category) {
             console.warn("Skipping invalid product:", payload);
             toast.error(`Skipping invalid product: Missing required fields in row - ${JSON.stringify(product)}`);
             continue;
@@ -215,13 +217,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
           const responseData = await response.json();
           console.log("API Response (Excel Upload):", responseData);
 
-          // Check the 'status' field in the response body, not the HTTP status code
           if (!responseData.status) {
-            // Handle error based on the response body
-            if (responseData.message && responseData.message.includes("All submitted titles may already exist")) {
-              toast.error("Product with this title already exists. Please use a different title.");
-              continue;
-            }
             throw new Error(`Failed to create product: ${responseData.message || "Unknown error"}`);
           }
 
@@ -267,11 +263,10 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         offerAmount: Number(newProduct.offerAmount || 0),
         stock: Number(newProduct.stock || 1),
         image: imageUrls,
-        link: newProduct.link // Ensure link is included
       };
 
-      if (!payload.title || !payload.price || !payload.category) {
-        toast.error("Please fill in all required fields (Title, Price, Category) before submitting.");
+      if (!payload.title || !payload.sku || !payload.price || !payload.category) {
+        toast.error("Please fill in all required fields (Title, SKU, Price, Category) before submitting.");
         return;
       }
 
@@ -287,13 +282,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
       const responseData = await response.json();
       console.log("API Response (Manual Entry):", responseData);
 
-      // Check the 'status' field in the response body, not the HTTP status code
       if (!responseData.status) {
-        // Handle error based on the response body
-        if (responseData.message && responseData.message.includes("All submitted titles may already exist")) {
-          toast.error("Product with this title already exists. Please use a different title.");
-          return;
-        }
         throw new Error(`Failed to create product: ${responseData.message || "Unknown error"}`);
       }
 
@@ -301,6 +290,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
       fetchProducts();
       setNewProduct({
         title: "",
+        sku: "", // Reset SKU
         description: "",
         price: "",
         estimateprice: "",
@@ -309,7 +299,7 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
         stock: 1,
         status: "Not Sold",
         sortByPrice: "High Price",
-        link: "" // Reset link field
+        link: ""
       });
       setImageInputs([{ type: 'url', value: '', file: null }]);
       onClose();
@@ -336,6 +326,8 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Title" id="title" value={newProduct.title} 
                   onChange={(e) => setNewProduct({ ...newProduct, title: e.target.value })} />
+                <FormField label="SKU" id="sku" value={newProduct.sku} 
+                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })} />
                 <FormField label="Price" id="price" type="number" value={newProduct.price} 
                   onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
               </div>

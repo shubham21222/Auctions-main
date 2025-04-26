@@ -102,7 +102,8 @@ import mongoose from "mongoose";
             for (const productData of productsData) {
                 const { 
                     title, 
-                    price, 
+                    price,
+                    sku,
                     estimateprice, 
                     offerAmount, 
                     category, 
@@ -118,6 +119,7 @@ import mongoose from "mongoose";
                 const product = new ProductModel({
                     title,
                     link,
+                    sku,
                     price,
                     estimateprice,
                     offerAmount,
@@ -144,6 +146,9 @@ import mongoose from "mongoose";
 
 // get all products
 
+const escapeRegExp = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 export const getFilteredProducts = async (req, res) => {
     try {
@@ -154,69 +159,54 @@ export const getFilteredProducts = async (req, res) => {
             sortField, 
             sortOrder, 
             searchQuery,
-            page = 1,    // Default to page 1
-            limit = 10    // Default to 9 items per page
+            sku, // Added SKU query parameter
+            page = 1,
+            limit = 10
         } = req.query;
-
-        const skip = (parseInt(page) - 1) * parseInt(limit); // Calculate skip for pagination
-
+        const skip = (parseInt(page) - 1) * parseInt(limit);
         let matchStage = {};
-
-        // Filter by multiple categories
         if (category) {
             const categoryArray = category.split(",");
+            for (const id of categoryArray) {
+                if (!isValidObjectId(id.trim())) {
+                    return badRequest(res, `Invalid category ID: ${id}`, "Invalid ObjectId");
+                }
+            }
             matchStage.category = {
-                $in: categoryArray.map(id => {
-                    if (!isValidObjectId(id.trim())) throw new Error(`Invalid category ID: ${id}`);
-                    return new mongoose.Types.ObjectId(id.trim());
-                })
+                $in: categoryArray.map(id => new mongoose.Types.ObjectId(id.trim()))
             };
         }
-
-        // Filter by status
         if (status) {
             matchStage.status = status;
         }
-
-        // Search filter
         if (searchQuery) {
             matchStage.$or = [
                 { title: { $regex: searchQuery, $options: "i" } },
                 { description: { $regex: searchQuery, $options: "i" } }
             ];
         }
-
+        if (sku) {
+            const escapedSku = escapeRegExp(sku);
+            matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
+        }
         let sortStage = {};
-        // if (sortByPrice) {
-        //     sortStage.price = sortByPrice === "High Price" ? -1 : 1;
-        // } 
-
         if (sortByPrice == "High Price" || sortByPrice == "Low Price") {
             matchStage.sortByPrice = sortByPrice;
             sortStage.price = sortByPrice === "High Price" ? -1 : 1;
-        }
-        
-        
-        else if (sortField && sortOrder) {
+        } else if (sortField && sortOrder) {
             if (sortField === "title") {
                 sortStage.title = sortOrder === "asc" ? 1 : -1;
             } else if (sortField === "created_at") {
                 sortStage.created_at = sortOrder === "asc" ? 1 : -1;
             }
         } else {
-            sortStage.created_at = -1; // Default to newest first
+            sortStage.created_at = -1;
         }
-        
-        // do not include whihch producrs that is in the auction //
-
         const auctionProducts = await auctionModel.find({}).select("product");
         const auctionProductIds = auctionProducts.map(auction => auction.product);
         if (auctionProductIds.length > 0) {
             matchStage._id = { $nin: auctionProductIds };
         }
-        
-
-        // Aggregation pipeline with pagination
         const products = await ProductModel.aggregate([
             { $match: matchStage },
             {
@@ -229,11 +219,12 @@ export const getFilteredProducts = async (req, res) => {
             },
             { $unwind: "$category" },
             { $sort: sortStage },
-            { $skip: skip },        // Skip for pagination
-            { $limit: parseInt(limit) }, // Limit for pagination
+            { $skip: skip },
+            { $limit: parseInt(limit) },
             {
                 $project: {
                     title: 1,
+                    sku: 1,
                     description: 1,
                     price: 1,
                     estimateprice: 1,
@@ -245,15 +236,12 @@ export const getFilteredProducts = async (req, res) => {
                     updated_at: 1,
                     details: 1,
                     favorite: 1,
-                    link:1,
+                    link: 1,
                     category: { _id: 1, name: 1 }
                 }
             }
-        ]).allowDiskUse(true); // Enable external sorting
-
-        // Get total count for pagination (optional, remove if not needed)
+        ]).allowDiskUse(true);
         const total = await ProductModel.countDocuments(matchStage);
-
         return success(res, "Products fetched successfully", { 
             items: products,
             total,
@@ -262,7 +250,8 @@ export const getFilteredProducts = async (req, res) => {
             totalPages: Math.ceil(total / parseInt(limit))
         });
     } catch (error) {
-        return unknownError(res, error.message);
+        console.error("GetFilteredProducts Error:", error);
+        return unknownError(res, error.message || "Failed to fetch filtered products");
     }
 };
 
@@ -410,5 +399,29 @@ export const adjustAllEstimatePricesByPercentage = async (req, res) => {
         return success(res, `Successfully updated estimate prices for ${updatedProducts.length} product(s)`, updatedProducts);
     } catch (error) {
         return unknownError(res, error.message);
+    }
+};
+
+
+export const getProductBySku = async (req, res) => {
+    try {
+        const { sku } = req.query;
+        if (!sku) {
+            return badRequest(res, "SKU is required");
+        }
+        // Escape special characters in SKU
+        const escapedSku = escapeRegExp(sku);
+        const products = await ProductModel.find({ 
+            sku: { $regex: `^${escapedSku}$`, $options: "i" } 
+        })
+        .populate({ path: "category", select: "name", strictPopulate: false })
+        .lean(); // Use lean for performance
+        if (products.length === 0) {
+            return success(res, "No products found with this SKU", []);
+        }
+        return success(res, `Found ${products.length} product(s) with SKU ${sku}`, products);
+    } catch (error) {
+        console.error("GetProductBySku Error:", error);
+        return unknownError(res, error.message || "Failed to fetch product by SKU");
     }
 };

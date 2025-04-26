@@ -27,7 +27,7 @@ export default function ProductTable({
       const response = await fetch(`${config.baseURL}/v1/api/product/delete/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `${token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to delete product");

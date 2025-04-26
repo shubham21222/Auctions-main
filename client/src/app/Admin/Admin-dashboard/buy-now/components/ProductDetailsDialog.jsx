@@ -17,7 +17,7 @@ export default function ProductDetailsDialog({ productId, token, isOpen, onClose
       try {
         const response = await fetch(`${config.baseURL}/v1/api/product/${productId}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `${token}`,
           },
         });
         

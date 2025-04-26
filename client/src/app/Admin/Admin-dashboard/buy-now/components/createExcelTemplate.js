@@ -8,37 +8,40 @@ export function createExcelTemplate() {
   const data = [
     {
       Title: 'Vintage Watch',
+      SKU: 'VW-001', // Added SKU
       Description: 'Luxury vintage watch from 1950',
       StartPrice: 1000,
       LowEst: 800,
       HighEst: 1200,
       'Reserve Price': 900,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/vintage-watch', // Added Link
+      Link: 'https://nyelizabeth.com/products/vintage-watch',
       'ImageFile.1': 'https://example.com/watch1.jpg',
       'ImageFile.2': 'https://example.com/watch2.jpg'
     },
     {
       Title: 'Antique Vase',
+      SKU: 'AV-001', // Added SKU
       Description: 'Chinese Ming dynasty vase',
       StartPrice: 5000,
       LowEst: 4000,
       HighEst: 6000,
       'Reserve Price': 4500,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/antique-vase', // Added Link
+      Link: 'https://nyelizabeth.com/products/antique-vase',
       'ImageFile.1': 'https://example.com/vase1.jpg',
       'ImageFile.2': 'https://example.com/vase2.jpg'
     },
     {
       Title: 'Art Deco Lamp',
+      SKU: 'ADL-001', // Added SKU
       Description: 'Beautiful art deco table lamp',
       StartPrice: 750,
       LowEst: 600,
       HighEst: 900,
       'Reserve Price': 700,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/art-deco-lamp', // Added Link
+      Link: 'https://nyelizabeth.com/products/art-deco-lamp',
       'ImageFile.1': 'https://example.com/lamp1.jpg',
       'ImageFile.2': 'https://example.com/lamp2.jpg'
     }
@@ -50,6 +53,7 @@ export function createExcelTemplate() {
   // Set column widths
   const colWidths = [
     { wch: 20 }, // Title
+    { wch: 15 }, // SKU
     { wch: 30 }, // Description
     { wch: 12 }, // StartPrice
     { wch: 10 }, // LowEst

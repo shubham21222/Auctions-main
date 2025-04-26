@@ -90,7 +90,7 @@ const MemberLogin = () => {
         const verifyResponse = await axios.post(
             `${config.baseURL}/v1/api/auth/verify/${token}`,
           {},
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `${token}` } }
         );
 
         const { status: verifyStatus, items: verifyItems } = verifyResponse.data;
