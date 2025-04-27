@@ -7,6 +7,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import config from "@/app/config_BASE_URL";
 import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
@@ -56,6 +58,8 @@ export default function CatalogDetails({
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
   const [message, setMessage] = useState("");
+  const [showCustomBidModal, setShowCustomBidModal] = useState(false);
+  const [customBidAmount, setCustomBidAmount] = useState("");
   const updatesRef = useRef(null);
 
   const fetchUserName = useCallback(
@@ -171,6 +175,25 @@ export default function CatalogDetails({
     const bidIncrement = getBidIncrement(currentBid);
     const nextBid = currentBid + bidIncrement;
     onBidNowClick(isClerk ? "competitor" : "online", nextBid);
+  };
+
+  const handleCustomBidSubmit = (e) => {
+    e.preventDefault();
+    const bidAmount = parseFloat(customBidAmount);
+    
+    if (isNaN(bidAmount) || bidAmount <= 0) {
+      toast.error("Please enter a valid bid amount");
+      return;
+    }
+
+    if (bidAmount <= (auction?.currentBid || 0)) {
+      toast.error("Bid amount must be greater than current bid");
+      return;
+    }
+
+    onBidNowClick(isClerk ? "competitor" : "online", bidAmount);
+    setShowCustomBidModal(false);
+    setCustomBidAmount("");
   };
 
   const handleSendMessage = () => {
@@ -304,12 +327,20 @@ export default function CatalogDetails({
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    onClick={handleBidSubmit}
-                    className="w-full py-4 lg:py-6 text-base lg:text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
-                  >
-                    Place {isClerk ? "Competitive" : "Online"} Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
-                  </Button>
+                  <div className="space-y-4">
+                    <Button
+                      onClick={handleBidSubmit}
+                      className="w-full py-4 lg:py-6 text-base lg:text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
+                    >
+                      Place {isClerk ? "Competitive" : "Online"} Bid: ${((auction.currentBid || 0) + getBidIncrement(auction.currentBid || 0)).toLocaleString()}
+                    </Button>
+                    <Button
+                      onClick={() => setShowCustomBidModal(true)}
+                      className="w-full py-4 lg:py-6 text-base lg:text-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+                    >
+                      Place Custom Bid
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
@@ -413,6 +444,44 @@ export default function CatalogDetails({
           </div>
         </div>
       </div>
+
+      <Dialog open={showCustomBidModal} onOpenChange={setShowCustomBidModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Place Custom Bid</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCustomBidSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Bid Amount ($)</label>
+              <Input
+                type="number"
+                value={customBidAmount}
+                onChange={(e) => setCustomBidAmount(e.target.value)}
+                placeholder="Enter your bid amount"
+                min={auction?.currentBid || 0}
+                step="0.01"
+                required
+                className="w-full"
+              />
+              <p className="text-sm text-slate-500">
+                Current bid: ${(auction?.currentBid || 0).toLocaleString()}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCustomBidModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+                Place Bid
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
