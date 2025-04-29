@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import Image from "next/image";
@@ -19,9 +19,11 @@ import {
 } from "@/components/ui/select";
 import { Calendar, Clock, MapPin, Heart, ChevronRight } from "lucide-react";
 import { AuctionFilters } from "../auction-filters";
+import Link from "next/link";
 
 export default function CatalogDetails() {
   const { slug } = useParams();
+  const router = useRouter();
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sortOption, setSortOption] = useState("lot-asc");
@@ -184,7 +186,7 @@ export default function CatalogDetails() {
       return;
     }
 
-    window.location.href = `/item/${lotId}`;
+    router.push(`/item/${lotId}`);
   };
 
   const handleCardClick = (lotId, status) => {
@@ -192,7 +194,7 @@ export default function CatalogDetails() {
       toast.error("This auction has ended");
       return;
     }
-    window.location.href = `/item/${lotId}`;
+    router.push(`/item/${lotId}`);
   };
 
   const handleContextMenu = (e, lotId, status) => {
@@ -212,7 +214,7 @@ export default function CatalogDetails() {
         toast.error("This auction has ended");
         return;
       }
-      window.open(`/item/${lotId}`, '_blank');
+      router.push(`/item/${lotId}`);
       document.body.removeChild(contextMenu);
     };
     
@@ -409,11 +411,10 @@ export default function CatalogDetails() {
                 </div>
               ) : (
                 displayedAuctions.map((auction) => (
-                  <div
+                  <Link
                     key={auction._id}
+                    href={`/item/${auction._id}`}
                     className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 cursor-pointer"
-                    onClick={() => handleCardClick(auction._id, auction.status)}
-                    onContextMenu={(e) => handleContextMenu(e, auction._id, auction.status)}
                     onMouseEnter={() => setHoveredLot(auction._id)}
                     onMouseLeave={() => setHoveredLot(null)}
                   >
@@ -494,7 +495,7 @@ export default function CatalogDetails() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

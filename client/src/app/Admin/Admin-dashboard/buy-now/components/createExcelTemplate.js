@@ -8,7 +8,6 @@ export function createExcelTemplate() {
   const data = [
     {
       Title: 'Vintage Watch',
-      SKU: 'VW-001', // Added SKU
       Description: 'Luxury vintage watch from 1950',
       StartPrice: 1000,
       LowEst: 800,
@@ -21,7 +20,6 @@ export function createExcelTemplate() {
     },
     {
       Title: 'Antique Vase',
-      SKU: 'AV-001', // Added SKU
       Description: 'Chinese Ming dynasty vase',
       StartPrice: 5000,
       LowEst: 4000,
@@ -34,7 +32,6 @@ export function createExcelTemplate() {
     },
     {
       Title: 'Art Deco Lamp',
-      SKU: 'ADL-001', // Added SKU
       Description: 'Beautiful art deco table lamp',
       StartPrice: 750,
       LowEst: 600,
@@ -53,7 +50,6 @@ export function createExcelTemplate() {
   // Set column widths
   const colWidths = [
     { wch: 20 }, // Title
-    { wch: 15 }, // SKU
     { wch: 30 }, // Description
     { wch: 12 }, // StartPrice
     { wch: 10 }, // LowEst

@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from "next/link";
 
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
@@ -182,37 +183,6 @@ export default function Home() {
     router.push(`/products/${slug}`);
   };
 
-  const handleContextMenu = (e, slug) => {
-    e.preventDefault(); // Prevent default context menu
-    
-    // Create and show custom context menu
-    const contextMenu = document.createElement('div');
-    contextMenu.className = 'fixed bg-white shadow-lg rounded-lg py-2 z-50';
-    contextMenu.style.left = `${e.pageX}px`;
-    contextMenu.style.top = `${e.pageY}px`;
-    
-    const menuItem = document.createElement('div');
-    menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
-    menuItem.textContent = 'Open in new tab';
-    menuItem.onclick = () => {
-      window.open(`/products/${slug}`, '_blank');
-      document.body.removeChild(contextMenu);
-    };
-    
-    contextMenu.appendChild(menuItem);
-    document.body.appendChild(contextMenu);
-    
-    // Remove context menu when clicking outside
-    const removeMenu = (e) => {
-      if (!contextMenu.contains(e.target)) {
-        document.body.removeChild(contextMenu);
-        document.removeEventListener('click', removeMenu);
-      }
-    };
-    
-    document.addEventListener('click', removeMenu);
-  };
-
   // Update productsPerPage when viewOption changes
   const productsPerPage = parseInt(viewOption);
 
@@ -292,15 +262,18 @@ export default function Home() {
                       slug: product._id,
                     };
                     return (
-                      <ProductCard
+                      <Link
                         key={uniqueKey}
-                        image={productData.image}
-                        name={productData.name}
-                        price={productData.price}
-                        slug={productData.slug}
-                        onViewDetails={handleViewDetails}
-                        onContextMenu={(e) => handleContextMenu(e, productData.slug)}
-                      />
+                        href={`/products/${productData.slug}`}
+                        className="block"
+                      >
+                        <ProductCard
+                          image={productData.image}
+                          name={productData.name}
+                          price={productData.price}
+                          slug={productData.slug}
+                        />
+                      </Link>
                     );
                   })}
                 </div>

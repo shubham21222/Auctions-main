@@ -131,7 +131,7 @@ export default function ProductPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen mt-[120px] bg-gradient-to-b from-gray-50 to-white">
+      <div className="min-h-screen mt-[120px] ">
         <main className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_700px] gap-12">
             <div className="space-y-6">
@@ -147,37 +147,38 @@ export default function ProductPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="relative aspect-square rounded-xl overflow-hidden shadow-xl">
+                <div className="flex gap-4">
+                  {/* Thumbnails on left */}
+                  <div className="flex flex-col gap-4 w-[120px]">
+                    {product.images.map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleImageClick(index)}
+                        className={`relative aspect-square overflow-hidden rounded-lg bg-gray-50
+                                  hover:ring-2 ring-luxury-gold/50 transition-all duration-300
+                                  cursor-pointer transform hover:scale-95 active:scale-90
+                                  shadow-sm hover:shadow-md ${selectedImageIndex === index ? 'ring-2 ring-luxury-gold' : ''}`}
+                      >
+                        <Image
+                          src={image}
+                          alt={`${product.name} thumbnail ${index + 1}`}
+                          fill
+                          className="object-cover transition-transform duration-300 hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors duration-300" />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Main Image */}
+                  <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-gray-50 shadow-md">
                     <Image
                       src={product.images[selectedImageIndex] || "/placeholder.svg"}
-                      alt={product.name || "Product Image"}
-                      layout="fill"
-                      objectFit="cover"
-                      className="transition-all duration-300"
+                      alt={product.name}
+                      fill
+                      className="object-cover transition-transform duration-300 hover:scale-105"
                     />
                   </div>
-                  {product.images.length > 1 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {product.images.map((img, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleImageClick(index)}
-                          className={`relative w-20 h-20 rounded-md overflow-hidden border-2 transition-all duration-200 ${
-                            selectedImageIndex === index ? "border-blue-600" : "border-gray-200"
-                          }`}
-                        >
-                          <Image
-                            src={img || "/placeholder.svg"}
-                            alt={`${product.name} thumbnail ${index + 1}`}
-                            layout="fill"
-                            objectFit="cover"
-                            className="hover:opacity-75 transition-opacity"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </div>

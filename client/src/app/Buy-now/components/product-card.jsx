@@ -11,7 +11,7 @@ import { useSelector } from "react-redux" // Import useSelector to access Redux 
 import config from "@/app/config_BASE_URL"
 import { VerificationModal } from "@/app/components/VerificationModal"
 
-export function ProductCard({ image, name, price, slug, onViewDetails }) {
+export function ProductCard({ image, name, price, slug }) {
   const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
@@ -96,45 +96,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
     fetchWishlist()
   }, []) // Empty dependency array ensures this runs only once on mount
 
-  const handleCardClick = (e) => {
-    // Prevent click if clicking on wishlist or share button
-    if (e.target.closest('button')) {
-      return;
-    }
-    onViewDetails(slug);
-  };
-
-  const handleContextMenu = (e) => {
-    e.preventDefault(); // Prevent default context menu
-    
-    // Create and show custom context menu
-    const contextMenu = document.createElement('div');
-    contextMenu.className = 'fixed bg-white shadow-lg rounded-lg py-2 z-50';
-    contextMenu.style.left = `${e.pageX}px`;
-    contextMenu.style.top = `${e.pageY}px`;
-    
-    const menuItem = document.createElement('div');
-    menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
-    menuItem.textContent = 'Open in new tab';
-    menuItem.onclick = () => {
-      window.open(`/products/${slug}`, '_blank');
-      document.body.removeChild(contextMenu);
-    };
-    
-    contextMenu.appendChild(menuItem);
-    document.body.appendChild(contextMenu);
-    
-    // Remove context menu when clicking outside
-    const removeMenu = (e) => {
-      if (!contextMenu.contains(e.target)) {
-        document.body.removeChild(contextMenu);
-        document.removeEventListener('click', removeMenu);
-      }
-    };
-    
-    document.addEventListener('click', removeMenu);
-  };
-
   return (
     <>
       {/* Add the Toaster component for displaying notifications */}
@@ -147,8 +108,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
         className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={handleCardClick}
-        onContextMenu={handleContextMenu}
       >
         <div className="relative aspect-square overflow-hidden">
           <Image
@@ -203,7 +162,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
                   whileTap={{ scale: 0.98 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onViewDetails(slug);
                   }}
                   className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
                 >

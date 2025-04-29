@@ -90,6 +90,30 @@ import mongoose from "mongoose";
     //     }
     // };
 
+    // Add new function to generate SKU
+    const generateSKU = async () => {
+        try {
+            // Find the last product with a SKU
+            const lastProduct = await ProductModel.findOne({ sku: { $regex: /^NY-/ } })
+                .sort({ sku: -1 });
+
+            let newSKU;
+            if (lastProduct && lastProduct.sku) {
+                // Extract the number from the last SKU
+                const lastNumber = parseInt(lastProduct.sku.split('-')[1]);
+                newSKU = `NY-${(lastNumber + 1).toString().padStart(4, '0')}`;
+            } else {
+                // If no existing SKU, start with NY-0001
+                newSKU = 'NY-0001';
+            }
+
+            return newSKU;
+        } catch (error) {
+            console.error('Error generating SKU:', error);
+            throw error;
+        }
+    };
+
     export const createProduct = async (req, res) => {
         try {
             // Check if the request body is an array or single object
@@ -103,7 +127,6 @@ import mongoose from "mongoose";
                 const { 
                     title, 
                     price,
-                    sku,
                     estimateprice, 
                     offerAmount, 
                     category, 
@@ -116,10 +139,13 @@ import mongoose from "mongoose";
                     link
                 } = productData;
     
+                // Generate SKU
+                const sku = await generateSKU();
+    
                 const product = new ProductModel({
                     title,
                     link,
-                    sku,
+                    sku, // Add the generated SKU
                     price,
                     estimateprice,
                     offerAmount,

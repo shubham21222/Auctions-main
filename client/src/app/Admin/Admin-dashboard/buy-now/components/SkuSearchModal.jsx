@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
 import { useSelector } from "react-redux";
@@ -53,6 +53,12 @@ export default function SkuSearchModal({ isOpen, onClose, onProductFound }) {
     if (foundProduct) {
       onProductFound([foundProduct]);
       onClose();
+    }
+  };
+
+  const handleViewProduct = () => {
+    if (foundProduct) {
+      window.open(`/products/${foundProduct._id}`, '_blank');
     }
   };
 
@@ -110,7 +116,15 @@ export default function SkuSearchModal({ isOpen, onClose, onProductFound }) {
                   />
                 </div>
               )}
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  onClick={handleViewProduct}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Product
+                </Button>
                 <Button
                   onClick={handleSelectProduct}
                   className="bg-green-600 hover:bg-green-700"
