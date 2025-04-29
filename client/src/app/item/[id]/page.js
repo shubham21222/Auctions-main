@@ -275,7 +275,7 @@ export default function ItemDetails() {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Current Bid</h3>
                   <p className="text-2xl font-bold text-luxury-gold">
-                    ${Number(item.product?.sellPrice).toFixed(2)}
+                    ${Number(item.currentBid).toFixed(2)}
                   </p>
                 </div>
                 <div>

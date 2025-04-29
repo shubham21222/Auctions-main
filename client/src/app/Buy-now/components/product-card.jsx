@@ -11,7 +11,7 @@ import { useSelector } from "react-redux" // Import useSelector to access Redux 
 import config from "@/app/config_BASE_URL"
 import { VerificationModal } from "@/app/components/VerificationModal"
 
-export function ProductCard({ image, name, price, slug, onViewDetails }) {
+export function ProductCard({ image, name, price, slug }) {
   const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
@@ -96,14 +96,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
     fetchWishlist()
   }, []) // Empty dependency array ensures this runs only once on mount
 
-  const handleCardClick = (e) => {
-    // Prevent click if clicking on wishlist or share button
-    if (e.target.closest('button')) {
-      return;
-    }
-    onViewDetails(slug);
-  };
-
   return (
     <>
       {/* Add the Toaster component for displaying notifications */}
@@ -116,7 +108,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
         className="group relative rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={handleCardClick}
       >
         <div className="relative aspect-square overflow-hidden">
           <Image
@@ -171,7 +162,6 @@ export function ProductCard({ image, name, price, slug, onViewDetails }) {
                   whileTap={{ scale: 0.98 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onViewDetails(slug);
                   }}
                   className="w-full py-3 bg-white/90 backdrop-blur-sm rounded-xl font-semibold hover:bg-white transition-all duration-300"
                 >

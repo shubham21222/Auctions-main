@@ -40,7 +40,7 @@ export default function ProductTable({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `${token}`,
         },
         body: JSON.stringify({ productIds }),
       });
@@ -70,7 +70,7 @@ export default function ProductTable({
       const response = await fetch(`${config.baseURL}/v1/api/product/delete/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `${token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to delete product");
@@ -128,7 +128,7 @@ export default function ProductTable({
                 // Fetch all products using the filter API with a large limit
                 const response = await fetch(`${config.baseURL}/v1/api/product/filter?limit=1000`, {
                   headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `${token}`,
                   },
                 });
                 if (!response.ok) throw new Error("Failed to fetch all products");

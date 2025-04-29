@@ -11,6 +11,14 @@ import config from "../config_BASE_URL";
 import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Link from "next/link";
 
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
@@ -19,7 +27,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true); // Controls initial loading state
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 18;
+  const [viewOption, setViewOption] = useState("24"); // Set default to 24 items per page
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
@@ -55,12 +63,10 @@ export default function Home() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        setLoading(true); // Set loading true for every fetch
+        setLoading(true);
         
-        // Create URLSearchParams instance
         const params = new URLSearchParams();
         
-        // Add parameters only if they have values
         if (selectedCategories.length > 0) {
           params.append("category", selectedCategories.join(","));
         }
@@ -73,7 +79,6 @@ export default function Home() {
           params.append("sortByPrice", selectedPriceRange);
         }
         
-        // Only add sort parameters if they are different from defaults
         if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
           params.append("sortField", selectedSortField);
           params.append("sortOrder", selectedSortOrder);
@@ -84,7 +89,7 @@ export default function Home() {
         }
         
         params.append("page", currentPage);
-        params.append("limit", productsPerPage);
+        params.append("limit", viewOption);
         
         const queryString = params.toString();
         
@@ -95,7 +100,7 @@ export default function Home() {
         const products = data.items?.items || [];
         setAllProducts(products);
         setTotalItems(data.items?.total || 0);
-        setTotalPages(data.items?.totalPages || 1);
+        setTotalPages(Math.ceil((data.items?.total || 0) / parseInt(viewOption)));
 
         if (
           selectedCategories.length === 0 &&
@@ -112,7 +117,7 @@ export default function Home() {
       } catch (error) {
         setError(error.message);
       } finally {
-        setLoading(false); // Reset loading after fetch completes
+        setLoading(false);
       }
     }
     fetchProducts();
@@ -124,24 +129,8 @@ export default function Home() {
     selectedSortOrder,
     searchQuery,
     currentPage,
+    viewOption,
   ]);
-
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const handleReset = () => {
-    setSelectedCategories([]);
-    setSelectedStatus("");
-    setSelectedPriceRange("");
-    setSelectedSortField("created_at");
-    setSelectedSortOrder("desc");
-    setSearchQuery("");
-    setCurrentPage(1);
-  };
 
   // Generate pagination items with truncation
   const getPaginationItems = () => {
@@ -168,9 +157,34 @@ export default function Home() {
     return items;
   };
 
+  // Reset to first page when view option changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewOption]);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleReset = () => {
+    setSelectedCategories([]);
+    setSelectedStatus("");
+    setSelectedPriceRange("");
+    setSelectedSortField("created_at");
+    setSelectedSortOrder("desc");
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
+
   const handleViewDetails = (slug) => {
     router.push(`/products/${slug}`);
   };
+
+  // Update productsPerPage when viewOption changes
+  const productsPerPage = parseInt(viewOption);
 
   return (
     <>
@@ -204,9 +218,23 @@ export default function Home() {
               />
             </aside>
             <div className="flex-1 space-y-8">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text">
-                Featured Products
-              </h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text">
+                  Featured Products
+                </h2>
+                <Select value={viewOption} onValueChange={setViewOption}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue>{`${viewOption} per page`}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12">12 per page</SelectItem>
+                    <SelectItem value="24">24 per page</SelectItem>
+                    <SelectItem value="60">60 per page</SelectItem>
+                    <SelectItem value="120">120 per page</SelectItem>
+                    <SelectItem value="240">240 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -234,14 +262,18 @@ export default function Home() {
                       slug: product._id,
                     };
                     return (
-                      <ProductCard
+                      <Link
                         key={uniqueKey}
-                        image={productData.image}
-                        name={productData.name}
-                        price={productData.price}
-                        slug={productData.slug}
-                        onViewDetails={handleViewDetails}
-                      />
+                        href={`/products/${productData.slug}`}
+                        className="block"
+                      >
+                        <ProductCard
+                          image={productData.image}
+                          name={productData.name}
+                          price={productData.price}
+                          slug={productData.slug}
+                        />
+                      </Link>
                     );
                   })}
                 </div>

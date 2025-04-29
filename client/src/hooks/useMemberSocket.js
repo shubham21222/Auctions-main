@@ -391,7 +391,7 @@ export const useMemberSocket = () => {
           permissions,
         },
         extraHeaders: {
-          Authorization: `Bearer ${token}`
+          Authorization: `${token}`
         },
         transports: ["websocket"],
         reconnection: true,

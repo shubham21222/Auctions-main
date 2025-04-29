@@ -10,12 +10,14 @@ import toast from "react-hot-toast";
 import login from "../../../public/login.webp";
 import config from "../config_BASE_URL";
 import Link from "next/link";
+import SignupModal from "./SignupModal";
 
 const LoginModal = ({ isOpen, onClose, onOpenSignup }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const dispatch = useDispatch();
 
   // Handle form submission
@@ -73,7 +75,7 @@ try {
 const verifyResponse = await axios.post(
   `${config.baseURL}/v1/api/auth/verify/${token}`,
   {},
-  { headers: { Authorization: `Bearer ${token}` } }
+  { headers: { Authorization: `${token}` } }
 );
 
 const { status: verifyStatus, items: verifyItems } = verifyResponse.data;
@@ -137,8 +139,8 @@ setLoading(false);
 
 // Handle "Join" click
 const handleJoinClick = () => {
-onClose();
-onOpenSignup();
+  onClose();
+  setShowSignup(true);
 };
 
 return (
@@ -248,21 +250,33 @@ return (
                   Forgot Password?
                 </Link>
               </div>
-              <div className="text-center text-sm text-gray-600">
-                Don't have an account?{" "}
-                <button
-                  onClick={handleJoinClick}
-                  className="text-blue-600 hover:underline focus:outline-none"
-                >
-                  Join
-                </button>
-              </div>
             </motion.form>
+
+            <div className="text-center text-sm text-gray-600 mt-4">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={handleJoinClick}
+                className="text-blue-600 hover:underline focus:outline-none"
+              >
+                Join
+              </button>
+            </div>
           </div>
         </motion.div>
       </motion.div>
     )}
   </AnimatePresence>
+
+  {/* Signup Modal */}
+  <SignupModal 
+    isOpen={showSignup} 
+    onClose={() => setShowSignup(false)} 
+    onOpenLogin={() => {
+      setShowSignup(false);
+      onOpenSignup();
+    }}
+  />
 </>
 );
 };

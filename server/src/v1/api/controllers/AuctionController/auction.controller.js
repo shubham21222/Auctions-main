@@ -2584,3 +2584,68 @@ export const addcalender = async (req, res) => {
 
 
 
+
+export const updateAuctionStartDateTime = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { startDate, endDate, auctionType } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return validation(res, 'Invalid auction ID.');
+        }
+
+        // Validate start date
+        if (!startDate) {
+            return badRequest(res, 'Start date is required.');
+        }
+
+        const startDateTime = new Date(startDate);
+
+        // Validate date format
+        if (isNaN(startDateTime.getTime())) {
+            return badRequest(res, 'Invalid start date format.');
+        }
+
+        const findAuction = await auctionModel.findById(id);
+        if (!findAuction) {
+            return notFound(res, 'Auction not found.');
+        }
+
+        // Update the auction with new dates
+        findAuction.startDate = startDateTime;
+
+        // Only validate and set end date for TIMED auctions
+        if (auctionType === "TIMED") {
+            if (!endDate) {
+                return badRequest(res, 'End date is required for Timed auctions.');
+            }
+
+            const endDateTime = new Date(endDate);
+            if (isNaN(endDateTime.getTime())) {
+                return badRequest(res, 'Invalid end date format.');
+            }
+
+            if (startDateTime >= endDateTime) {
+                return badRequest(res, 'Start date must be before end date.');
+            }
+
+            findAuction.endDate = endDateTime;
+        } else {
+            // For LIVE auctions, set endDate to null
+            findAuction.endDate = null;
+        }
+
+        await findAuction.save();
+
+        return success(res, 'Auction start date and time updated successfully.', findAuction);
+    } catch (error) {
+        console.error('Error updating auction start date and time:', error);
+        return unknownError(res, error.message);
+    }
+};
+
+
+
+
+
+

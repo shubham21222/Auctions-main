@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import ProductTable from "./components/ProductTable";
 import HeaderSection from "./components/HeaderSection";
+import SkuSearchModal from "./components/SkuSearchModal";
 import config from "@/app/config_BASE_URL";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
@@ -38,6 +39,7 @@ export default function BuyNow() {
   const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [showSkuSearch, setShowSkuSearch] = useState(false);
   const productsPerPage = 10;
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
@@ -214,23 +216,35 @@ export default function BuyNow() {
     );
   };
 
+  const handleProductFound = (product) => {
+    // If the product is not already in the list, add it
+    if (!products.some(p => p._id === product._id)) {
+      setProducts(prev => [product, ...prev]);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-8">
       {/* Header Section */}
       <HeaderSection fetchProducts={fetchProducts} token={token} />
 
-      {/* Category Filter */}
+      {/* Search and Filter Section */}
       <div className="bg-white p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-semibold mb-4">Filter by Category</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Search & Filter</h3>
+          <Button
+            onClick={() => setShowSkuSearch(true)}
+            variant="outline"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+          >
+            Search by SKU
+          </Button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <Button
               key={category._id}
-              variant={
-                selectedCategories.includes(category._id)
-                  ? "default"
-                  : "outline"
-              }
+              variant={selectedCategories.includes(category._id) ? "default" : "outline"}
               onClick={() => handleCategoryChange(category._id)}
               className="px-4 py-2"
             >
@@ -345,6 +359,13 @@ export default function BuyNow() {
         handlePageChange={handlePageChange}
         selectedProducts={selectedProducts}
         setSelectedProducts={setSelectedProducts}
+      />
+
+      {/* SKU Search Modal */}
+      <SkuSearchModal
+        isOpen={showSkuSearch}
+        onClose={() => setShowSkuSearch(false)}
+        onProductFound={handleProductFound}
       />
     </div>
   );

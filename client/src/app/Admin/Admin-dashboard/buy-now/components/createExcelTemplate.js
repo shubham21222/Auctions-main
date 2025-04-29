@@ -14,7 +14,7 @@ export function createExcelTemplate() {
       HighEst: 1200,
       'Reserve Price': 900,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/vintage-watch', // Added Link
+      Link: 'https://nyelizabeth.com/products/vintage-watch',
       'ImageFile.1': 'https://example.com/watch1.jpg',
       'ImageFile.2': 'https://example.com/watch2.jpg'
     },
@@ -26,7 +26,7 @@ export function createExcelTemplate() {
       HighEst: 6000,
       'Reserve Price': 4500,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/antique-vase', // Added Link
+      Link: 'https://nyelizabeth.com/products/antique-vase',
       'ImageFile.1': 'https://example.com/vase1.jpg',
       'ImageFile.2': 'https://example.com/vase2.jpg'
     },
@@ -38,7 +38,7 @@ export function createExcelTemplate() {
       HighEst: 900,
       'Reserve Price': 700,
       sortByPrice: 'High Price',
-      Link: 'https://nyelizabeth.com/products/art-deco-lamp', // Added Link
+      Link: 'https://nyelizabeth.com/products/art-deco-lamp',
       'ImageFile.1': 'https://example.com/lamp1.jpg',
       'ImageFile.2': 'https://example.com/lamp2.jpg'
     }

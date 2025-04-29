@@ -22,7 +22,8 @@ import {
     getWinners,
     deleteCatalog,
     updateCatalog,
-    addcalender
+    addcalender,
+    updateAuctionStartDateTime
     // stripeWebhook
 } from "../../controllers/AuctionController/auction.controller.js";
 import { IsAuthenticated ,  authorizeRoles, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
@@ -65,6 +66,9 @@ router.post("/updatePaymentStatus"  , updatePaymentStatus)
 // update auction //
 
 router.post("/update/:id" , IsAuthenticated , authorizeBackendRole , updateAuction)
+
+// Add new route for updating start date and time
+router.post("/updateStartDateTime/:id", IsAuthenticated, authorizeBackendRole, updateAuctionStartDateTime)
 
 // delete auction //
 

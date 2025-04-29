@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema({
     title: { type: String, required: true },
+    sku: { type: String, required: true }, // Added SKU field
     description: { type: String, required: true },
     price: { type: Number, required: true },
     estimateprice: { type: String, required: true },

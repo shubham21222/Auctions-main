@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 function CatalogCard({
   catalog,
@@ -38,8 +39,9 @@ function CatalogCard({
   const [currentMainImage, setCurrentMainImage] = useState(0);
   const auctionCount = catalog.auctions.length;
 
-  const handleViewCatalog = () => {
-    window.open(`/catalog-details/${firstAuction._id}`, '_blank');
+  const handleViewCatalog = (e) => {
+    // Use Next.js router for navigation
+    router.push(`/catalog-details/${firstAuction._id}`);
   };
 
   const handleThumbnailClick = (e, index) => {
@@ -59,13 +61,29 @@ function CatalogCard({
 
   // Format date for display
   const auctionDate = firstAuction?.startDate
-    ? new Date(firstAuction.startDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-      })
+    ? (() => {
+        const date = new Date(firstAuction.startDate);
+        const day = date.getDate();
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        const ordinal = (day) => {
+          if (day > 3 && day < 21) return 'th';
+          switch (day % 10) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+          }
+        };
+        // Convert to PST
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const time = pstDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: 'numeric',
+          timeZone: 'America/Los_Angeles'
+        });
+        return `${month} ${day}${ordinal(day)}, ${year} at ${time} PST`;
+      })()
     : "Date TBD";
 
   const upcomingMessageDate = firstAuction?.startDate
@@ -92,8 +110,8 @@ function CatalogCard({
       : false;
 
   return (
-    <div
-      onClick={handleViewCatalog}
+    <Link
+      href={`/catalog-details/${firstAuction._id}`}
       className="group relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-6 flex flex-row gap-10 items-start 
                     shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.15)] 
                     transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20
@@ -338,7 +356,7 @@ function CatalogCard({
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
