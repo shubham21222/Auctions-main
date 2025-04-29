@@ -43,6 +43,7 @@ export default function ProductPage() {
           const transformedProduct = {
             name: apiProduct.title || "Product Name",
             description: apiProduct.description || "No description available.",
+            sku: apiProduct.sku || "SKU-Not-Available",
             price: {
               min: parseFloat(apiProduct.estimateprice?.match(/\$(\d+)/)?.[1]) || 0,
               max: parseFloat(apiProduct.estimateprice?.match(/\$(\d+)/g)?.[1]?.replace('$', '')) || 0,

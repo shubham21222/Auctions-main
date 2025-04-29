@@ -38,13 +38,22 @@ export default function ProductDetails({
           {isLoading ? (
             <Skeleton className="w-64 h-8" />
           ) : (
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-bold text-gray-900"
-            >
-              {product.name}
-            </motion.h1>
+            <div className="space-y-2">
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-3xl font-bold text-gray-900"
+              >
+                {product.name}
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-sm text-gray-500"
+              >
+                SKU: {product.sku}
+              </motion.p>
+            </div>
           )}
           {isLoading ? (
             <Skeleton className="w-10 h-10 rounded-full" />
