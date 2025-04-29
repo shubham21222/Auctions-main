@@ -231,7 +231,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
         });
       } else {
         // For any other errors, show the API error message if available
-        const errorMessage = err?.response?.data?.message || "Registration failed. Please try again later.";
+        const errorMessage = err?.response?.data?.message || "User already exists";
         toast.error(errorMessage, {
           duration: 5000,
         });
