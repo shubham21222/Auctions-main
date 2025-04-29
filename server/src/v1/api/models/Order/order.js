@@ -40,8 +40,8 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Processing", "Shipped", "Delivered", "Cancelled"],
-        default: "Processing"
+        enum: ["Processing", "Shipped", "Delivered", "Cancelled" , "Pending"],
+        default: "Pending"
     },
 
     client_secret:{

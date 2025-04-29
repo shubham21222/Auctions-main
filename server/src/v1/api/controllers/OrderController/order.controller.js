@@ -22,6 +22,7 @@ import {generateEmailContent} from "../../Utils/generateEmailContent.js"
 import { generateOrderPdfBuffer } from "../../config/generateOrderPdfBuffer.js"
 
 import mongoose from "mongoose"
+import { UnknownError } from "postmark/dist/client/errors/Errors.js"
 
 
 // create the Order Api //
@@ -367,6 +368,53 @@ export const deleteOrders = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+// Update Orderstatus //
+
+export const UpdateShipping = async (req, res) => {
+    try {
+      const { orderId, status } = req.body;
+  
+      if (!orderId) {
+        return badRequest(res, "Order ID not provided.");
+      }
+  
+      if (!status) {
+        return badRequest(res, "Status is required.");
+      }
+  
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return badRequest(res, "Order not found.");
+      }
+  
+      // Sanitize Offer_Amount values in products
+      const sanitizedProducts = order.products.map((p) => ({
+        ...p,
+        Offer_Amount:
+          typeof p.Offer_Amount === "string"
+            ? Number(p.Offer_Amount.replace(/[^0-9.-]+/g, ""))
+            : p.Offer_Amount,
+      }));
+  
+      const updatedOrder = await Order.findByIdAndUpdate(
+        orderId,
+        {
+          status,
+          products: sanitizedProducts,
+        },
+        { new: true }
+      );
+  
+      return success(res, "Order status updated successfully.", updatedOrder);
+    } catch (error) {
+      console.error("UpdateShipping Error:", error);
+      return UnknownError(res, "Internal Server Error.");
+    }
+  };
+  
+
 
 
 
