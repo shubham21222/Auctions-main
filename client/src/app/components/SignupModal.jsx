@@ -208,7 +208,34 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
       setStep(4);
     } catch (err) {
       console.error("Registration error:", err);
-      toast.error(err || "An error occurred during registration.");
+      
+      // Handle specific error cases
+      if (err?.response?.data?.message === "User already exists") {
+        toast.error("User already exists. Please try logging in instead.", {
+          duration: 5000,
+        });
+        // Optionally redirect to login
+        setTimeout(() => {
+          onClose();
+          onOpenLogin();
+        }, 2000);
+      } else if (err?.response?.status === 404) {
+        toast.error("Registration service is currently unavailable. Please try again later.", {
+          duration: 5000,
+        });
+      } else if (err?.response?.status === 400) {
+        // Show the exact error message from the API
+        const errorMessage = err?.response?.data?.message || "Please check your input and try again.";
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+      } else {
+        // For any other errors, show the API error message if available
+        const errorMessage = err?.response?.data?.message || "Registration failed. Please try again later.";
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -246,7 +273,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const handleResendVerification = async () => {
     try {
       const response = await axios.post(
-        `${config.baseURL}/auth/send-verification-mail`,
+        `${config.baseURL}/v1/api/auth/send-verification-mail`,
         { email: email }
       );
       if (response.data.status) {
@@ -261,24 +288,45 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
 
   return (
     <>
-      <Toaster position="top-right" reverseOrder={false} />
+      <Toaster 
+        position="top-right" 
+        reverseOrder={false}
+        toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+          success: {
+            style: {
+              background: '#10B981',
+            },
+          },
+          error: {
+            style: {
+              background: '#EF4444',
+            },
+          },
+        }}
+      />
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4"
           >
             <motion.div
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -50, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative z-50 overflow-hidden"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 relative z-50 overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={onClose}
-                className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 transition-colors"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-gray-600 hover:text-gray-800 transition-colors"
               >
                 ✕
               </button>
@@ -290,18 +338,19 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                 />
               </div>
 
-              <div className="flex justify-center mb-8">
+              <div className="flex justify-center mb-6 sm:mb-8">
                 <Image
                   src="https://beta.nyelizabeth.com/wp-content/uploads/2024/05/Rectangle.svg"
                   alt="Logo"
-                  width={80}
-                  height={80}
+                  width={60}
+                  height={60}
+                  className="sm:w-20 sm:h-20"
                 />
               </div>
 
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Create an account</h2>
-                <p className="text-sm text-gray-600 mt-3">
+              <div className="text-center mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Create an account</h2>
+                <p className="text-sm text-gray-600 mt-2 sm:mt-3">
                   Already have an account?{" "}
                   <button 
                     type="button"
@@ -313,14 +362,14 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                 </p>
               </div>
 
-              <div className="flex justify-between mt-8 mb-6">
+              <div className="flex justify-between mt-6 sm:mt-8 mb-4 sm:mb-6">
                 {[1, 2, 3, 4, 5].map((num) => (
                   <div
                     key={num}
                     className={`flex items-center ${step >= num ? "text-blue-600" : "text-gray-400"}`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border-2 text-sm sm:text-base ${
                         step >= num ? "border-blue-600" : "border-gray-300"
                       }`}
                     >
@@ -335,13 +384,13 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="mt-8"
+                  className="mt-6 sm:mt-8"
                 >
-                  <p className="text-sm text-center text-gray-600 mb-8">
+                  <p className="text-sm text-center text-gray-600 mb-6 sm:mb-8">
                     Creating an account allows you to place absentee and live bids, view auction
                     results, discover more, stay up to date, and manage your activity.
                   </p>
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
                       <label className="label">
                         <span className="label-text text-sm font-medium text-gray-700">Name</span>
@@ -368,11 +417,11 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                         required
                       />
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-start">
                       <input
                         type="checkbox"
                         id="terms"
-                        className="checkbox checkbox-primary mr-3"
+                        className="checkbox checkbox-primary mt-1 mr-3"
                         checked={acceptedTerms}
                         onChange={() => setAcceptedTerms(!acceptedTerms)}
                       />
@@ -384,7 +433,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       </label>
                     </div>
                     <button
-                      className="btn btn-primary w-full mt-6"
+                      className="btn btn-primary w-full mt-4 sm:mt-6"
                       onClick={() => setStep(2)}
                       disabled={!acceptedTerms || !name || !email}
                     >
@@ -399,9 +448,9 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="mt-8"
+                  className="mt-6 sm:mt-8"
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
                       <label className="label">
                         <span className="label-text text-sm font-medium text-gray-700">
@@ -445,7 +494,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       Upper & lowercase characters<br />
                       At least one number or special character
                     </p>
-                    <div className="flex justify-between mt-8">
+                    <div className="flex justify-between mt-6 sm:mt-8">
                       <button className="btn btn-secondary" onClick={() => setStep(1)}>
                         Previous
                       </button>
@@ -466,152 +515,164 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="mt-8"
+                  className="mt-6 sm:mt-8"
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <p className="text-sm text-center text-gray-600">
                       Add your billing details (optional)
                     </p>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-sm font-medium text-gray-700">First Name</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="firstName"
-                              placeholder="First Name"
-                              className="input input-bordered w-full"
-                              value={billingDetails.firstName}
-                              onChange={handleBillingChange}
-                            />
-                          </div>
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-sm font-medium text-gray-700">Last Name</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="lastName"
-                              placeholder="Last Name"
-                              className="input input-bordered w-full"
-                              value={billingDetails.lastName}
-                              onChange={handleBillingChange}
-                            />
-                          </div>
-                        </div>
+                    <div className="space-y-6">
+                      {/* Name Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="label">
-                            <span className="label-text text-sm font-medium text-gray-700">Company Name</span>
+                            <span className="label-text text-sm font-medium text-gray-700">First Name</span>
                           </label>
                           <input
                             type="text"
-                            name="company_name"
-                            placeholder="Company Name"
+                            name="firstName"
+                            placeholder="First Name"
                             className="input input-bordered w-full"
-                            value={billingDetails.company_name}
+                            value={billingDetails.firstName}
                             onChange={handleBillingChange}
                           />
                         </div>
                         <div>
                           <label className="label">
-                            <span className="label-text text-sm font-medium text-gray-700">Street Address</span>
+                            <span className="label-text text-sm font-medium text-gray-700">Last Name</span>
                           </label>
                           <input
                             type="text"
-                            name="streetAddress"
-                            placeholder="Street Address"
+                            name="lastName"
+                            placeholder="Last Name"
                             className="input input-bordered w-full"
-                            value={billingDetails.streetAddress}
+                            value={billingDetails.lastName}
                             onChange={handleBillingChange}
                           />
                         </div>
                       </div>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-sm font-medium text-gray-700">City</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="city"
-                              placeholder="City"
-                              className="input input-bordered w-full"
-                              value={billingDetails.city}
-                              onChange={handleBillingChange}
-                            />
-                          </div>
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-sm font-medium text-gray-700">State</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="state"
-                              placeholder="State"
-                              className="input input-bordered w-full"
-                              value={billingDetails.state}
-                              onChange={handleBillingChange}
-                            />
-                          </div>
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-sm font-medium text-gray-700">ZIP</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="zipcode"
-                              placeholder="ZIP Code"
-                              className="input input-bordered w-full"
-                              value={billingDetails.zipcode}
-                              onChange={handleBillingChange}
-                            />
-                          </div>
-                        </div>
+
+                      {/* Company Name */}
+                      <div>
+                        <label className="label">
+                          <span className="label-text text-sm font-medium text-gray-700">Company Name</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="company_name"
+                          placeholder="Company Name"
+                          className="input input-bordered w-full"
+                          value={billingDetails.company_name}
+                          onChange={handleBillingChange}
+                        />
+                      </div>
+
+                      {/* Street Address */}
+                      <div>
+                        <label className="label">
+                          <span className="label-text text-sm font-medium text-gray-700">Street Address</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="streetAddress"
+                          placeholder="Street Address"
+                          className="input input-bordered w-full"
+                          value={billingDetails.streetAddress}
+                          onChange={handleBillingChange}
+                        />
+                      </div>
+
+                      {/* City, State, ZIP */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <label className="label">
-                            <span className="label-text text-sm font-medium text-gray-700">Phone</span>
+                            <span className="label-text text-sm font-medium text-gray-700">City</span>
                           </label>
                           <input
-                            type="tel"
-                            name="phone"
-                            placeholder="Phone Number"
+                            type="text"
+                            name="city"
+                            placeholder="City"
                             className="input input-bordered w-full"
-                            value={billingDetails.phone}
+                            value={billingDetails.city}
                             onChange={handleBillingChange}
                           />
                         </div>
                         <div>
                           <label className="label">
-                            <span className="label-text text-sm font-medium text-gray-700">Order Notes</span>
+                            <span className="label-text text-sm font-medium text-gray-700">State</span>
                           </label>
-                          <textarea
-                            name="orderNotes"
-                            placeholder="Any special instructions?"
-                            className="textarea textarea-bordered w-full h-24"
-                            value={billingDetails.orderNotes}
+                          <input
+                            type="text"
+                            name="state"
+                            placeholder="State"
+                            className="input input-bordered w-full"
+                            value={billingDetails.state}
                             onChange={handleBillingChange}
                           />
                         </div>
+                        <div>
+                          <label className="label">
+                            <span className="label-text text-sm font-medium text-gray-700">ZIP</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="zipcode"
+                            placeholder="ZIP Code"
+                            className="input input-bordered w-full"
+                            value={billingDetails.zipcode}
+                            onChange={handleBillingChange}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Phone */}
+                      <div>
+                        <label className="label">
+                          <span className="label-text text-sm font-medium text-gray-700">Phone</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          placeholder="Phone Number"
+                          className="input input-bordered w-full"
+                          value={billingDetails.phone}
+                          onChange={handleBillingChange}
+                        />
+                      </div>
+
+                      {/* Order Notes */}
+                      <div>
+                        <label className="label">
+                          <span className="label-text text-sm font-medium text-gray-700">Order Notes</span>
+                        </label>
+                        <textarea
+                          name="orderNotes"
+                          placeholder="Any special instructions?"
+                          className="textarea textarea-bordered w-full h-24"
+                          value={billingDetails.orderNotes}
+                          onChange={handleBillingChange}
+                        />
                       </div>
                     </div>
-                    <div className="flex justify-between mt-8">
-                      <button className="btn btn-secondary" onClick={() => setStep(2)}>
+
+                    {/* Buttons */}
+                    <div className="flex flex-col sm:flex-row justify-between gap-4 mt-6">
+                      <button 
+                        className="btn btn-secondary w-full sm:w-auto" 
+                        onClick={() => setStep(2)}
+                      >
                         Previous
                       </button>
-                      <div className="flex gap-4">
+                      <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                         <button
-                          className="btn btn-outline"
+                          className="btn btn-outline w-full sm:w-auto"
                           onClick={() => handleSubmit(true)}
                           disabled={loading}
                         >
                           Skip Billing
                         </button>
                         <button
-                          className="btn btn-primary"
+                          className="btn btn-primary w-full sm:w-auto"
                           onClick={() => handleSubmit(false)}
                           disabled={loading}
                         >
@@ -628,9 +689,9 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="mt-8"
+                  className="mt-6 sm:mt-8"
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <p className="text-sm text-center text-gray-600">
                       Add a payment method (optional)
                     </p>
@@ -643,11 +704,11 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                         dispatch={dispatch}
                       />
                     </Elements>
-                    <div className="flex justify-between mt-8">
-                      <button className="btn btn-secondary" onClick={() => setStep(3)}>
+                    <div className="flex flex-col sm:flex-row justify-between gap-4 mt-6 sm:mt-8">
+                      <button className="btn btn-secondary w-full sm:w-auto" onClick={() => setStep(3)}>
                         Previous
                       </button>
-                      <button className="btn btn-outline" onClick={() => setStep(5)}>
+                      <button className="btn btn-outline w-full sm:w-auto" onClick={() => setStep(5)}>
                         Skip Payment
                       </button>
                     </div>
@@ -660,30 +721,23 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="mt-8"
+                  className="mt-6 sm:mt-8"
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <p className="text-sm text-center text-gray-600">
                       A verification email has been sent to <strong>{email}</strong>. Please check your inbox (and spam/junk folder) to verify your email address.
                     </p>
-                    <div className="flex justify-center gap-4">
-                      {/* <button
-                        className="btn btn-primary"
-                        onClick={handleVerifyEmail}
-                        disabled={loading || isEmailVerified}
-                      >
-                        {loading ? "Verifying..." : isEmailVerified ? "Email Verified" : "Verify Email"}
-                      </button> */}
+                    <div className="flex flex-col sm:flex-row justify-center gap-4">
                       <button
-                        className="btn btn-outline"
+                        className="btn btn-outline w-full sm:w-auto"
                         onClick={handleResendVerification}
                         disabled={loading}
                       >
                         Resend Verification Email
                       </button>
                     </div>
-                    <div className="flex justify-center mt-8">
-                      <button className="btn btn-secondary" onClick={() => setStep(4)}>
+                    <div className="flex justify-center mt-6 sm:mt-8">
+                      <button className="btn btn-secondary w-full sm:w-auto" onClick={() => setStep(4)}>
                         Previous
                       </button>
                     </div>
