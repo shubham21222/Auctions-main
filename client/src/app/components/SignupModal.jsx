@@ -669,7 +669,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                           onClick={() => handleSubmit(true)}
                           disabled={loading}
                         >
-                          Skip Billing
+                          Skip
                         </button>
                         <button
                           className="btn btn-primary w-full sm:w-auto"
@@ -709,7 +709,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                         Previous
                       </button>
                       <button className="btn btn-outline w-full sm:w-auto" onClick={() => setStep(5)}>
-                        Skip Payment
+                        Skip
                       </button>
                     </div>
                   </div>

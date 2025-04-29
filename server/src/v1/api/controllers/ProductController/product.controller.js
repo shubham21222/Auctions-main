@@ -18,6 +18,7 @@ import favorite from "../../models/Favorite/favorite.js";
 import ProductModel from "../../models/Products/product.model.js"
 import auctionModel from "../../models/Auction/auctionModel.js";
 import mongoose from "mongoose";
+import categoryModel from "../../models/Category/category.model.js";
 
 
 
@@ -91,20 +92,35 @@ import mongoose from "mongoose";
     // };
 
     // Add new function to generate SKU
-    const generateSKU = async () => {
+    const generateSKU = async (category) => {
         try {
-            // Find the last product with a SKU
-            const lastProduct = await ProductModel.findOne({ sku: { $regex: /^NY-/ } })
-                .sort({ sku: -1 });
+            // Map category to prefix (case-insensitive)
+            const categoryPrefix = {
+                'wristwatch': 'W',
+                'others': 'O',
+                'modern art': 'MA',
+                'jewelry': 'J',
+                'fine art': 'FA',
+                'fashion': 'F',
+                'automotives': 'A'
+            };
+
+            // Get category prefix, default to 'X' if category not found
+            const prefix = categoryPrefix[category.toLowerCase()] || 'X';
+
+            // Find the last product with a SKU matching the pattern NY[prefix]XXXXXX
+            const lastProduct = await ProductModel.findOne({ 
+                sku: { $regex: new RegExp(`^NY${prefix}`) } 
+            }).sort({ sku: -1 });
 
             let newSKU;
             if (lastProduct && lastProduct.sku) {
                 // Extract the number from the last SKU
-                const lastNumber = parseInt(lastProduct.sku.split('-')[1]);
-                newSKU = `NY-${(lastNumber + 1).toString().padStart(4, '0')}`;
+                const lastNumber = parseInt(lastProduct.sku.slice(3)); // Remove 'NY' and prefix
+                newSKU = `NY${prefix}${(lastNumber + 1).toString().padStart(6, '0')}`;
             } else {
-                // If no existing SKU, start with NY-0001
-                newSKU = 'NY-0001';
+                // If no existing SKU for this category, start with 000001
+                newSKU = `NY${prefix}000001`;
             }
 
             return newSKU;
@@ -139,8 +155,14 @@ import mongoose from "mongoose";
                     link
                 } = productData;
     
-                // Generate SKU
-                const sku = await generateSKU();
+                // Get category name from category ID
+                const categoryDoc = await categoryModel.findById(category);
+                if (!categoryDoc) {
+                    return badRequest(res, `Category not found for ID: ${category}`);
+                }
+    
+                // Generate SKU with category name
+                const sku = await generateSKU(categoryDoc.name);
     
                 const product = new ProductModel({
                     title,
