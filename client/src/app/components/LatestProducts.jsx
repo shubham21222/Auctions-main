@@ -69,7 +69,7 @@ export default function LatestProducts() {
                                 const productData = {
                                     image: product.image[0],
                                     name: product.title,
-                                    price: product.offerAmount || "Price Unavailable",
+                                    price: product.estimateprice || "Price Unavailable",
                                     slug: product._id,
                                 };
                                 return (
