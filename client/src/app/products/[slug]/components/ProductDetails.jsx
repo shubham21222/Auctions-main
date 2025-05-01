@@ -164,7 +164,7 @@ export default function ProductDetails({
       <MakeOfferModal
         isOpen={isOfferModalOpen}
         onClose={() => setIsOfferModalOpen(false)}
-        minPrice={product?.price?.min ?? 0}
+        minPrice={product?.reservePrice ?? 0}
         product={product}
         productId={productId}
       />

@@ -184,10 +184,10 @@ function CatalogCard({
             </div>
 
             {/* Premium Badge */}
-            <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
+            {/* <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
                           transform -rotate-12 shadow-lg">
               Premium
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -210,7 +210,7 @@ function CatalogCard({
           className="text-gray-600 text-base mb-6 line-clamp-2 transition-all duration-300 
                     group-hover:text-gray-700"
         >
-          Join us for {catalog.catalogName}, an exclusive auction featuring a
+          Join us for Catalog {catalog.catalogName}, an exclusive auction featuring a
           curated collection of fine items from renowned designers...
         </p>
         <div className="flex flex-col gap-4 relative">
@@ -289,7 +289,7 @@ function CatalogCard({
                 />
               </svg>
               <span>
-                Auctions in {upcomingMessageDate}, bid early to get - don&apos;t
+                Auctions Date: {upcomingMessageDate}, bid early to get - don&apos;t
                 miss the chance! <br />
                 {timeRemaining && (
                   <>

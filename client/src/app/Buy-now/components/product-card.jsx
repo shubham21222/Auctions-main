@@ -11,7 +11,7 @@ import { useSelector } from "react-redux" // Import useSelector to access Redux 
 import config from "@/app/config_BASE_URL"
 import { VerificationModal } from "@/app/components/VerificationModal"
 
-export function ProductCard({ image, name, price, slug }) {
+export function ProductCard({ image, name, price, estimatePrice, slug }) {
   const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
@@ -178,9 +178,8 @@ export function ProductCard({ image, name, price, slug }) {
           </h3>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-              ${price.toLocaleString()}
+              {price}
             </span>
-            <span className="text-sm text-gray-400">USD</span>
           </div>
         </div>
       </motion.div>

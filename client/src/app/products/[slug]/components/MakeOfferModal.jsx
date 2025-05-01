@@ -15,12 +15,16 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
 
   const handleSubmit = () => {
     const offerValue = parseFloat(offerAmount);
-    if (isNaN(offerValue) || offerValue < minPrice) {
-      setError(`Offer must be at least $${minPrice.toLocaleString()}`);
+    if (isNaN(offerValue)) {
+      setError("Please enter a valid offer amount");
+      return;
+    }
+    if (offerValue < minPrice) {
+      setError(`Your offer must be at least $${minPrice.toLocaleString()}`);
       return;
     }
     setError("");
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
 
     // Construct the checkout URL
     const queryParams = new URLSearchParams({
@@ -29,12 +33,13 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
       image: product?.images?.[0] || "",
       price: offerAmount || "",
       message: message || "",
+      reservePrice: minPrice || "",
     }).toString();
 
     // Navigate to checkout page
     router.push(`/checkout?${queryParams}`).then(() => {
-      setIsLoading(false); // Stop loading after navigation (optional, depends on use case)
-      onClose(); // Close modal after navigation
+      setIsLoading(false);
+      onClose();
     });
   };
 
@@ -46,16 +51,17 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
             Make an Offer
           </Dialog.Title>
           <p className="text-sm text-gray-500 mt-1">
-            Minimum offer accepted price: <span className="font-bold">${minPrice.toLocaleString()}</span>
+            Reserve Price: <span className="font-bold">${minPrice.toLocaleString()}</span>
           </p>
           <div className="mt-4">
-            <label className="text-sm font-medium text-gray-700">Offer Amount ($)</label>
+            <label className="text-sm font-medium text-gray-700">Your Offer Amount ($)</label>
             <input
               type="number"
               className="w-full mt-1 p-2 border rounded-md"
               value={offerAmount}
               onChange={(e) => setOfferAmount(e.target.value)}
               min={minPrice}
+              placeholder={`Enter amount (min: $${minPrice.toLocaleString()})`}
               required
             />
             {error && <p className="text-red-500 text-sm mt-1">{error}</p>}

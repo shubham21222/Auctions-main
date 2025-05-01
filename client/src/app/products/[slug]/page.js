@@ -48,6 +48,7 @@ export default function ProductPage() {
               min: parseFloat(apiProduct.estimateprice?.match(/\$(\d+)/)?.[1]) || 0,
               max: parseFloat(apiProduct.estimateprice?.match(/\$(\d+)/g)?.[1]?.replace('$', '')) || 0,
             },
+            reservePrice: apiProduct.offerAmount || 0,
             location: "Beverly Hills, CA",
             images: apiProduct.image?.map((img) => img.trim()) || [],
           };
