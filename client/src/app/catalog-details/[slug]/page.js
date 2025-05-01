@@ -27,7 +27,7 @@ export default function CatalogDetails() {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sortOption, setSortOption] = useState("lot-asc");
-  const [viewOption, setViewOption] = useState("24");
+  const [viewOption, setViewOption] = useState("60");
   const [hoveredLot, setHoveredLot] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -380,9 +380,9 @@ export default function CatalogDetails() {
                   <SelectValue placeholder="View" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="12">12 per page</SelectItem>
-                  <SelectItem value="24">24 per page</SelectItem>
-                  <SelectItem value="48">48 per page</SelectItem>
+                  <SelectItem value="60">60 per page</SelectItem>
+                  <SelectItem value="120">120 per page</SelectItem>
+                  <SelectItem value="240">240 per page</SelectItem>
                 </SelectContent>
               </Select>
             </div>

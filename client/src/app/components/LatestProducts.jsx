@@ -15,7 +15,7 @@ export default function LatestProducts() {
             try {
                 // Fetch the latest 6 products directly from the API
                 const response = await fetch(
-                    `${config.baseURL}/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=6`
+                    `${config.baseURL}/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=60`
                 );
                 if (!response.ok) throw new Error("Failed to fetch latest products");
                 const data = await response.json();

@@ -27,7 +27,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true); // Controls initial loading state
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewOption, setViewOption] = useState("24"); // Set default to 24 items per page
+  const [viewOption, setViewOption] = useState("60"); // Set default to 60 items per page
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
@@ -227,8 +227,7 @@ export default function Home() {
                     <SelectValue>{`${viewOption} per page`}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="12">12 per page</SelectItem>
-                    <SelectItem value="24">24 per page</SelectItem>
+                    <SelectItem value="36">36 per page</SelectItem>
                     <SelectItem value="60">60 per page</SelectItem>
                     <SelectItem value="120">120 per page</SelectItem>
                     <SelectItem value="240">240 per page</SelectItem>
