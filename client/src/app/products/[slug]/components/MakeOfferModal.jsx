@@ -51,7 +51,7 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
             Make an Offer
           </Dialog.Title>
           <p className="text-sm text-gray-500 mt-1">
-            Reserve Price: <span className="font-bold">${minPrice.toLocaleString()}</span>
+            Minimum Price Limit: <span className="font-bold">${minPrice.toLocaleString()}</span>
           </p>
           <div className="mt-4">
             <label className="text-sm font-medium text-gray-700">Your Offer Amount ($)</label>
