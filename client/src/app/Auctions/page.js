@@ -82,7 +82,7 @@ function CatalogCard({
           minute: 'numeric',
           timeZone: 'America/Los_Angeles'
         });
-        return `${month} ${day}${ordinal(day)}, ${year} at ${time} PST`;
+        return `${day}${ordinal(day)} ${month}, ${year} at ${time} PST`;
       })()
     : "Date TBD";
 

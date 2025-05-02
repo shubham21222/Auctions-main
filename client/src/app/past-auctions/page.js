@@ -46,9 +46,13 @@ export default function PastAuctions() {
         const scrapedResponse = await fetch('/scraped_auction_data.json');
         const scrapedData = await scrapedResponse.json();
 
-        if (data.status && data.items?.catalogs) {
-          // Process API data
-          const apiAuctions = data.items.catalogs.flatMap(catalog => 
+        // Initialize empty arrays for both data sources
+        let apiAuctions = [];
+        let processedScrapedAuctions = [];
+
+        // Process API data if available
+        if (data?.items?.catalogs) {
+          apiAuctions = data.items.catalogs.flatMap(catalog => 
             (catalog.auctions || []).map(auction => ({
               ...auction,
               catalogName: catalog.catalogName,
@@ -56,10 +60,12 @@ export default function PastAuctions() {
               source: 'api'
             }))
           );
+        }
 
-          // Process scraped data
-          const processedScrapedAuctions = scrapedData.flatMap(auction => 
-            auction.items.map(item => ({
+        // Process scraped data if available
+        if (Array.isArray(scrapedData)) {
+          processedScrapedAuctions = scrapedData.flatMap(auction => 
+            (auction.items || []).map(item => ({
               _id: `scraped-${item.item_name}`,
               title: item.item_name,
               product: {
@@ -78,15 +84,17 @@ export default function PastAuctions() {
               location: auction.location
             }))
           );
-
-          // Combine both data sources
-          setAuctions([...apiAuctions, ...processedScrapedAuctions]);
-          setScrapedAuctions(processedScrapedAuctions);
-        } else {
-          throw new Error("Invalid response format");
         }
+
+        // Combine both data sources
+        setAuctions([...apiAuctions, ...processedScrapedAuctions]);
+        setScrapedAuctions(processedScrapedAuctions);
       } catch (err) {
+        console.error("Error fetching auction data:", err);
         setError(err.message);
+        // Set empty arrays as fallback
+        setAuctions([]);
+        setScrapedAuctions([]);
       } finally {
         setLoading(false);
       }
