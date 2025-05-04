@@ -18,6 +18,27 @@ export default function VerifyEmail() {
   const [error, setError] = useState(null);
   const { socket } = useSocket();
 
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${config.baseURL}/v1/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${token}`,
+        },
+      });
+
+      if (response.ok) {
+        localStorage.removeItem("token");
+        dispatch(setEmailVerified(false));
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   useEffect(() => {
     const verifyEmail = async () => {
       const token = searchParams.get("token");
@@ -37,7 +58,8 @@ export default function VerifyEmail() {
         if (response.data.status) {
           toast.success("Email verified successfully!");
           dispatch(setEmailVerified(true));
-          // The socket event will handle the redirection
+          // Logout after successful verification
+          await handleLogout();
         } else {
           setError(response.data.message || "Verification failed");
         }
@@ -52,13 +74,13 @@ export default function VerifyEmail() {
     verifyEmail();
   }, [searchParams, router, dispatch]);
 
-  // Listen for email verification socket event
+  // Remove the socket event listener since we're handling logout directly
   useEffect(() => {
     if (!socket) return;
 
     const handleEmailVerified = (data) => {
       if (data.isEmailVerified) {
-        router.push("/");
+        handleLogout();
       }
     };
 
