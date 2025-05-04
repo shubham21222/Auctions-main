@@ -686,7 +686,7 @@ export const forgotPassword = async (req, res) => {
         </div>
         <div class="footer">
             <h3>Thank you,</h3>
-            <h3> Dear Team </h3>
+            <h3> The NY Elizabeth Team </h3>
         </div>
     </div>
 </body>
