@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { setEmailVerified } from "@/redux/authSlice";
+import { setEmailVerified, removeToken, removeUser, clearEmail } from "@/redux/authSlice";
 import config from "../config_BASE_URL";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -40,7 +40,16 @@ export default function VerifyEmail() {
       });
 
       if (response.ok) {
+        // Clear all Redux state
+        dispatch(removeToken());
+        dispatch(removeUser());
+        dispatch(clearEmail());
         dispatch(setEmailVerified(false));
+        
+        // Clear any local storage if needed
+        localStorage.clear();
+        sessionStorage.clear();
+        
         router.push("/");
       } else {
         const errorData = await response.json();

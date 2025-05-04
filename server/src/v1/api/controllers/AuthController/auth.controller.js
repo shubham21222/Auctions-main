@@ -482,28 +482,27 @@ export const verifyMail = async (req, res, next) => {
 
     try {
         if (!token) {
-            return badRequest(res, "Please provide an token ");
+            return badRequest(res, "Please provide a token");
         }
         let userId = null;
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            userId = decoded.userId; // or decoded.email, etc.
-            // Now use userId to activate the user or whatever
+            userId = decoded.userId;
         } catch (err) {
-            // Token is invalid or expired
             console.error('Invalid token:', err.message);
-            return badRequest( res, 'Invalid or expired token' );
+            return badRequest(res, 'Invalid or expired token');
         }
-        // Find user by email and select password field explicitly
-        const findUser = await User.findOne({ _id:userId });
+
+        const findUser = await User.findOne({ _id: userId });
         if (!findUser) {
-            return badRequest(res, "Invalid email ");
+            return badRequest(res, "User not found");
         }
 
-        if(findUser.isEmailVerified){
-            return badRequest(res, "Email  already verified!");
+        if (findUser.isEmailVerified) {
+            return badRequest(res, "Email already verified!");
         }
 
+        // Update user's email verification status
         findUser.isEmailVerified = true;
         await findUser.save();
 
@@ -517,12 +516,18 @@ export const verifyMail = async (req, res, next) => {
             console.log('Email verification socket event emitted for user:', findUser._id);
         }
 
-        return success(res, "Email verified!", {
-            success: true
+        // Return success with updated user data
+        return success(res, "Email verified successfully!", {
+            status: true,
+            items: {
+                ...findUser.toObject(),
+                isEmailVerified: true
+            }
         });
 
     } catch (error) {
-        unknownError(res, error);
+        console.error('Verification error:', error);
+        return unknownError(res, error.message || "Failed to verify email");
     }
 };
 // Logout User //
