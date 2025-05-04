@@ -88,7 +88,14 @@ export function Filters({
             <div className="space-y-4">
               <h3 className="font-bold text-lg text-blue-700">Categories</h3>
               <div className="space-y-3">
-                {categories.map((category) => (
+                {categories
+                  .sort((a, b) => {
+                    // Move "OTHERS" to the bottom
+                    if (a.name.toUpperCase() === "OTHERS") return 1;
+                    if (b.name.toUpperCase() === "OTHERS") return -1;
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map((category) => (
                   <div key={category._id} className="flex items-center space-x-3">
                     <Checkbox
                       id={category._id}
@@ -193,7 +200,14 @@ export function Filters({
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-blue-700">Categories</h3>
           <div className="space-y-3">
-            {categories.map((category) => (
+            {categories
+              .sort((a, b) => {
+                // Move "OTHERS" to the bottom
+                if (a.name.toUpperCase() === "OTHERS") return 1;
+                if (b.name.toUpperCase() === "OTHERS") return -1;
+                return a.name.localeCompare(b.name);
+              })
+              .map((category) => (
               <div key={category._id} className="flex items-center space-x-3">
                 <Checkbox
                   id={category._id}
