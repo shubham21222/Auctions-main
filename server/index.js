@@ -10,12 +10,14 @@ import { initializeSocket } from  "./src/v1/api/config/socketConfig.js"
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
-swaggerDocs(app, PORT );
+swaggerDocs(app, PORT);
 const server = http.createServer(app);
-// Initialize WebSocket
-initializeSocket(server);
+
+// Initialize WebSocket and make it available to the app
+const io = initializeSocket(server);
+app.set('io', io);
 
 // Connect to MongoDB
 connectDB().then(() => {
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  });
+});

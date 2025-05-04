@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import config from "@/app/config_BASE_URL";
 import toast from "react-hot-toast";
+import { setEmailVerified } from "@/redux/authSlice";
 
 const normalizeId = (id) => {
   if (!id) return "";
@@ -21,6 +22,7 @@ export const useSocket = () => {
   const token = useSelector((state) => state.auth.token);
   const isAdmin = useSelector((state) => state.auth.isAdmin);
   const role = useSelector((state) => state.auth.role);
+  const dispatch = useDispatch();
 
   const isEffectiveAdmin = isAdmin || role === "clerk";
 
@@ -422,6 +424,14 @@ export const useSocket = () => {
         console.log("Received bidRejected:", error);
       });
 
+      socketIo.on("emailVerified", (data) => {
+        console.log("Email verification update received:", data);
+        if (data.userId === userId) {
+          addNotification("success", "Email verified successfully!");
+          dispatch(setEmailVerified(true));
+        }
+      });
+
       return () => {
         if (socketIo) {
           console.log("Cleaning up socket connection");
@@ -435,7 +445,7 @@ export const useSocket = () => {
     const cleanup = initializeSocket();
 
     return cleanup;
-  }, [userId, token, isEffectiveAdmin, addNotification]);
+  }, [userId, token, isEffectiveAdmin, addNotification, dispatch]);
 
   useEffect(() => {
     const setDefaultMode = (auctionId) => {

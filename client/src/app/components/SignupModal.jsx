@@ -8,14 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import config from "../config_BASE_URL";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  registerUser,
-  updatePaymentMethod,
-  verifyEmail,
-  setToken,
-  setEmailVerified,
-  fetchUserProfile
-} from "@/redux/authSlice";
+import { registerUser, updatePaymentMethod, verifyEmail } from "@/redux/authSlice";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
@@ -61,6 +54,8 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email, dispatch }) => {
         return;
       }
 
+      console.log("Sending payment method payload:", { paymentMethodId: paymentMethod.id, BillingDetails: { ...billingDetails, name: cardholderName, email } });
+
       const response = await axios.post(
         `${config.baseURL}/v1/api/auth/add-card`,
         { 
@@ -73,6 +68,8 @@ const PaymentForm = ({ token, onSuccess, billingDetails, email, dispatch }) => {
         },
         { headers: { Authorization: `${token}` } }
       );
+
+      console.log("Add card response:", response.data);
 
       if (response.data.status) {
         toast.success("Payment method added successfully!");
@@ -181,7 +178,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const passwordStrength = getPasswordStrength(password);
 
   const getProgress = () => {
-    return (step / 5) * 100;
+    return (step / 5) * 100; // Updated to 5 steps
   };
 
   const handleSubmit = async (skipBilling = false) => {
@@ -193,11 +190,16 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
         name,
         temp_password: "false",
       };
-      if (!skipBilling) userData.BillingDetails = billingDetails;
+
+      if (!skipBilling) {
+        userData.BillingDetails = billingDetails;
+      }
+
+      console.log("Registration payload:", JSON.stringify(userData, null, 2));
 
       const result = await dispatch(registerUser(userData)).unwrap();
-      dispatch(setToken(result.token));
-      await dispatch(fetchUserProfile());
+
+      console.log("Registration response:", result);
 
       setLocalToken(result.token);
       toast.success("Registration successful! Please check your email to verify your account.", {
@@ -206,9 +208,34 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
       setStep(4);
     } catch (err) {
       console.error("Registration error:", err);
-      toast.error(err || "Something went wrong. Try again.", {
-        duration: 5000,
-      });
+      
+      // Handle specific error cases
+      if (err?.response?.data?.message === "User already exists") {
+        toast.error("User already exists. Please try logging in instead.", {
+          duration: 5000,
+        });
+        // Optionally redirect to login
+        setTimeout(() => {
+          onClose();
+          onOpenLogin();
+        }, 2000);
+      } else if (err?.response?.status === 404) {
+        toast.error("Registration service is currently unavailable. Please try again later.", {
+          duration: 5000,
+        });
+      } else if (err?.response?.status === 400) {
+        // Show the exact error message from the API
+        const errorMessage = err?.response?.data?.message || "Please check your input and try again.";
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+      } else {
+        // For any other errors, show the API error message if available
+        const errorMessage = err?.response?.data?.message || "User already exists";
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -227,16 +254,14 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
     }));
   };
 
-  const handlePaymentSuccess = async () => {
-    await dispatch(fetchUserProfile());
+  const handlePaymentSuccess = () => {
     toast.success("Payment method added successfully!");
-    setStep(5);
+    setStep(5); // Move to email verification step
   };
 
   const handleVerifyEmail = async () => {
     try {
       const result = await dispatch(verifyEmail(token || reduxToken)).unwrap();
-      await dispatch(fetchUserProfile());
       toast.success("Email verified successfully!");
       dispatch(setEmailVerified(true));
       onClose();
@@ -315,7 +340,7 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
 
               <div className="flex justify-center mb-6 sm:mb-8">
                 <Image
-                  src="https://img1.wsimg.com/isteam/ip/05b280c7-f839-4e4d-9316-4bf01d28f2df/logo/b9e8f767-116c-4444-aab2-66386e072ec2.png"
+                  src="https://beta.nyelizabeth.com/wp-content/uploads/2024/05/Rectangle.svg"
                   alt="Logo"
                   width={60}
                   height={60}

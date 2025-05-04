@@ -107,7 +107,7 @@ const sendVerificationEmail = async (user) => {
 
                 <a href="${verificationLink}" class="button">Verify Email</a>
 
-                <p>If you didn’t sign up for an account, you can ignore this email.</p>
+                <p>If you didn't sign up for an account, you can ignore this email.</p>
 
                 <p>Thanks,<br><strong>The NY Elizabeth Team</strong></p>
             </div>
@@ -320,13 +320,13 @@ export const register = async (req, res , next) => {
                             
                             <p>🎉 Congratulations on successfully registering at <span class="highlight">NY Elizabeth</span>! We're thrilled to have you as part of our community.</p>
                             
-                            <p>Whether you're here to explore, create, or engage, we’re committed to providing you with an exceptional experience. Here's a quick link to get started:</p>
+                            <p>Whether you're here to explore, create, or engage, we're committed to providing you with an exceptional experience. Here's a quick link to get started:</p>
                             
                             <a href="https://bid.nyelizabeth.com/" class="button">Explore NY Elizabeth</a>
                             
                             <p>Need help or have questions? Feel free to reach out to our support team anytime. We're here to assist you.</p>
                             
-                            <p>Welcome aboard, and we can’t wait to see what amazing things you achieve with us!</p>
+                            <p>Welcome aboard, and we can't wait to see what amazing things you achieve with us!</p>
                             
                             <p>Warm Regards,<br><strong>The NY Elizabeth Team</strong></p>
                         </div>
@@ -505,7 +505,18 @@ export const verifyMail = async (req, res, next) => {
         }
 
         findUser.isEmailVerified = true;
-        findUser.save();
+        await findUser.save();
+
+        // Emit socket event for email verification
+        const io = req.app.get('io') || req.app.io;
+        if (io) {
+            io.emit('emailVerified', {
+                userId: findUser._id,
+                isEmailVerified: true
+            });
+            console.log('Email verification socket event emitted for user:', findUser._id);
+        }
+
         return success(res, "Email verified!", {
             success: true
         });

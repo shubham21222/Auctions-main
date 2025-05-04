@@ -8,6 +8,7 @@ import config from "../config_BASE_URL";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { useSocket } from "@/hooks/useSocket";
 
 export default function VerifyEmail() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function VerifyEmail() {
   const dispatch = useDispatch();
   const [verifying, setVerifying] = useState(true);
   const [error, setError] = useState(null);
+  const { socket } = useSocket();
 
   useEffect(() => {
     const verifyEmail = async () => {
@@ -27,20 +29,15 @@ export default function VerifyEmail() {
       }
 
       try {
-        // Send token in the request body instead of Authorization header
         const response = await axios.post(
           `${config.baseURL}/v1/api/auth/verify-email`,
-          { token } // Send token in the body
+          { token }
         );
 
         if (response.data.status) {
           toast.success("Email verified successfully!");
-          // Update Redux store with email verification status
           dispatch(setEmailVerified(true));
-          // Redirect to login page after 2 seconds
-          setTimeout(() => {
-            router.push("/");
-          }, 2000);
+          // The socket event will handle the redirection
         } else {
           setError(response.data.message || "Verification failed");
         }
@@ -54,6 +51,23 @@ export default function VerifyEmail() {
 
     verifyEmail();
   }, [searchParams, router, dispatch]);
+
+  // Listen for email verification socket event
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleEmailVerified = (data) => {
+      if (data.isEmailVerified) {
+        router.push("/");
+      }
+    };
+
+    socket.on("emailVerified", handleEmailVerified);
+
+    return () => {
+      socket.off("emailVerified", handleEmailVerified);
+    };
+  }, [socket, router]);
 
   return (
     <>
@@ -78,7 +92,7 @@ export default function VerifyEmail() {
               <div className="text-center">
                 <p className="text-red-500 mb-4">{error}</p>
                 <button
-                  onClick={() => router.push("/")} // Changed to /login for consistency
+                  onClick={() => router.push("/")}
                   className="btn btn-primary"
                 >
                   Go to Login
