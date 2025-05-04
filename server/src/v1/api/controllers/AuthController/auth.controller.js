@@ -531,40 +531,27 @@ export const logout = async (req, res, next) => {
     try {
         const authHeader = req.headers["authorization"];
         if(!authHeader){
-            return badRequest(res, "No token provided");
+            return badRequest(res, "Invalid token, Please login again");
         }
 
-        let token ;
+        const token = authHeader;
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded && decoded.id) {
+                // Try to find and update user even if token is invalid
+                await User.findOneAndUpdate(
+                    { _id: decoded.id },
+                    { activeToken: null }
+                );
+            }
+        } catch (error) {
+            // Continue with logout even if token verification fails
+        }
 
-       if(authHeader){
-        token = authHeader;
-       }
-
-       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-       const userData = await User.findOne({ _id: decoded?.id });
-       if(userData.activeToken && userData.activeToken === token){
-          const user = await User.findByIdAndUpdate(userData._id, { activeToken: null }, { new: true });
-          if(!user){
-              return badRequest(res, "Invalid token , Please login again");
-          }
-
-          return success(res, "User logged out successfully");
-       }
-       else{
-              return badRequest(res, "Invalid token , Please login again");
-       }
+        return success(res, "User logged out successfully");
 
     } catch (error) {
-        if(error.name === "JsonWebTokenError"){
-            return badRequest(res, "Invalid token , Please login again");
-        }
-        else if (error.name === "TokenExpiredError"){
-            return badRequest(res, "Token expired , Please login again");
-        }
-
-        else{
-            unknownError(res, error);
-        }
+        return badRequest(res, "Invalid token, Please login again");
     }
 }
 
