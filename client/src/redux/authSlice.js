@@ -1,3 +1,5 @@
+// UPDATED Auth Slice with fetchUserProfile
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import CryptoJS from "crypto-js";
 import axios from "axios";
@@ -12,7 +14,7 @@ const initialState = {
   isLoggedIn: false,
   isBillingDetailsAvailable: false,
   isPaymentMethodAdded: false,
-  isEmailVerified: false, // New state for email verification
+  isEmailVerified: false,
   paymentDetails: null,
   items: {
     email: null,
@@ -42,8 +44,6 @@ export const registerUser = createAsyncThunk(
   "auth/registerUser",
   async (userData, { rejectWithValue }) => {
     try {
-      console.log("Received userData in registerUser:", JSON.stringify(userData, null, 2));
-
       const payload = {
         email: userData.email,
         password: userData.password,
@@ -52,14 +52,10 @@ export const registerUser = createAsyncThunk(
         BillingDetails: userData.BillingDetails || undefined,
       };
 
-      console.log("Payload sent to /register:", JSON.stringify(payload, null, 2));
-
       const signupResponse = await axios.post(
         `${config.baseURL}/v1/api/auth/register`,
         payload
       );
-
-      console.log("Signup response:", signupResponse.data);
 
       if (!signupResponse.data.success) {
         throw new Error(signupResponse.data.message || "Registration failed.");
@@ -70,18 +66,12 @@ export const registerUser = createAsyncThunk(
         password: userData.password,
       });
 
-      console.log("Login response:", loginResponse.data);
-
       if (!loginResponse.data.status || !loginResponse.data.items.success) {
         throw new Error(loginResponse.data.message || "Login failed after registration.");
       }
 
       const token = loginResponse.data.items.token;
       const userDetails = loginResponse.data.items.user;
-
-      if (!token || !userDetails) {
-        throw new Error("No token or user data received from login response.");
-      }
 
       return { token, userData: userDetails };
     } catch (err) {
@@ -98,10 +88,8 @@ export const verifyEmail = createAsyncThunk(
       const verifyResponse = await axios.post(
         `${config.baseURL}/v1/api/auth/verify/${token}`,
         {},
-        { headers: { Authorization: `${token}` } }
+        { headers: { Authorization: token } }
       );
-
-      console.log("Verify response:", verifyResponse.data);
 
       if (!verifyResponse.data.status) {
         throw new Error(verifyResponse.data.message || "Email verification failed.");
@@ -111,6 +99,27 @@ export const verifyEmail = createAsyncThunk(
     } catch (err) {
       console.error("Error in verifyEmail:", err);
       return rejectWithValue(err.message || "An error occurred during email verification.");
+    }
+  }
+);
+
+export const fetchUserProfile = createAsyncThunk(
+  "auth/fetchUserProfile",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.get(config.baseURL + "/v1/api/auth/me", {
+        headers: { Authorization: token },
+      });
+
+      if (!response.data.status) {
+        throw new Error(response.data.message || "Failed to fetch profile");
+      }
+
+      return response.data.items;
+    } catch (err) {
+      console.error("Error in fetchUserProfile:", err);
+      return rejectWithValue(err.message || "Failed to fetch profile");
     }
   }
 );
@@ -250,6 +259,23 @@ export const authSlice = createSlice({
       })
       .addCase(verifyEmail.rejected, (state, action) => {
         console.error("Email verification failed:", action.payload);
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        const userData = action.payload;
+        state.user = {
+          ...userData,
+          walletBalance: userData.walletBalance !== undefined ? encryptValue(userData.walletBalance) : encryptValue(0),
+          BillingDetails: userData.BillingDetails || [],
+        };
+        state._id = userData._id || null;
+        state.billingDetails = userData.BillingDetails?.[0] || null;
+        state.paymentMethodId = userData.paymentMethodId || null;
+        state.isPaymentMethodAdded = !!userData.paymentMethodId;
+        state.isEmailVerified = userData.isEmailVerified || false;
+        state.isBillingDetailsAvailable = userData.BillingDetails && userData.BillingDetails.length > 0;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        console.error("Fetch profile failed:", action.payload);
       });
   },
 });

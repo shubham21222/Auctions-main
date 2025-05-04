@@ -188,15 +188,30 @@ export default function CheckoutContent() {
         const billingData = await billingResponse.json();
         if (!billingResponse.ok) throw new Error(billingData.message || "Failed to fetch billing details");
 
-        const fetchedBillingDetails = billingData.items.BillingDetails;
-        console.log("API Response:", billingData);
-        console.log("Fetched Billing Details:", fetchedBillingDetails);
-        setApiBillingDetails(fetchedBillingDetails);
+        if (billingData.status && billingData.items?.BillingDetails?.length > 0) {
+          const fetchedBillingDetails = billingData.items.BillingDetails[0];
+          
+          // Map API fields to our component's field names
+          const mappedBillingDetails = {
+            firstName: fetchedBillingDetails.firstName || "",
+            lastName: fetchedBillingDetails.lastName || "",
+            companyName: fetchedBillingDetails.company_name || "",
+            address: fetchedBillingDetails.streetAddress || "",
+            city: fetchedBillingDetails.city || "",
+            state: fetchedBillingDetails.state || "",
+            zipCode: fetchedBillingDetails.zipcode || "",
+            phone: fetchedBillingDetails.phone || "",
+            email: fetchedBillingDetails.email || "",
+            country: fetchedBillingDetails.country || "",
+            orderNotes: fetchedBillingDetails.orderNotes || "",
+          };
 
-        const hasBillingDetails = fetchedBillingDetails.length > 0 && fetchedBillingDetails[0] && Object.keys(fetchedBillingDetails[0]).length > 0;
-        setBillingDetails(hasBillingDetails ? fetchedBillingDetails[0] : null);
-        console.log("Has Billing Details:", hasBillingDetails);
-        console.log("Initial billingDetails:", hasBillingDetails ? fetchedBillingDetails[0] : null);
+          setBillingDetails(mappedBillingDetails);
+          setApiBillingDetails([mappedBillingDetails]);
+        } else {
+          setBillingDetails(null);
+          setApiBillingDetails([]);
+        }
 
         const totalAmount = parseFloat(newProductDetails.offerPrice) + 100;
         const holdAmount = parseFloat(newProductDetails.offerPrice);
@@ -322,6 +337,10 @@ export default function CheckoutContent() {
                         <p className="font-medium">{`${billingDetails?.firstName || ""} ${billingDetails?.lastName || ""}`}</p>
                       </div>
                       <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Company Name</p>
+                        <p className="font-medium">{billingDetails?.companyName || "N/A"}</p>
+                      </div>
+                      <div className="space-y-1">
                         <p className="text-sm text-gray-500">Email</p>
                         <p className="font-medium">{billingDetails?.email || ""}</p>
                       </div>
@@ -343,11 +362,15 @@ export default function CheckoutContent() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-500">ZIP Code</p>
-                        <p className="font-medium">{billingDetails?.zipCode || ""}</p>
+                        <p className="font-medium">{billingDetails?.zipCode || "N/A"}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-500">Country</p>
                         <p className="font-medium">{billingDetails?.country || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Order Notes</p>
+                        <p className="font-medium">{billingDetails?.orderNotes || "N/A"}</p>
                       </div>
                     </div>
                   </div>
