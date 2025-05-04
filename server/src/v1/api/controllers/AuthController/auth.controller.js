@@ -534,37 +534,44 @@ export const logout = async (req, res, next) => {
             return badRequest(res, "No token provided");
         }
 
-        let token ;
+        const token = authHeader;
 
-       if(authHeader){
-        token = authHeader;
-       }
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded || !decoded.id) {
+                return badRequest(res, "Invalid token format");
+            }
 
-       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-       const userData = await User.findOne({ _id: decoded?.id });
-       if(userData.activeToken && userData.activeToken === token){
-          const user = await User.findByIdAndUpdate(userData._id, { activeToken: null }, { new: true });
-          if(!user){
-              return badRequest(res, "Invalid token , Please login again");
-          }
+            const userData = await User.findOne({ _id: decoded.id });
+            if (!userData) {
+                return badRequest(res, "User not found");
+            }
 
-          return success(res, "User logged out successfully");
-       }
-       else{
-              return badRequest(res, "Invalid token , Please login again");
-       }
+            if (!userData.activeToken || userData.activeToken !== token) {
+                return badRequest(res, "Invalid token, Please login again");
+            }
 
+            const user = await User.findByIdAndUpdate(
+                userData._id, 
+                { activeToken: null }, 
+                { new: true }
+            );
+
+            if (!user) {
+                return badRequest(res, "Failed to update user");
+            }
+
+            return success(res, "User logged out successfully");
+        } catch (jwtError) {
+            if (jwtError.name === "JsonWebTokenError") {
+                return badRequest(res, "Invalid token, Please login again");
+            } else if (jwtError.name === "TokenExpiredError") {
+                return badRequest(res, "Token expired, Please login again");
+            }
+            throw jwtError;
+        }
     } catch (error) {
-        if(error.name === "JsonWebTokenError"){
-            return badRequest(res, "Invalid token , Please login again");
-        }
-        else if (error.name === "TokenExpiredError"){
-            return badRequest(res, "Token expired , Please login again");
-        }
-
-        else{
-            unknownError(res, error);
-        }
+        return unknownError(res, error);
     }
 }
 
