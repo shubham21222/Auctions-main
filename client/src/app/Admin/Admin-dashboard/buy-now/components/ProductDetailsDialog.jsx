@@ -93,10 +93,10 @@ export default function ProductDetailsDialog({ productId, token, isOpen, onClose
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                {/* <div className="flex justify-between items-center">
                   <span className="text-gray-600">Price:</span>
                   <span className="font-semibold text-primary">${product.price}</span>
-                </div>
+                </div> */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Estimate Price:</span>
                   <span className="font-semibold">{product.estimateprice}</span>
