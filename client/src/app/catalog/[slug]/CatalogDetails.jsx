@@ -311,9 +311,9 @@ export default function CatalogDetails({
                         className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
                       />
                       <label htmlFor="terms" className="text-sm text-slate-600">
-                        I agree to the <Link href="/terms" className="text-blue-600 hover:underline">terms and conditions</Link>
+                        I agree to the <Link href="/terms" className="text-blue-600 hover:underline" target="_blank">terms and conditions</Link>
                       </label>
-                    </div>
+                    </div> 
                     <Button
                       onClick={handleJoinAuction}
                       disabled={!termsAccepted}
