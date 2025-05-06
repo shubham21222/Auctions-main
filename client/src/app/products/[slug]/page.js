@@ -172,12 +172,12 @@ export default function ProductPage() {
                   </div>
 
                   {/* Main Image */}
-                  <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-gray-50 shadow-md">
+                  <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-gray-50 shadow-md max-w-[600px] mx-auto">
                     <Image
                       src={product.images[selectedImageIndex] || "/placeholder.svg"}
                       alt={product.name}
                       fill
-                      className="object-cover transition-transform duration-300 hover:scale-105"
+                      className="object-contain transition-transform duration-300 hover:scale-105"
                     />
                   </div>
                 </div>
