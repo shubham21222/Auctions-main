@@ -1435,9 +1435,9 @@ export const joinAuction = async (req, res) => {
             return badRequest(res, "Auction has ended");
         }
 
-        if (findUser.Payment_Status !== "PAID") {
-            return badRequest(res, "Please complete the payment to join the auction")
-        }
+        // if (findUser.Payment_Status !== "PAID") {
+        //     return badRequest(res, "Please complete the payment to join the auction")
+        // }
 
         findAuction.participants.push(UserId);
         await findAuction.save();
