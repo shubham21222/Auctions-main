@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Filter, X, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -40,6 +40,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import AddProductDialog from "./components/AddProductDialog";
 
 export default function BuyNow() {
   const [products, setProducts] = useState([]);
@@ -56,7 +57,9 @@ export default function BuyNow() {
   const [showSkuSearch, setShowSkuSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
-  const productsPerPage = 10;
+  const [showAddProductDialog, setShowAddProductDialog] = useState(false);
+  const [viewOption, setViewOption] = useState("100"); // Default to 100 items per page
+  const productsPerPage = parseInt(viewOption);
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -230,7 +233,7 @@ export default function BuyNow() {
     if (token) {
       fetchProducts();
     }
-  }, [token, currentPage, selectedCategories, selectedStatus, searchQuery]);
+  }, [token, currentPage, selectedCategories, selectedStatus, searchQuery, productsPerPage]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -271,6 +274,11 @@ export default function BuyNow() {
     }
   };
 
+  // Reset to first page when view option changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewOption]);
+
   return (
     <div className="container mx-auto p-6">
       <div className="space-y-6">
@@ -284,6 +292,26 @@ export default function BuyNow() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {/* View Option Selector */}
+              <Select value={viewOption} onValueChange={setViewOption}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue>{`${viewOption} per page`}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="100">100 per page</SelectItem>
+                  <SelectItem value="1000">1000 per page</SelectItem>
+                  <SelectItem value="5000">5000 per page</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Add Products Button */}
+              <Button
+                onClick={() => setShowAddProductDialog(true)}
+                className="bg-primary text-white hover:bg-primary/90 flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Products
+              </Button>
               <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
                 <SheetTrigger asChild>
                   <Button
@@ -471,6 +499,15 @@ export default function BuyNow() {
         isOpen={showSkuSearch}
         onClose={() => setShowSkuSearch(false)}
         onProductFound={handleProductFound}
+      />
+
+      {/* Add Product Dialog */}
+      <AddProductDialog
+        open={showAddProductDialog}
+        onOpenChange={setShowAddProductDialog}
+        onClose={() => setShowAddProductDialog(false)}
+        fetchProducts={fetchProducts}
+        token={token}
       />
     </div>
   );

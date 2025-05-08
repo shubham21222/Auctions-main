@@ -207,11 +207,12 @@ export const getFilteredProducts = async (req, res) => {
             sortField, 
             sortOrder, 
             searchQuery,
-            sku, // Added SKU query parameter
+            sku,
             page = 1,
             limit = 10
         } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
+        
         let matchStage = {};
         if (category) {
             const categoryArray = category.split(",");
@@ -237,10 +238,70 @@ export const getFilteredProducts = async (req, res) => {
             const escapedSku = escapeRegExp(sku);
             matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
         }
+
         let sortStage = {};
-        if (sortByPrice == "High Price" || sortByPrice == "Low Price") {
-            matchStage.sortByPrice = sortByPrice;
-            sortStage.price = sortByPrice === "High Price" ? -1 : 1;
+        if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
+            // Parse estimateprice to extract minPrice for sorting
+            const products = await ProductModel.aggregate([
+                { $match: matchStage },
+                {
+                    $addFields: {
+                        minPrice: {
+                            $toDouble: {
+                                $arrayElemAt: [
+                                    { $split: [{ $substr: ["$estimateprice", 1, -1] }, " - "] },
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "categories",
+                        localField: "category",
+                        foreignField: "_id",
+                        as: "category"
+                    }
+                },
+                { $unwind: "$category" },
+                {
+                    $sort: {
+                        minPrice: sortByPrice === "High Price" ? -1 : 1,
+                        created_at: -1 // Secondary sort by created_at
+                    }
+                },
+                { $skip: skip },
+                { $limit: parseInt(limit) },
+                {
+                    $project: {
+                        title: 1,
+                        sku: 1,
+                        description: 1,
+                        price: 1,
+                        estimateprice: 1,
+                        offerAmount: 1,
+                        image: 1,
+                        status: 1,
+                        sortByPrice: 1,
+                        created_at: 1,
+                        updated_at: 1,
+                        details: 1,
+                        favorite: 1,
+                        link: 1,
+                        category: { _id: 1, name: 1 }
+                    }
+                }
+            ]).allowDiskUse(true);
+
+            const total = await ProductModel.countDocuments(matchStage);
+            return success(res, "Products fetched successfully", { 
+                items: products,
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / parseInt(limit))
+            });
         } else if (sortField && sortOrder) {
             if (sortField === "title") {
                 sortStage.title = sortOrder === "asc" ? 1 : -1;
@@ -250,11 +311,13 @@ export const getFilteredProducts = async (req, res) => {
         } else {
             sortStage.created_at = -1;
         }
+
         const auctionProducts = await auctionModel.find({}).select("product");
         const auctionProductIds = auctionProducts.map(auction => auction.product);
         if (auctionProductIds.length > 0) {
             matchStage._id = { $nin: auctionProductIds };
         }
+
         const products = await ProductModel.aggregate([
             { $match: matchStage },
             {
@@ -289,6 +352,7 @@ export const getFilteredProducts = async (req, res) => {
                 }
             }
         ]).allowDiskUse(true);
+
         const total = await ProductModel.countDocuments(matchStage);
         return success(res, "Products fetched successfully", { 
             items: products,

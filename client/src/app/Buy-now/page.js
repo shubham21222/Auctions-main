@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
@@ -76,7 +76,7 @@ export default function Home() {
         }
         
         if (selectedPriceRange) {
-          params.append("sortByPrice", selectedPriceRange);
+          params.append("sortByPrice", selectedPriceRange); // Triggers High Price or Low Price sorting
         }
         
         if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
@@ -124,7 +124,7 @@ export default function Home() {
   }, [
     selectedCategories,
     selectedStatus,
-    selectedPriceRange,
+    selectedPriceRange, // Ensures price filter changes trigger a refetch
     selectedSortField,
     selectedSortOrder,
     searchQuery,

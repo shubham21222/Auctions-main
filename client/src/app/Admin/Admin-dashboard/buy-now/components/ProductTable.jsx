@@ -158,7 +158,7 @@ export default function ProductTable({
 
       <div className="bg-white rounded-lg shadow-sm">
         <div className="overflow-x-auto">
-          <div className="w-[1100px]">
+          <div className="w-full">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -196,7 +196,6 @@ export default function ProductTable({
                         <div className="flex items-center gap-3">
                           <div className="min-w-0">
                             <p className="font-medium text-gray-900 truncate">{product.title}</p>
-                            {/* <p className="text-sm text-gray-500 truncate">{product.description}</p> */}
                           </div>
                         </div>
                       </TableCell>
