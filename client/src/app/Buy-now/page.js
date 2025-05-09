@@ -20,6 +20,11 @@ import {
 } from "@/components/ui/select";
 import Link from "next/link";
 
+// Add price formatting function
+const formatPrice = (price) => {
+  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
   const [originalProducts, setOriginalProducts] = useState([]);
@@ -257,7 +262,7 @@ export default function Home() {
                       id: uniqueKey,
                       image: product.image[0],
                       name: product.title,
-                      price: product.estimateprice,
+                      price: formatPrice(product.estimateprice),
                       slug: product._id,
                     };
                     return (
