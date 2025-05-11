@@ -381,13 +381,7 @@ export default function AuctionCalendar() {
   const fetchCatalogs = async () => {
     setLoading(true);
     try {
-      const headers = {
-        ...(token ? { Authorization: `${token}` } : {}),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      };
-      
+      const headers = token ? { Authorization: `${token}` } : {};
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const url = `${config.baseURL}/v1/api/auction/bulk?_t=${timestamp}`;
@@ -397,8 +391,7 @@ export default function AuctionCalendar() {
       const response = await fetch(url, {
         method: "GET",
         headers,
-        cache: 'no-store', // Prevent caching
-        credentials: 'include', // Include credentials if needed
+        cache: 'no-store' // Only keep this cache prevention
       });
       
       console.log('Response status:', response.status); // Debug log
@@ -452,13 +445,7 @@ export default function AuctionCalendar() {
   const fetchUpcomingCatalogs = async () => {
     setUpcomingLoading(true);
     try {
-      const headers = {
-        ...(token ? { Authorization: `${token}` } : {}),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      };
-      
+      const headers = token ? { Authorization: `${token}` } : {};
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true&_t=${timestamp}`;
@@ -468,8 +455,7 @@ export default function AuctionCalendar() {
       const response = await fetch(url, {
         method: "GET",
         headers,
-        cache: 'no-store', // Prevent caching
-        credentials: 'include', // Include credentials if needed
+        cache: 'no-store' // Only keep this cache prevention
       });
       
       console.log('Upcoming Response status:', response.status); // Debug log
