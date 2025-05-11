@@ -191,11 +191,7 @@ function CatalogCard({
               {currentMainImage + 1} / {images.length}
             </div>
 
-            {/* Premium Badge */}
-            {/* <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
-                          transform -rotate-12 shadow-lg">
-              Premium
-            </div> */}
+          
           </div>
         </div>
 
@@ -385,17 +381,24 @@ export default function AuctionCalendar() {
   const fetchCatalogs = async () => {
     setLoading(true);
     try {
-      const headers = token ? { Authorization: `${token}` } : {};
-      // Ensure the URL is properly formatted
-      const baseUrl = config.baseURL.replace(/\/$/, ''); // Remove trailing slash if present
-      const url = `${baseUrl}/v1/api/auction/bulk`;
+      const headers = {
+        ...(token ? { Authorization: `${token}` } : {}),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      };
+      
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const url = `${config.baseURL}/v1/api/auction/bulk?_t=${timestamp}`;
       
       console.log('Fetching catalogs from:', url); // Debug log
       
       const response = await fetch(url, {
         method: "GET",
         headers,
-        redirect: 'follow', // Explicitly follow redirects
+        cache: 'no-store', // Prevent caching
+        credentials: 'include', // Include credentials if needed
       });
       
       console.log('Response status:', response.status); // Debug log
@@ -449,17 +452,24 @@ export default function AuctionCalendar() {
   const fetchUpcomingCatalogs = async () => {
     setUpcomingLoading(true);
     try {
-      const headers = token ? { Authorization: `${token}` } : {};
-      // Ensure the URL is properly formatted
-      const baseUrl = config.baseURL.replace(/\/$/, ''); // Remove trailing slash if present
-      const url = `${baseUrl}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true`;
+      const headers = {
+        ...(token ? { Authorization: `${token}` } : {}),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      };
+      
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true&_t=${timestamp}`;
       
       console.log('Fetching upcoming catalogs from:', url); // Debug log
       
       const response = await fetch(url, {
         method: "GET",
         headers,
-        redirect: 'follow', // Explicitly follow redirects
+        cache: 'no-store', // Prevent caching
+        credentials: 'include', // Include credentials if needed
       });
       
       console.log('Upcoming Response status:', response.status); // Debug log
