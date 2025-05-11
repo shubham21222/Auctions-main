@@ -94,19 +94,16 @@ import categoryModel from "../../models/Category/category.model.js";
     // Add new function to generate SKU
     const generateSKU = async (category) => {
         try {
-            // Map category to prefix (case-insensitive)
-            const categoryPrefix = {
-                'wristwatch': 'W',
-                'others': 'O',
-                'modern art': 'MA',
-                'jewelry': 'J',
-                'fine art': 'FA',
-                'fashion': 'F',
-                'automotives': 'A'
-            };
+            // Get the first letter of the category name as prefix
+            // Remove any spaces and special characters, and take the first letter
+            const prefix = category
+                .replace(/[^a-zA-Z0-9]/g, '') // Remove special characters and spaces
+                .substring(0, 1) // Take first letter
+                .toUpperCase(); // Convert to uppercase
 
-            // Get category prefix, default to 'X' if category not found
-            const prefix = categoryPrefix[category.toLowerCase()] || 'X';
+            if (!prefix) {
+                throw new Error('Invalid category name for SKU generation');
+            }
 
             // Find the last product with a SKU matching the pattern NY[prefix]XXXXXX
             const lastProduct = await ProductModel.findOne({ 
