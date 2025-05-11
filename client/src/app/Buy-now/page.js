@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
+
+// Add price formatting function
+const formatPrice = (price) => {
+  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
 
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
@@ -76,7 +81,7 @@ export default function Home() {
         }
         
         if (selectedPriceRange) {
-          params.append("sortByPrice", selectedPriceRange);
+          params.append("sortByPrice", selectedPriceRange); // Triggers High Price or Low Price sorting
         }
         
         if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
@@ -124,7 +129,7 @@ export default function Home() {
   }, [
     selectedCategories,
     selectedStatus,
-    selectedPriceRange,
+    selectedPriceRange, // Ensures price filter changes trigger a refetch
     selectedSortField,
     selectedSortOrder,
     searchQuery,
@@ -257,7 +262,7 @@ export default function Home() {
                       id: uniqueKey,
                       image: product.image[0],
                       name: product.title,
-                      price: product.estimateprice,
+                      price: formatPrice(product.estimateprice),
                       slug: product._id,
                     };
                     return (

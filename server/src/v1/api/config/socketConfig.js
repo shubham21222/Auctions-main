@@ -12,10 +12,14 @@ const auctionModes = {};
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["https://bid.nyelizabeth.com"],
+      origin: ["https://bid.nyelizabeth.com", "http://localhost:3000"],
       methods: ["GET", "POST", "PUT", "DELETE"],
+      credentials: true
     },
   });
+
+  // Make io instance available globally through the server object
+  server.io = io;
 
   io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;

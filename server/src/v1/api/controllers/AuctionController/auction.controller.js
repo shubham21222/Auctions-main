@@ -492,8 +492,37 @@ export const getbulkAuctions = async (req, res) => {
 
         if (upcoming === 'true') {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Set to start of the day
-            matchStage.startDate = { $gte: today };
+            // Set to start of current day in UTC
+            const utcToday = new Date(Date.UTC(
+                today.getUTCFullYear(),
+                today.getUTCMonth(),
+                today.getUTCDate(),
+                0, 0, 0, 0
+            ));
+            
+            // For upcoming auctions, we want auctions that haven't ended yet
+            matchStage.$or = [
+                // Auctions that haven't started yet
+                { startDate: { $gte: utcToday } },
+                // Auctions that are currently active
+                {
+                    $and: [
+                        { startDate: { $lte: utcToday } },
+                        { 
+                            $or: [
+                                { endDate: { $gt: utcToday } },
+                                { endDate: null }  // For live auctions without end date
+                            ]
+                        }
+                    ]
+                }
+            ];
+            
+            console.log('Filtering auctions:', {
+                localToday: today,
+                utcToday: utcToday,
+                filter: matchStage.$or
+            });
         }
              
 
@@ -556,6 +585,14 @@ export const getbulkAuctions = async (req, res) => {
             sortStage.startDate = -1;
         }
 
+
+        // Add debug logging before aggregation
+        console.log('Auction query parameters:', {
+            matchStage,
+            pageNumber,
+            pageSize,
+            sortStage
+        });
 
         // Aggregation pipeline
         const auctions = await auctionModel.aggregate([
@@ -1435,9 +1472,9 @@ export const joinAuction = async (req, res) => {
             return badRequest(res, "Auction has ended");
         }
 
-        if (findUser.Payment_Status !== "PAID") {
-            return badRequest(res, "Please complete the payment to join the auction")
-        }
+        // if (findUser.Payment_Status !== "PAID") {
+        //     return badRequest(res, "Please complete the payment to join the auction")
+        // }
 
         findAuction.participants.push(UserId);
         await findAuction.save();

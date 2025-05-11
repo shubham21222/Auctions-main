@@ -7,142 +7,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { selectUserId, setPaymentDetails } from "@/redux/authSlice";
 import BillingDetailsForm from "./BillingDetailsForm";
 import Link from "next/link";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import config from "@/app/config_BASE_URL";
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-
-const CheckoutForm = ({ productDetails, userId, token, billingDetails, orderId, paymentIntentClientSecret, onError }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const dispatch = useDispatch();
-  const [isCardComplete, setIsCardComplete] = useState(false);
-  const [processing, setProcessing] = useState(false);
-
-  const handleCardChange = (event) => {
-    setIsCardComplete(event.complete);
-  };
-
-  const handleProceed = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements || !isCardComplete) return;
-
-    setProcessing(true);
-    onError(null);
-
-    try {
-      // Normalize billing_details for Stripe, omitting empty fields
-      const stripeBillingDetails = billingDetails
-        ? {
-            name: `${billingDetails.firstName} ${billingDetails.lastName}`.trim(),
-            email: billingDetails.email || undefined,
-            phone: billingDetails.phone || undefined,
-            address: {},
-          }
-        : undefined;
-
-      // Dynamically add address fields only if they have values
-      if (billingDetails.address) stripeBillingDetails.address.line1 = billingDetails.address;
-      if (billingDetails.city) stripeBillingDetails.address.city = billingDetails.city;
-      if (billingDetails.state) stripeBillingDetails.address.state = billingDetails.state;
-      if (billingDetails.zipCode) stripeBillingDetails.address.postal_code = billingDetails.zipCode;
-      if (billingDetails.country) stripeBillingDetails.address.country = billingDetails.country;
-
-      // If address is empty, remove it entirely
-      if (Object.keys(stripeBillingDetails.address).length === 0) {
-        delete stripeBillingDetails.address;
-      }
-
-      console.log("Stripe Billing Details:", stripeBillingDetails);
-
-      const { error, paymentIntent } = await stripe.confirmCardPayment(paymentIntentClientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-          billing_details: stripeBillingDetails,
-        },
-      });
-
-      if (error) throw new Error(error.message);
-
-      const paymentIntentId = paymentIntent.id;
-
-      console.log("Authorized Payment Intent:", { productId: productDetails.productId, paymentIntentId, orderId, amount: productDetails.offerPrice * 100 });
-      dispatch(
-        setPaymentDetails({
-          productId: productDetails.productId,
-          paymentIntentId,
-          orderId,
-          amount: productDetails.offerPrice * 100,
-        })
-      );
-
-      const stripeResponse = await fetch("/api/create-checkout-session2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `${productDetails.productName} - Auction Fee`,
-                  images: productDetails.productImage ? [decodeURIComponent(productDetails.productImage)] : [],
-                },
-                unit_amount: 100 * 100,
-              },
-              quantity: 1,
-            },
-          ],
-          mode: "payment",
-          success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
-          cancel_url: `${window.location.origin}/checkout`,
-          metadata: {
-            CustomerId: userId,
-            integration_check: "auction_fee_payment",
-            productId: productDetails.productId,
-            orderId,
-            remainingPaymentIntentId: paymentIntentId,
-          },
-        }),
-      });
-
-      const stripeData = await stripeResponse.json();
-      if (!stripeResponse.ok) throw new Error(stripeData.error || "Failed to create checkout session");
-
-      const stripeInstance = await stripePromise;
-      await stripeInstance.redirectToCheckout({ sessionId: stripeData.id });
-    } catch (err) {
-      onError(err.message);
-      console.error("Error:", err);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleProceed}>
-      <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-700 text-sm">
-          <strong>Note:</strong> $100 will be refunded if we are not able to process the order
-        </p>
-      </div>
-      <div className="mb-4">
-        <label className="block text-gray-700 font-medium mb-2">Enter Card Details</label>
-        <CardElement
-          options={{ style: { base: { fontSize: "16px" } } }}
-          onChange={handleCardChange}
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={!stripe || !isCardComplete || processing}
-        className={`w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg transition duration-300 ${processing || !isCardComplete || !stripe ? "opacity-50 cursor-not-allowed" : "hover:from-blue-700 hover:to-indigo-700"}`}
-      >
-        {processing ? "Processing..." : "Proceed"}
-      </button>
-    </form>
-  );
-};
+import CheckoutForm from "./CheckoutForm";
 
 export default function CheckoutContent() {
   const router = useRouter();
@@ -161,7 +27,6 @@ export default function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [billingDetails, setBillingDetails] = useState(null);
-  const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState(null);
   const [orderId, setOrderId] = useState(null);
   const [apiBillingDetails, setApiBillingDetails] = useState(null);
 
@@ -178,6 +43,7 @@ export default function CheckoutContent() {
       if (!newProductDetails.productId || !token || !userId) return;
 
       try {
+        // Fetch billing details
         const billingResponse = await fetch(`${config.baseURL}/v1/api/auth/getUserByBillingAddress/${userId}`, {
           method: "GET",
           headers: {
@@ -188,19 +54,30 @@ export default function CheckoutContent() {
         const billingData = await billingResponse.json();
         if (!billingResponse.ok) throw new Error(billingData.message || "Failed to fetch billing details");
 
-        const fetchedBillingDetails = billingData.items.BillingDetails;
-        console.log("API Response:", billingData);
-        console.log("Fetched Billing Details:", fetchedBillingDetails);
-        setApiBillingDetails(fetchedBillingDetails);
+        if (billingData.status && billingData.items?.BillingDetails?.length > 0) {
+          const fetchedBillingDetails = billingData.items.BillingDetails[0];
+          const mappedBillingDetails = {
+            firstName: fetchedBillingDetails.firstName || "",
+            lastName: fetchedBillingDetails.lastName || "",
+            companyName: fetchedBillingDetails.company_name || "",
+            address: fetchedBillingDetails.streetAddress || "",
+            city: fetchedBillingDetails.city || "",
+            state: fetchedBillingDetails.state || "",
+            zipCode: fetchedBillingDetails.zipcode || "",
+            phone: fetchedBillingDetails.phone || "",
+            email: fetchedBillingDetails.email || "",
+            country: fetchedBillingDetails.country || "",
+            orderNotes: fetchedBillingDetails.orderNotes || "",
+          };
+          setBillingDetails(mappedBillingDetails);
+          setApiBillingDetails([mappedBillingDetails]);
+        } else {
+          setBillingDetails(null);
+          setApiBillingDetails([]);
+        }
 
-        const hasBillingDetails = fetchedBillingDetails.length > 0 && fetchedBillingDetails[0] && Object.keys(fetchedBillingDetails[0]).length > 0;
-        setBillingDetails(hasBillingDetails ? fetchedBillingDetails[0] : null);
-        console.log("Has Billing Details:", hasBillingDetails);
-        console.log("Initial billingDetails:", hasBillingDetails ? fetchedBillingDetails[0] : null);
-
-        const totalAmount = parseFloat(newProductDetails.offerPrice) + 100;
-        const holdAmount = parseFloat(newProductDetails.offerPrice);
-
+        // Create order with only auction fee
+        const totalAmount = 100; // Only auction fee
         const orderResponse = await fetch(`${config.baseURL}/v1/api/order/MakeOrder`, {
           method: "POST",
           headers: {
@@ -211,30 +88,17 @@ export default function CheckoutContent() {
             products: [
               {
                 product: newProductDetails.productId,
-                Remark: `make an offer of $${newProductDetails.offerPrice} with $100 auction fee`,
+                Remark: `Auction fee $100 for offer of $${newProductDetails.offerPrice}`,
                 Offer_Amount: newProductDetails.offerPrice * 100,
               },
             ],
             totalAmount,
+            pendingAmount: parseFloat(newProductDetails.offerPrice), // Indicate product price is pending
           }),
         });
         const orderData = await orderResponse.json();
         if (!orderResponse.ok) throw new Error(orderData.message || "Failed to create order");
         setOrderId(orderData.result._id);
-
-        const paymentIntentResponse = await fetch("/api/create-payment-intent2", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: holdAmount * 100,
-            currency: "usd",
-            capture_method: "manual",
-            metadata: { CustomerId: userId, productId: newProductDetails.productId, orderId: orderData.result._id },
-          }),
-        });
-        const paymentIntentData = await paymentIntentResponse.json();
-        if (!paymentIntentResponse.ok) throw new Error(paymentIntentData.error || "Failed to create Payment Intent");
-        setPaymentIntentClientSecret(paymentIntentData.client_secret);
       } catch (err) {
         setError(err.message);
         console.error("Initialization Error:", err);
@@ -285,8 +149,6 @@ export default function CheckoutContent() {
     );
   }
 
-  console.log("Rendering - billingDetails:", billingDetails, "apiBillingDetails:", apiBillingDetails);
-
   return (
     <div className="min-h-screen mt-[60px] bg-gradient-to-b from-gray-50 to-white py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -322,6 +184,10 @@ export default function CheckoutContent() {
                         <p className="font-medium">{`${billingDetails?.firstName || ""} ${billingDetails?.lastName || ""}`}</p>
                       </div>
                       <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Company Name</p>
+                        <p className="font-medium">{billingDetails?.companyName || "N/A"}</p>
+                      </div>
+                      <div className="space-y-1">
                         <p className="text-sm text-gray-500">Email</p>
                         <p className="font-medium">{billingDetails?.email || ""}</p>
                       </div>
@@ -343,11 +209,15 @@ export default function CheckoutContent() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-500">ZIP Code</p>
-                        <p className="font-medium">{billingDetails?.zipCode || ""}</p>
+                        <p className="font-medium">{billingDetails?.zipCode || "N/A"}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-500">Country</p>
                         <p className="font-medium">{billingDetails?.country || ""}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Order Notes</p>
+                        <p className="font-medium">{billingDetails?.orderNotes || "N/A"}</p>
                       </div>
                     </div>
                   </div>
@@ -374,31 +244,31 @@ export default function CheckoutContent() {
                     
                     <div className="space-y-3 py-4 border-t border-b">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Product Price (On Hold)</span>
+                        <span className="text-gray-600">Offer Price (Pending)</span>
                         <span className="font-semibold">${parseFloat(productDetails.offerPrice).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Auction Fee</span>
-                        <span className="font-semibold text-red-500">+$100</span>
+                        <span className="font-semibold text-red-500">$100</span>
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t">
-                        <span className="text-lg font-semibold">Total Authorized</span>
-                        <span className="text-lg font-bold text-green-600">${(parseFloat(productDetails.offerPrice) + 100).toLocaleString()}</span>
+                        <span className="text-lg font-semibold">Total Charged</span>
+                        <span className="text-lg font-bold text-green-600">$100</span>
                       </div>
                     </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Auction fee $100. We will contact you for payment of the offer price.
+                    </p>
 
                     <div className="mt-6">
-                      <Elements stripe={stripePromise}>
-                        <CheckoutForm
-                          productDetails={productDetails}
-                          userId={userId}
-                          token={token}
-                          billingDetails={billingDetails}
-                          orderId={orderId}
-                          paymentIntentClientSecret={paymentIntentClientSecret}
-                          onError={setError}
-                        />
-                      </Elements>
+                      <CheckoutForm
+                        productDetails={productDetails}
+                        userId={userId}
+                        token={token}
+                        billingDetails={billingDetails}
+                        orderId={orderId}
+                        onError={setError}
+                      />
                     </div>
 
                     {error && (

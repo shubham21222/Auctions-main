@@ -107,7 +107,7 @@ const sendVerificationEmail = async (user) => {
 
                 <a href="${verificationLink}" class="button">Verify Email</a>
 
-                <p>If you didn’t sign up for an account, you can ignore this email.</p>
+                <p>If you didn't sign up for an account, you can ignore this email.</p>
 
                 <p>Thanks,<br><strong>The NY Elizabeth Team</strong></p>
             </div>
@@ -320,13 +320,13 @@ export const register = async (req, res , next) => {
                             
                             <p>🎉 Congratulations on successfully registering at <span class="highlight">NY Elizabeth</span>! We're thrilled to have you as part of our community.</p>
                             
-                            <p>Whether you're here to explore, create, or engage, we’re committed to providing you with an exceptional experience. Here's a quick link to get started:</p>
+                            <p>Whether you're here to explore, create, or engage, we're committed to providing you with an exceptional experience. Here's a quick link to get started:</p>
                             
                             <a href="https://bid.nyelizabeth.com/" class="button">Explore NY Elizabeth</a>
                             
                             <p>Need help or have questions? Feel free to reach out to our support team anytime. We're here to assist you.</p>
                             
-                            <p>Welcome aboard, and we can’t wait to see what amazing things you achieve with us!</p>
+                            <p>Welcome aboard, and we can't wait to see what amazing things you achieve with us!</p>
                             
                             <p>Warm Regards,<br><strong>The NY Elizabeth Team</strong></p>
                         </div>
@@ -482,36 +482,52 @@ export const verifyMail = async (req, res, next) => {
 
     try {
         if (!token) {
-            return badRequest(res, "Please provide an token ");
+            return badRequest(res, "Please provide a token");
         }
         let userId = null;
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            userId = decoded.userId; // or decoded.email, etc.
-            // Now use userId to activate the user or whatever
+            userId = decoded.userId;
         } catch (err) {
-            // Token is invalid or expired
             console.error('Invalid token:', err.message);
-            return badRequest( res, 'Invalid or expired token' );
+            return badRequest(res, 'Invalid or expired token');
         }
-        // Find user by email and select password field explicitly
-        const findUser = await User.findOne({ _id:userId });
+
+        const findUser = await User.findOne({ _id: userId });
         if (!findUser) {
-            return badRequest(res, "Invalid email ");
+            return badRequest(res, "User not found");
         }
 
-        if(findUser.isEmailVerified){
-            return badRequest(res, "Email  already verified!");
+        if (findUser.isEmailVerified) {
+            return badRequest(res, "Email already verified!");
         }
 
+        // Update user's email verification status
         findUser.isEmailVerified = true;
-        findUser.save();
-        return success(res, "Email verified!", {
-            success: true
+        await findUser.save();
+
+        // Emit socket event for email verification
+        const io = req.app.get('io') || req.app.io;
+        if (io) {
+            io.emit('emailVerified', {
+                userId: findUser._id,
+                isEmailVerified: true
+            });
+            console.log('Email verification socket event emitted for user:', findUser._id);
+        }
+
+        // Return success with updated user data
+        return success(res, "Email verified successfully!", {
+            status: true,
+            items: {
+                ...findUser.toObject(),
+                isEmailVerified: true
+            }
         });
 
     } catch (error) {
-        unknownError(res, error);
+        console.error('Verification error:', error);
+        return unknownError(res, error.message || "Failed to verify email");
     }
 };
 // Logout User //
@@ -520,40 +536,27 @@ export const logout = async (req, res, next) => {
     try {
         const authHeader = req.headers["authorization"];
         if(!authHeader){
-            return badRequest(res, "No token provided");
+            return badRequest(res, "Invalid token, Please login again");
         }
 
-        let token ;
+        const token = authHeader;
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded && decoded.id) {
+                // Try to find and update user even if token is invalid
+                await User.findOneAndUpdate(
+                    { _id: decoded.id },
+                    { activeToken: null }
+                );
+            }
+        } catch (error) {
+            // Continue with logout even if token verification fails
+        }
 
-       if(authHeader){
-        token = authHeader;
-       }
-
-       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-       const userData = await User.findOne({ _id: decoded?.id });
-       if(userData.activeToken && userData.activeToken === token){
-          const user = await User.findByIdAndUpdate(userData._id, { activeToken: null }, { new: true });
-          if(!user){
-              return badRequest(res, "Invalid token , Please login again");
-          }
-
-          return success(res, "User logged out successfully");
-       }
-       else{
-              return badRequest(res, "Invalid token , Please login again");
-       }
+        return success(res, "User logged out successfully");
 
     } catch (error) {
-        if(error.name === "JsonWebTokenError"){
-            return badRequest(res, "Invalid token , Please login again");
-        }
-        else if (error.name === "TokenExpiredError"){
-            return badRequest(res, "Token expired , Please login again");
-        }
-
-        else{
-            unknownError(res, error);
-        }
+        return badRequest(res, "Invalid token, Please login again");
     }
 }
 

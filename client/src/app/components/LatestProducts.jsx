@@ -13,9 +13,9 @@ export default function LatestProducts() {
     useEffect(() => {
         async function fetchLatestProducts() {
             try {
-                // Fetch the latest 6 products directly from the API
+                // Fetch the latest 12 products directly from the API
                 const response = await fetch(
-                    `${config.baseURL}/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=60`
+                    `${config.baseURL}/v1/api/product/filter?sortField=created_at&sortOrder=desc&limit=12`
                 );
                 if (!response.ok) throw new Error("Failed to fetch latest products");
                 const data = await response.json();
@@ -51,7 +51,7 @@ export default function LatestProducts() {
                 </motion.h2> */}
 
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {[...Array(6)].map((_, index) => (
                             <div key={index} className="space-y-4">
                                 <Skeleton className="h-[300px] w-full rounded-xl" />
@@ -63,7 +63,7 @@ export default function LatestProducts() {
                 ) : error ? (
                     <p className="text-center text-red-500">Error: {error}</p>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {products.length > 0 ? (
                             products.map((product, index) => {
                                 const productData = {

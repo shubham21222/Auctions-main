@@ -13,7 +13,7 @@ export function createExcelTemplate() {
       LowEst: 800,
       HighEst: 1200,
       'Reserve Price': 900,
-      sortByPrice: 'High Price',
+      // sortByPrice: 'High Price',
       Link: 'https://nyelizabeth.com/products/vintage-watch',
       'ImageFile.1': 'https://example.com/watch1.jpg',
       'ImageFile.2': 'https://example.com/watch2.jpg'
@@ -25,7 +25,7 @@ export function createExcelTemplate() {
       LowEst: 4000,
       HighEst: 6000,
       'Reserve Price': 4500,
-      sortByPrice: 'High Price',
+      // sortByPrice: 'High Price',
       Link: 'https://nyelizabeth.com/products/antique-vase',
       'ImageFile.1': 'https://example.com/vase1.jpg',
       'ImageFile.2': 'https://example.com/vase2.jpg'
@@ -37,7 +37,7 @@ export function createExcelTemplate() {
       LowEst: 600,
       HighEst: 900,
       'Reserve Price': 700,
-      sortByPrice: 'High Price',
+      // sortByPrice: 'High Price',
       Link: 'https://nyelizabeth.com/products/art-deco-lamp',
       'ImageFile.1': 'https://example.com/lamp1.jpg',
       'ImageFile.2': 'https://example.com/lamp2.jpg'
@@ -55,7 +55,7 @@ export function createExcelTemplate() {
     { wch: 10 }, // LowEst
     { wch: 10 }, // HighEst
     { wch: 12 }, // Reserve Price
-    { wch: 12 }, // sortByPrice
+    // { wch: 12 }, // sortByPrice
     { wch: 30 }, // Link
     { wch: 30 }, // ImageFile.1
     { wch: 30 }  // ImageFile.2

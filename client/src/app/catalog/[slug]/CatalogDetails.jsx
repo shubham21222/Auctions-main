@@ -9,7 +9,7 @@ import config from "@/app/config_BASE_URL";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
+import Link from "next/link";
 const getBidIncrement = (currentBid) => {
   if (currentBid >= 1000000) return 50000;
   if (currentBid >= 500000) return 25000;
@@ -311,9 +311,9 @@ export default function CatalogDetails({
                         className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
                       />
                       <label htmlFor="terms" className="text-sm text-slate-600">
-                        I agree to the terms and conditions
+                        I agree to the <Link href="/terms" className="text-blue-600 hover:underline" target="_blank">terms and conditions</Link>
                       </label>
-                    </div>
+                    </div> 
                     <Button
                       onClick={handleJoinAuction}
                       disabled={!termsAccepted}

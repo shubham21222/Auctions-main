@@ -11,7 +11,7 @@ export default function MakeOfferModal({ isOpen, onClose, minPrice, product, pro
   const [isLoading, setIsLoading] = useState(false); // Loading state for button
   const router = useRouter(); // For programmatic navigation
 
-  console.log("MakeOfferModal productId:", productId); // Debug productId
+  console.log("MakeOfferModal productId:", productId);
 
   const handleSubmit = () => {
     const offerValue = parseFloat(offerAmount);

@@ -1,4 +1,5 @@
 'use client';
+
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -22,7 +23,7 @@ export function Filters({
   setSelectedSortOrder,
   searchQuery,
   setSearchQuery,
-  onReset, // Add a callback to notify Home of reset
+  onReset, // Callback to notify Home of reset
 }) {
   const [isOpen, setIsOpen] = useState({
     search: false,
@@ -40,9 +41,9 @@ export function Filters({
   const handleReset = () => {
     setSelectedCategories([]);
     setSelectedStatus("");
-    setSelectedPriceRange("");
+    setSelectedPriceRange(""); // Clears price filter
     setSelectedSortField("created_at");
-    setSelectedSortOrder("asc");
+    setSelectedSortOrder("desc");
     setSearchQuery("");
     if (onReset) onReset(); // Notify parent component of reset
   };
@@ -88,30 +89,38 @@ export function Filters({
             <div className="space-y-4">
               <h3 className="font-bold text-lg text-blue-700">Categories</h3>
               <div className="space-y-3">
-                {categories.map((category) => (
-                  <div key={category._id} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={category._id}
-                      checked={selectedCategories.includes(category._id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedCategories((prev) => [...prev, category._id]);
-                        } else {
-                          setSelectedCategories((prev) =>
-                            prev.filter((cat) => cat !== category._id)
-                          );
-                        }
-                      }}
-                      className="data-[state=checked]:bg-blue-600"
-                    />
-                    <Label htmlFor={category._id} className="cursor-pointer">
-                      {category.name}
-                    </Label>
-                  </div>
-                ))}
+                {categories
+                  .sort((a, b) => {
+                    // Move "OTHERS" to the bottom
+                    if (a.name.toUpperCase() === "OTHERS") return 1;
+                    if (b.name.toUpperCase() === "OTHERS") return -1;
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map((category) => (
+                    <div key={category._id} className="flex items-center space-x-3">
+                      <Checkbox
+                        id={category._id}
+                        checked={selectedCategories.includes(category._id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedCategories((prev) => [...prev, category._id]);
+                          } else {
+                            setSelectedCategories((prev) =>
+                              prev.filter((cat) => cat !== category._id)
+                            );
+                          }
+                        }}
+                        className="data-[state=checked]:bg-blue-600"
+                      />
+                      <Label htmlFor={category._id} className="cursor-pointer">
+                        {category.name}
+                      </Label>
+                    </div>
+                  ))}
               </div>
             </div>
 
+            {/* Status Section */}
             <div className="space-y-4">
               <h3 className="font-bold text-lg text-blue-700">Status</h3>
               <RadioGroup
@@ -150,7 +159,7 @@ export function Filters({
                       className="text-blue-600"
                     />
                     <Label htmlFor={price.toLowerCase().replace(" ", "-")} className="cursor-pointer">
-                      {price}
+                      {price} {/* Sorts products by minimum estimate price */}
                     </Label>
                   </div>
                 ))}
@@ -193,27 +202,34 @@ export function Filters({
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-blue-700">Categories</h3>
           <div className="space-y-3">
-            {categories.map((category) => (
-              <div key={category._id} className="flex items-center space-x-3">
-                <Checkbox
-                  id={category._id}
-                  checked={selectedCategories.includes(category._id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedCategories((prev) => [...prev, category._id]);
-                    } else {
-                      setSelectedCategories((prev) =>
-                        prev.filter((cat) => cat !== category._id)
-                      );
-                    }
-                  }}
-                  className="data-[state=checked]:bg-blue-600"
-                />
-                <Label htmlFor={category._id} className="cursor-pointer">
-                  {category.name}
-                </Label>
-              </div>
-            ))}
+            {categories
+              .sort((a, b) => {
+                // Move "OTHERS" to the bottom
+                if (a.name.toUpperCase() === "OTHERS") return 1;
+                if (b.name.toUpperCase() === "OTHERS") return -1;
+                return a.name.localeCompare(b.name);
+              })
+              .map((category) => (
+                <div key={category._id} className="flex items-center space-x-3">
+                  <Checkbox
+                    id={category._id}
+                    checked={selectedCategories.includes(category._id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCategories((prev) => [...prev, category._id]);
+                      } else {
+                        setSelectedCategories((prev) =>
+                          prev.filter((cat) => cat !== category._id)
+                        );
+                      }
+                    }}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                  <Label htmlFor={category._id} className="cursor-pointer">
+                    {category.name}
+                  </Label>
+                </div>
+              ))}
           </div>
         </div>
 
@@ -256,7 +272,7 @@ export function Filters({
                   className="text-blue-600"
                 />
                 <Label htmlFor={price.toLowerCase().replace(" ", "-")} className="cursor-pointer">
-                  {price}
+                  {price} {/* Sorts products by minimum estimate price */}
                 </Label>
               </div>
             ))}

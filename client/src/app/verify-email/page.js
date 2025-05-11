@@ -2,19 +2,63 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
-import { useDispatch } from "react-redux";
-import { setEmailVerified } from "@/redux/authSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { setEmailVerified, removeToken, removeUser, clearEmail } from "@/redux/authSlice";
 import config from "../config_BASE_URL";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { useSocket } from "@/hooks/useSocket";
 
 export default function VerifyEmail() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
+  const { token, isEmailVerified } = useSelector((state) => state.auth);
   const [verifying, setVerifying] = useState(true);
   const [error, setError] = useState(null);
+  const { socket } = useSocket();
+
+  const handleLogout = async () => {
+    try {
+      if (!token) {
+        console.error("No token found in Redux state");
+        return;
+      }
+
+      if (!isEmailVerified) {
+        console.error("Email not verified yet");
+        return;
+      }
+
+      const response = await fetch(`${config.baseURL}/v1/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+        },
+      });
+
+      if (response.ok) {
+        // Clear all Redux state
+        dispatch(removeToken());
+        dispatch(removeUser());
+        dispatch(clearEmail());
+        dispatch(setEmailVerified(false));
+        
+        // Clear any local storage if needed
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        router.push("/");
+      } else {
+        const errorData = await response.json();
+        console.error("Logout error:", errorData.message);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   useEffect(() => {
     const verifyEmail = async () => {
@@ -27,20 +71,16 @@ export default function VerifyEmail() {
       }
 
       try {
-        // Send token in the request body instead of Authorization header
         const response = await axios.post(
           `${config.baseURL}/v1/api/auth/verify-email`,
-          { token } // Send token in the body
+          { token }
         );
 
         if (response.data.status) {
           toast.success("Email verified successfully!");
-          // Update Redux store with email verification status
           dispatch(setEmailVerified(true));
-          // Redirect to login page after 2 seconds
-          setTimeout(() => {
-            router.push("/");
-          }, 2000);
+          // Logout after successful verification
+          await handleLogout();
         } else {
           setError(response.data.message || "Verification failed");
         }
@@ -54,6 +94,23 @@ export default function VerifyEmail() {
 
     verifyEmail();
   }, [searchParams, router, dispatch]);
+
+  // Remove the socket event listener since we're handling logout directly
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleEmailVerified = (data) => {
+      if (data.isEmailVerified) {
+        handleLogout();
+      }
+    };
+
+    socket.on("emailVerified", handleEmailVerified);
+
+    return () => {
+      socket.off("emailVerified", handleEmailVerified);
+    };
+  }, [socket, router]);
 
   return (
     <>
@@ -78,7 +135,7 @@ export default function VerifyEmail() {
               <div className="text-center">
                 <p className="text-red-500 mb-4">{error}</p>
                 <button
-                  onClick={() => router.push("/")} // Changed to /login for consistency
+                  onClick={() => router.push("/")}
                   className="btn btn-primary"
                 >
                   Go to Login

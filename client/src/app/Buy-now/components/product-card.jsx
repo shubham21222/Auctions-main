@@ -11,6 +11,11 @@ import { useSelector } from "react-redux" // Import useSelector to access Redux 
 import config from "@/app/config_BASE_URL"
 import { VerificationModal } from "@/app/components/VerificationModal"
 
+// Add price formatting function
+const formatPrice = (price) => {
+  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 export function ProductCard({ image, name, price, estimatePrice, slug }) {
   const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
@@ -178,7 +183,7 @@ export function ProductCard({ image, name, price, estimatePrice, slug }) {
           </h3>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-              {price}
+              {formatPrice(price)}
             </span>
           </div>
         </div>

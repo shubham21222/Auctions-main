@@ -435,11 +435,11 @@ export default function SuccessContent() {
                 Amount Paid: <span className="font-bold">${(sessionData.amount_total / 100).toLocaleString()}</span>
               </p>
             )}
-            {paymentData && (
+            {/* {paymentData && (
               <p className="text-sm text-gray-500 mb-6">
                 Amount Held: <span className="font-bold">${(paymentData.amount / 100).toLocaleString()}</span>
               </p>
-            )}
+            )} */}
             {updateStatus && orderId && (
               <p className="text-sm text-gray-500 mb-6">
                 Order ID: <span className="font-mono">{orderId}</span> | Status:{" "}

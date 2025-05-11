@@ -63,9 +63,16 @@ function CatalogCard({
   const auctionDate = firstAuction?.startDate
     ? (() => {
         const date = new Date(firstAuction.startDate);
-        const day = date.getDate();
-        const month = date.toLocaleString('en-US', { month: 'short' });
-        const year = date.getFullYear();
+        // Convert to PST
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const month = pstDate.toLocaleString('en-US', { month: 'long' });
+        const day = pstDate.getDate();
+        const year = pstDate.getFullYear();
+        const time = pstDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: 'numeric',
+          timeZone: 'America/Los_Angeles'
+        });
         const ordinal = (day) => {
           if (day > 3 && day < 21) return 'th';
           switch (day % 10) {
@@ -75,22 +82,23 @@ function CatalogCard({
             default: return 'th';
           }
         };
-        // Convert to PST
-        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        const time = pstDate.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: 'numeric',
-          timeZone: 'America/Los_Angeles'
-        });
-        return `${day}${ordinal(day)} ${month}, ${year} at ${time} PST`;
+        return `${month} ${day}${ordinal(day)}, ${year}, at ${time} PST`;
       })()
     : "Date TBD";
 
   const upcomingMessageDate = firstAuction?.startDate
     ? (() => {
         const date = new Date(firstAuction.startDate);
-        const day = date.getDate();
-        const month = date.toLocaleString('en-US', { month: 'short' });
+        // Convert to PST
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const month = pstDate.toLocaleString('en-US', { month: 'long' });
+        const day = pstDate.getDate();
+        const year = pstDate.getFullYear();
+        const time = pstDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: 'numeric',
+          timeZone: 'America/Los_Angeles'
+        });
         const ordinal = (day) => {
           if (day > 3 && day < 21) return 'th';
           switch (day % 10) {
@@ -100,7 +108,7 @@ function CatalogCard({
             default: return 'th';
           }
         };
-        return `${day}${ordinal(day)} ${month}`;
+        return `${month} ${day}${ordinal(day)}, ${year}, at ${time} PST`;
       })()
     : "TBD";
 
@@ -183,11 +191,7 @@ function CatalogCard({
               {currentMainImage + 1} / {images.length}
             </div>
 
-            {/* Premium Badge */}
-            {/* <div className="absolute top-4 right-4 bg-luxury-gold/90 text-white px-3 py-1 rounded-full text-sm font-medium
-                          transform -rotate-12 shadow-lg">
-              Premium
-            </div> */}
+          
           </div>
         </div>
 
@@ -289,10 +293,10 @@ function CatalogCard({
                 />
               </svg>
               <span>
-                Auctions Date: {upcomingMessageDate}, bid early to get - don&apos;t
-                miss the chance! <br />
+                Auction Date: {upcomingMessageDate}
                 {timeRemaining && (
                   <>
+                    <br />
                     Starts in: {timeRemaining.days}d {timeRemaining.hours}h{" "}
                     {timeRemaining.minutes}m {timeRemaining.seconds}s
                   </>
@@ -378,13 +382,32 @@ export default function AuctionCalendar() {
     setLoading(true);
     try {
       const headers = token ? { Authorization: `${token}` } : {};
-      const url = `${config.baseURL}/v1/api/auction/bulk`;
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const url = `${config.baseURL}/v1/api/auction/bulk?_t=${timestamp}`;
+      
+      console.log('Fetching catalogs from:', url); // Debug log
+      
       const response = await fetch(url, {
         method: "GET",
         headers,
+        cache: 'no-store' // Only keep this cache prevention
       });
-      if (!response.ok) throw new Error("Failed to fetch catalogs");
+      
+      console.log('Response status:', response.status); // Debug log
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch catalogs: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('API Response:', data); // Debug log
 
       if (data.status) {
         let fetchedCatalogs = data.items?.catalogs || [];
@@ -423,13 +446,32 @@ export default function AuctionCalendar() {
     setUpcomingLoading(true);
     try {
       const headers = token ? { Authorization: `${token}` } : {};
-      const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true`;
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true&_t=${timestamp}`;
+      
+      console.log('Fetching upcoming catalogs from:', url); // Debug log
+      
       const response = await fetch(url, {
         method: "GET",
         headers,
+        cache: 'no-store' // Only keep this cache prevention
       });
-      if (!response.ok) throw new Error("Failed to fetch upcoming catalogs");
+      
+      console.log('Upcoming Response status:', response.status); // Debug log
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch upcoming catalogs: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('Upcoming API Response:', data); // Debug log
 
       if (data.status) {
         setUpcomingCatalogs(data.items?.catalogs || []);
@@ -650,7 +692,7 @@ export default function AuctionCalendar() {
         )}
 
         {/* All Catalogs Section - Only show if there are live auctions */}
-        {liveCatalogs.length > 0 && (
+        {/* {liveCatalogs.length > 0 && (
           <>
             <div className="mb-8 md:mb-12 text-center">
               <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
@@ -757,7 +799,7 @@ export default function AuctionCalendar() {
               </div>
             )}
           </>
-        )}
+        )} */}
       </div>
       <Footer />
     </>

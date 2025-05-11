@@ -94,19 +94,16 @@ import categoryModel from "../../models/Category/category.model.js";
     // Add new function to generate SKU
     const generateSKU = async (category) => {
         try {
-            // Map category to prefix (case-insensitive)
-            const categoryPrefix = {
-                'wristwatch': 'W',
-                'others': 'O',
-                'modern art': 'MA',
-                'jewelry': 'J',
-                'fine art': 'FA',
-                'fashion': 'F',
-                'automotives': 'A'
-            };
+            // Get the first letter of the category name as prefix
+            // Remove any spaces and special characters, and take the first letter
+            const prefix = category
+                .replace(/[^a-zA-Z0-9]/g, '') // Remove special characters and spaces
+                .substring(0, 1) // Take first letter
+                .toUpperCase(); // Convert to uppercase
 
-            // Get category prefix, default to 'X' if category not found
-            const prefix = categoryPrefix[category.toLowerCase()] || 'X';
+            if (!prefix) {
+                throw new Error('Invalid category name for SKU generation');
+            }
 
             // Find the last product with a SKU matching the pattern NY[prefix]XXXXXX
             const lastProduct = await ProductModel.findOne({ 
@@ -207,11 +204,12 @@ export const getFilteredProducts = async (req, res) => {
             sortField, 
             sortOrder, 
             searchQuery,
-            sku, // Added SKU query parameter
+            sku,
             page = 1,
             limit = 10
         } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
+        
         let matchStage = {};
         if (category) {
             const categoryArray = category.split(",");
@@ -237,25 +235,9 @@ export const getFilteredProducts = async (req, res) => {
             const escapedSku = escapeRegExp(sku);
             matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
         }
-        let sortStage = {};
-        if (sortByPrice == "High Price" || sortByPrice == "Low Price") {
-            matchStage.sortByPrice = sortByPrice;
-            sortStage.price = sortByPrice === "High Price" ? -1 : 1;
-        } else if (sortField && sortOrder) {
-            if (sortField === "title") {
-                sortStage.title = sortOrder === "asc" ? 1 : -1;
-            } else if (sortField === "created_at") {
-                sortStage.created_at = sortOrder === "asc" ? 1 : -1;
-            }
-        } else {
-            sortStage.created_at = -1;
-        }
-        const auctionProducts = await auctionModel.find({}).select("product");
-        const auctionProductIds = auctionProducts.map(auction => auction.product);
-        if (auctionProductIds.length > 0) {
-            matchStage._id = { $nin: auctionProductIds };
-        }
-        const products = await ProductModel.aggregate([
+
+        // Get all products first to shuffle them
+        const allProducts = await ProductModel.aggregate([
             { $match: matchStage },
             {
                 $lookup: {
@@ -266,9 +248,6 @@ export const getFilteredProducts = async (req, res) => {
                 }
             },
             { $unwind: "$category" },
-            { $sort: sortStage },
-            { $skip: skip },
-            { $limit: parseInt(limit) },
             {
                 $project: {
                     title: 1,
@@ -285,18 +264,82 @@ export const getFilteredProducts = async (req, res) => {
                     details: 1,
                     favorite: 1,
                     link: 1,
-                    category: { _id: 1, name: 1 }
+                    category: { _id: 1, name: 1 },
+                    // Add a random field for shuffling
+                    random: { $rand: {} }
                 }
             }
         ]).allowDiskUse(true);
-        const total = await ProductModel.countDocuments(matchStage);
+
+        // Group products by category
+        const productsByCategory = allProducts.reduce((acc, product) => {
+            const categoryId = product.category._id.toString();
+            if (!acc[categoryId]) {
+                acc[categoryId] = [];
+            }
+            acc[categoryId].push(product);
+            return acc;
+        }, {});
+
+        // Shuffle products within each category
+        Object.keys(productsByCategory).forEach(categoryId => {
+            productsByCategory[categoryId].sort((a, b) => a.random - b.random);
+        });
+
+        // Interleave products from different categories
+        const shuffledProducts = [];
+        const categoryIds = Object.keys(productsByCategory);
+        let currentIndex = 0;
+        let hasMoreProducts = true;
+
+        while (hasMoreProducts) {
+            hasMoreProducts = false;
+            for (const categoryId of categoryIds) {
+                const categoryProducts = productsByCategory[categoryId];
+                if (currentIndex < categoryProducts.length) {
+                    shuffledProducts.push(categoryProducts[currentIndex]);
+                    hasMoreProducts = true;
+                }
+            }
+            currentIndex++;
+        }
+
+        // Apply sorting if specified
+        if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
+            shuffledProducts.sort((a, b) => {
+                const aPrice = parseFloat(a.estimateprice.replace(/[^0-9.-]+/g, ""));
+                const bPrice = parseFloat(b.estimateprice.replace(/[^0-9.-]+/g, ""));
+                return sortByPrice === "High Price" ? bPrice - aPrice : aPrice - bPrice;
+            });
+        } else if (sortField && sortOrder) {
+            shuffledProducts.sort((a, b) => {
+                if (sortField === "title") {
+                    return sortOrder === "asc" ? 
+                        a.title.localeCompare(b.title) : 
+                        b.title.localeCompare(a.title);
+                } else if (sortField === "created_at") {
+                    return sortOrder === "asc" ? 
+                        new Date(a.created_at) - new Date(b.created_at) : 
+                        new Date(b.created_at) - new Date(a.created_at);
+                }
+                return 0;
+            });
+        }
+
+        // Remove the random field before sending response
+        const cleanedProducts = shuffledProducts.map(({ random, ...product }) => product);
+
+        // Apply pagination
+        const paginatedProducts = cleanedProducts.slice(skip, skip + parseInt(limit));
+
         return success(res, "Products fetched successfully", { 
-            items: products,
-            total,
+            items: paginatedProducts,
+            total: cleanedProducts.length,
             page: parseInt(page),
             limit: parseInt(limit),
-            totalPages: Math.ceil(total / parseInt(limit))
+            totalPages: Math.ceil(cleanedProducts.length / parseInt(limit))
         });
+
     } catch (error) {
         console.error("GetFilteredProducts Error:", error);
         return unknownError(res, error.message || "Failed to fetch filtered products");

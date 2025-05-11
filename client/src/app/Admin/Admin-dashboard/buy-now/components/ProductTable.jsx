@@ -107,12 +107,12 @@ export default function ProductTable({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full">
       {/* Bulk Actions */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm mb-6">
         <div className="flex items-center gap-4">
           <Checkbox
-            checked={selectedProducts.length === products.length}
+            checked={selectedProducts.length === products.length && products.length > 0}
             onCheckedChange={handleSelectAll}
             className="h-5 w-5"
           />
@@ -125,7 +125,6 @@ export default function ProductTable({
             variant="outline"
             onClick={async () => {
               try {
-                // Fetch all products using the filter API with a large limit
                 const response = await fetch(`${config.baseURL}/v1/api/product/filter?limit=1000`, {
                   headers: {
                     Authorization: `${token}`,
@@ -157,111 +156,100 @@ export default function ProductTable({
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={selectedProducts.length === products.length}
-                  onCheckedChange={handleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Category</TableHead>
-              {/* <TableHead>Price</TableHead> */}
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {products.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-500">
-                  No products found
-                </TableCell>
-              </TableRow>
-            ) : (
-              products.map((product) => (
-                <TableRow 
-                  key={product._id} 
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleRowClick(product._id)}
-                >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedProducts.includes(product._id)}
-                      onCheckedChange={(checked) => handleSelectProduct(product._id, checked)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {/* <div className="relative w-12 h-12 rounded-md overflow-hidden">
-                        <Image
-                          src={product.image?.[0] || "https://via.placeholder.com/300"}
-                          alt={product.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div> */}
-                      <div>
-                        <p className="font-medium text-gray-900">{product.title}</p>
-                        <p className="text-sm text-gray-500 line-clamp-1">{product.description}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{product.category?.name || "N/A"}</Badge>
-                  </TableCell>
-                  {/* <TableCell>
-                    <span className="font-semibold text-primary">${product.price}</span>
-                  </TableCell> */}
-                  <TableCell>
-                    <Badge 
-                      variant={product.status === "Not Sold" ? "default" : "secondary"}
-                      className="capitalize"
-                    >
-                      {product.status || "N/A"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-gray-100"
-                        onClick={() => window.open(`/products/${product._id}`, '_blank')}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="hover:bg-gray-100">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <EditProductDialog
-                          product={product}
-                          fetchProducts={fetchProducts}
-                          token={token}
-                          onClose={handleCloseDialog}
-                        />
-                      </Dialog>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-red-50 text-red-500"
-                        onClick={() => handleDelete(product._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="overflow-x-auto">
+          <div className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={{ width: '50px' }}>Select</TableHead>
+                  <TableHead style={{ width: '500px' }}>Product</TableHead>
+                  <TableHead style={{ width: '200px' }}>Category</TableHead>
+                  <TableHead style={{ width: '150px' }}>Status</TableHead>
+                  <TableHead style={{ width: '150px' }} className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {products.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                      <div className="flex flex-col items-center justify-center min-h-[200px]">
+                        <p className="text-lg font-medium">No products found</p>
+                        <p className="text-sm text-gray-400">Try adjusting your filters or search query</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  products.map((product) => (
+                    <TableRow 
+                      key={product._id} 
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleRowClick(product._id)}
+                    >
+                      <TableCell style={{ width: '50px' }} onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedProducts.includes(product._id)}
+                          onCheckedChange={(checked) => handleSelectProduct(product._id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell style={{ width: '500px' }}>
+                        <div className="flex items-center gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{product.title}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell style={{ width: '200px' }}>
+                        <Badge variant="outline" className="whitespace-nowrap">{product.category?.name || "N/A"}</Badge>
+                      </TableCell>
+                      <TableCell style={{ width: '150px' }}>
+                        <Badge 
+                          variant={product.status === "Not Sold" ? "default" : "secondary"}
+                          className="capitalize whitespace-nowrap"
+                        >
+                          {product.status || "N/A"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell style={{ width: '150px' }} className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hover:bg-gray-100"
+                            onClick={() => window.open(`/products/${product._id}`, '_blank')}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="hover:bg-gray-100">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <EditProductDialog
+                              product={product}
+                              fetchProducts={fetchProducts}
+                              token={token}
+                              onClose={handleCloseDialog}
+                            />
+                          </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hover:bg-red-50 text-red-500"
+                            onClick={() => handleDelete(product._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
 
       {/* Product Details Dialog */}

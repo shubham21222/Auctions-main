@@ -49,9 +49,12 @@ export default function CatalogFooter() {
             <p className="text-gray-600">25%</p>
           </div>
           <div>
+
             <h3 className="font-semibold text-gray-900 mb-2">Terms & Conditions</h3>
             <p className="text-gray-600">
-              TERMS AND CONDITIONS This website is operated by NY Elizabeth Holdings, Inc., a Wyoming corporation...
+              <Link href="/terms" className="text-blue-600 hover:underline mt-2 inline-block">
+                TERMS AND CONDITIONS <span className="text-gray-600">This website is operated by NY Elizabeth Holdings, Inc., a Wyoming corporation...</span> 
+              </Link>
             </p>
             <Link href="/terms" className="text-luxury-gold hover:underline mt-2 inline-block">
               Read More
