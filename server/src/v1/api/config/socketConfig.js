@@ -148,7 +148,7 @@ export const initializeSocket = (server) => {
           // Emit auctionMessage with next auction details
           const message = nextActiveAuction
             ? `Auction has ended and sold. Next auction: ${nextAuctionProductName} in ${nextAuctionCatalogName}. Please join the next product auction.`
-            : "Auction has ended and sold.";
+            : "";
 
           io.to(auctionId).emit("auctionMessage", {
             auctionId,
