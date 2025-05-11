@@ -384,7 +384,7 @@ export const UpdateShipping = async (req, res) => {
         return badRequest(res, "Status is required.");
       }
   
-      const order = await Order.findById(orderId).populate("User");
+      const order = await Order.findById(orderId).populate("user");
       if (!order) {
         return badRequest(res, "Order not found.");
       }
