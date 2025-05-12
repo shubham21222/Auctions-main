@@ -18,7 +18,7 @@ import {
     onError
 } from "../../../../../src/v1/api/formatters/globalResponse.js"
 import { sendEmail } from "../../Utils/sendEmail.js"
-import {generateEmailContent} from "../../Utils/generateEmailContent.js"
+import {generateEmailContent , generateShippingStatusEmail} from "../../Utils/generateEmailContent.js"
 import { generateOrderPdfBuffer } from "../../config/generateOrderPdfBuffer.js"
 
 import mongoose from "mongoose"
@@ -384,7 +384,7 @@ export const UpdateShipping = async (req, res) => {
         return badRequest(res, "Status is required.");
       }
   
-      const order = await Order.findById(orderId);
+      const order = await Order.findById(orderId).populate("user");
       if (!order) {
         return badRequest(res, "Order not found.");
       }
@@ -406,6 +406,19 @@ export const UpdateShipping = async (req, res) => {
         },
         { new: true }
       );
+
+        // Send status-based email if user and email exist
+    if (order.user?.email) {
+      const emailData = generateShippingStatusEmail(status, order.user.name || "Customer");
+
+      if (emailData) {
+        await sendEmail({
+          to: order.user.email,
+          subject: emailData.subject,
+          html: emailData.html,
+        });
+      }
+    }
   
       return success(res, "Order status updated successfully.", updatedOrder);
     } catch (error) {

@@ -1,32 +1,92 @@
-export const generateEmailContent = (user, updatedOrder, products) => {
-    return `
-      <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-        <h2 style="color: #4CAF50;">✅ Order Confirmation</h2>
-        <p>Hi <strong>${user.name}</strong>,</p>
-  
-        <p>Thank you for your purchase! We're excited to share your order details:</p>
-  
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <p><strong>Order ID:</strong> ${updatedOrder.OrderId}</p>
-          <p><strong>Total Amount:</strong> $${updatedOrder.totalAmount.toFixed(2)}</p>
-          <p><strong>Payment Status:</strong> ${updatedOrder.paymentStatus}</p>
-          <p><strong>Order Date:</strong> ${new Date(updatedOrder.createdAt).toLocaleDateString()}</p>
-        </div>
-  
-        <h3 style="margin-bottom: 10px;">🛍️ Products Ordered:</h3>
-        ${products.map(p => {
-          const orderProduct = updatedOrder.products.find(prod => prod.product.toString() === p._id.toString());
-          return `
-            <div style="display: flex; align-items: center; margin-bottom: 15px; border: 1px solid #eee; border-radius: 6px; padding: 10px;">
-              <img src="${p.image[0]}" alt="${p.title}" style="width: 80px; height: auto; border-radius: 5px; margin-right: 15px;" />
-              <div>
-                <p style="margin: 0; font-size: 16px;"><strong>${p.title || "Unnamed Product"}</strong></p>
-              </div>
-            </div>
-          `;
-        }).join('')}
-        <p style="margin-top: 30px;">Warm regards,<br><strong>The NY Elizabeth Team</strong></p>
-      </div>
-    `;
-  };
-  
+export const generateEmailContent = (user) => {
+  return `
+    <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+      <h2 style="color: #4CAF50;">📨 Thank You for Submitting Your Offer</h2>
+      <p>Hi <strong>${user.name}</strong>,</p>
+
+      <p>Thank you for submitting your offer. At this time, your offer is under review.</p>
+
+      <p>If it is accepted, you will receive an invoice by email with instructions to complete your payment within 2 business days. 
+      Please be sure to check your spam or junk folder, as the invoice will be sent from 
+      <a href="mailto:billing@nyelizabeth.com" style="color: #4CAF50;">billing@nyelizabeth.com</a>.</p>
+
+      <p>If your offer is not accepted, your $100 deposit will be promptly refunded.</p>
+
+      <p>We appreciate your interest and look forward to assisting you.</p>
+
+      <p style="margin-top: 30px;">Warm regards,<br><strong>The NY Elizabeth Team</strong></p>
+      <p>
+        <a href="https://www.nyelizabeth.com" style="color: #4CAF50;">www.nyelizabeth.com</a><br>
+        <a href="mailto:hello@nyelizabeth.com" style="color: #4CAF50;">hello@nyelizabeth.com</a>
+      </p>
+    </div>
+  `;
+};
+
+
+
+export const generateShippingStatusEmail = (status, userName) => {
+  const commonFooter = `
+    <p style="margin-top: 30px;">Congratulations and warm regards,<br><strong>The NY Elizabeth Team</strong></p>
+    <p>
+      <a href="https://www.nyelizabeth.com" style="color: #4CAF50;">www.nyelizabeth.com</a><br>
+      <a href="mailto:hello@nyelizabeth.com" style="color: #4CAF50;">hello@nyelizabeth.com</a>
+    </p>
+  `;
+
+  switch (status) {
+    case "Processing":
+      return {
+        subject: "Offer Approved - Next Steps",
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+            <p>Hi <strong>${userName}</strong>,</p>
+            <p>Thank you for submitting your offer. Your offer has been approved. You will receive an invoice by email with instructions to complete your payment within 2 business days. 
+            Please be sure to check your spam or junk folder, as the invoice will be sent from <a href="mailto:billing@nyelizabeth.com">billing@nyelizabeth.com</a>.</p>
+            ${commonFooter}
+          </div>
+        `,
+      };
+
+    case "Shipped":
+      return {
+        subject: "Your Order Has Shipped",
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+            <p>Hi <strong>${userName}</strong>,</p>
+            <p>Your order has shipped. You will receive a tracking notification from the shipping carrier. 
+            In most cases, shipments require a signature upon delivery.</p>
+            ${commonFooter}
+          </div>
+        `,
+      };
+
+    case "Cancelled":
+      return {
+        subject: "Offer Declined - Refund in Progress",
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+            <p>Hi <strong>${userName}</strong>,</p>
+            <p>Thank you for submitting your offer. We have declined your offer. You will receive your $100 deposit back on your card within 7 business days.</p>
+            ${commonFooter}
+          </div>
+        `,
+      };
+
+    case "Delivered":
+      return {
+        subject: "Your Package Has Been Delivered",
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+            <p>Hi <strong>${userName}</strong>,</p>
+            <p>Your package has been delivered.</p>
+            ${commonFooter}
+          </div>
+        `,
+      };
+
+    default:
+      return null;
+  }
+};
+

@@ -28,7 +28,7 @@ import moment from "moment"; // Install moment.js if not installed
 import mongoose from "mongoose"
 import { response } from "express"
 import { ObjectId } from "mongodb"
-import {createAuctionCalendarEvent} from "../calenderController/googlecalander.controller.js"
+import { createAuctionCalendarEvent } from "../calenderController/googlecalander.controller.js"
 import dotenv from "dotenv"
 import { UnknownError } from "postmark/dist/client/errors/Errors.js"
 dotenv.config()
@@ -499,7 +499,7 @@ export const getbulkAuctions = async (req, res) => {
                 today.getUTCDate(),
                 0, 0, 0, 0
             ));
-            
+
             // For upcoming auctions, we want auctions that haven't ended yet
             matchStage.$or = [
                 // Auctions that haven't started yet
@@ -508,7 +508,7 @@ export const getbulkAuctions = async (req, res) => {
                 {
                     $and: [
                         { startDate: { $lte: utcToday } },
-                        { 
+                        {
                             $or: [
                                 { endDate: { $gt: utcToday } },
                                 { endDate: null }  // For live auctions without end date
@@ -517,27 +517,27 @@ export const getbulkAuctions = async (req, res) => {
                     ]
                 }
             ];
-            
+
             console.log('Filtering auctions:', {
                 localToday: today,
                 utcToday: utcToday,
                 filter: matchStage.$or
             });
         }
-             
+
 
         if (queryDate) {
             const [year, month, day] = queryDate.split("-").map(Number);
-        
+
             const selectedDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)); // Start of day UTC
             const nextDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)); // End of day UTC
-        
+
             matchStage.createdAt = {
                 $gte: selectedDate,
                 $lte: nextDate,
             };
         }
-        
+
 
         // Search by product title, description, or lot number
         if (searchQuery) {
@@ -558,7 +558,7 @@ export const getbulkAuctions = async (req, res) => {
                 matchStage["currentBid"].$lte = parseFloat(maxPrice);
             }
         }
-        
+
 
         // Filter by price range
         if (priceRange) {
@@ -1727,8 +1727,14 @@ export const placeBid = async (req, res) => {
             return badRequest(res, "This auction is no longer active.");
         }
 
-        if (new Date(findAuction.endDate).getTime() < Date.now()) {
-            return badRequest(res, "This auction has already ended.");
+        // ✅ Apply time check only for TIMED auctions
+        if (findAuction.auctionType === "TIMED") {
+            const now = new Date();
+            const end = new Date(findAuction.endDate);
+
+            if (now >= end) {
+                return badRequest(res, "This timed auction has already ended.");
+            }
         }
 
         console.log("Current Bid:", findAuction.currentBid);
@@ -2588,22 +2594,22 @@ export const getWinners = async (req, res) => {
 
 export const addcalender = async (req, res) => {
     try {
-      const user = req.user; // user object from auth middleware
-      const auctionId = req.query.auctionId;
-  
-      if (!auctionId) {
-        return badRequest(res, "Auction ID is required");
-      }
-  
-      // Call function to create event in calendar and send email
-      await createAuctionCalendarEvent(auctionId, user);
-  
-      return success(res, "Auction event added to your calendar and invite sent.");
+        const user = req.user; // user object from auth middleware
+        const auctionId = req.query.auctionId;
+
+        if (!auctionId) {
+            return badRequest(res, "Auction ID is required");
+        }
+
+        // Call function to create event in calendar and send email
+        await createAuctionCalendarEvent(auctionId, user);
+
+        return success(res, "Auction event added to your calendar and invite sent.");
     } catch (error) {
-      console.error('Add to calendar error:', error.message);
-      return unknownError(res, "Internal Error");
+        console.error('Add to calendar error:', error.message);
+        return unknownError(res, "Internal Error");
     }
-  };
+};
 
 
 
