@@ -1111,6 +1111,27 @@ export const addCard = async (req, res, next) => {
     }
   };
 
+// Check Email Exists
+export const checkEmailExists = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return badRequest(res, "Please provide an email address");
+        }
+
+        const existingUser = await User.findOne({ email });
+        
+        return success(res, "Email check completed", {
+            exists: !!existingUser,
+            email: email
+        });
+
+    } catch (error) {
+        return unknownError(res, error);
+    }
+};
+
 
 
 

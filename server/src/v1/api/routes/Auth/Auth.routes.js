@@ -1,5 +1,5 @@
 import express from "express";
-import  {register,sendVerificationMail,verifyMail, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard}  from  "../../controllers/AuthController/auth.controller.js";
+import  {register,sendVerificationMail,verifyMail, login , logout , verifyUser , forgotPassword , resetPassword , updateProfile , updatePassword , updateBillingAddress , getAllUsers , getUserById , getUserByBillingAddress, addCard, checkEmailExists}  from  "../../controllers/AuthController/auth.controller.js";
 import { IsAuthenticated ,  authorizeRoles, authorizePermission, authorizeBackendRole} from  "../../middlewares/authicationmiddleware.js"
 
 
@@ -20,5 +20,6 @@ router.post("/UpdateBillingAddress" , IsAuthenticated , updateBillingAddress)
 router.get("/getAllUsers", IsAuthenticated , authorizeBackendRole , getAllUsers);
 router.get("/getUserById/:id", IsAuthenticated  , getUserById);
 router.get("/getUserByBillingAddress/:id" , getUserByBillingAddress);
+router.post("/check-email", checkEmailExists);
 
 export default router;
