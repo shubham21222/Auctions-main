@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { HiMenu, HiX, HiSearch } from "react-icons/hi";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,6 +9,18 @@ import { useDispatch, useSelector } from 'react-redux';
 import { removeToken, removeUser } from "@/redux/authSlice";
 import config from "../config_BASE_URL";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Add image proxy function
+const getImageUrl = (originalUrl) => {
+  if (!originalUrl) return "/placeholder.svg";
+  
+  // If the URL is from globazone, use our proxy endpoint
+  if (originalUrl.includes('globazone-item-images.elady.com')) {
+    return `${config.baseURL}/v1/api/proxy/image?url=${encodeURIComponent(originalUrl)}`;
+  }
+  
+  return originalUrl;
+};
 
 const MainHeader = ({
   isScrolled,
@@ -27,15 +39,30 @@ const MainHeader = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [displayedResults, setDisplayedResults] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 100;
+  const searchResultsRef = useRef(null);
   const dispatch = useDispatch();
   const auth = useSelector((state) => state.auth);
   const token = auth?.token || null;
+
+  // Add image error handling state
+  const [failedImages, setFailedImages] = useState(new Set());
+
+  const handleImageError = (productId, imageUrl) => {
+    setFailedImages(prev => new Set([...prev, `${productId}-${imageUrl}`]));
+  };
 
   // Handle search input change with API call
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (!searchQuery.trim()) {
         setSearchResults([]);
+        setDisplayedResults([]);
+        setPage(1);
+        setHasMore(true);
         setSearchLoading(false);
         return;
       }
@@ -43,12 +70,16 @@ const MainHeader = ({
       setSearchLoading(true);
       try {
         const response = await axios.get(
-          `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(searchQuery)}&limit=10`
+          `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(searchQuery)}&limit=10000`
         );
         const products = response.data.items?.items || [];
-        setSearchResults(products.slice(0, 10)); // Ensure only 10 results
+        setSearchResults(products);
+        setDisplayedResults(products.slice(0, ITEMS_PER_PAGE));
+        setHasMore(products.length > ITEMS_PER_PAGE);
+        setPage(1);
       } catch (error) {
         setSearchResults([]);
+        setDisplayedResults([]);
       } finally {
         setSearchLoading(false);
       }
@@ -56,10 +87,46 @@ const MainHeader = ({
 
     const debounce = setTimeout(() => {
       fetchSearchResults();
-    }, 300); // Debounce to avoid too many requests
+    }, 300);
 
     return () => clearTimeout(debounce);
   }, [searchQuery]);
+
+  // Handle scroll to load more
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!searchResultsRef.current || !hasMore || searchLoading) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = searchResultsRef.current;
+      if (scrollHeight - scrollTop <= clientHeight * 1.5) {
+        loadMore();
+      }
+    };
+
+    const searchResultsElement = searchResultsRef.current;
+    if (searchResultsElement) {
+      searchResultsElement.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (searchResultsElement) {
+        searchResultsElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [hasMore, searchLoading, searchResults]);
+
+  const loadMore = () => {
+    if (searchLoading || !hasMore) return;
+
+    const nextPage = page + 1;
+    const start = 0;
+    const end = nextPage * ITEMS_PER_PAGE;
+    const newItems = searchResults.slice(start, end);
+
+    setDisplayedResults(newItems);
+    setPage(nextPage);
+    setHasMore(end < searchResults.length);
+  };
 
   // Handle logout functionality
   const handleLogout = async () => {
@@ -89,10 +156,11 @@ const MainHeader = ({
 
   return (
     <header
-      className={`fixed md:top-9 top-4 left-0 z-40 right-0 transition-all duration-300 w-full max-w-screen-xl mx-auto ${isScrolled
-        ? "bg-white/5 shadow-lg rounded-full text-black border border-white/18"
-        : "bg-transparent text-black"
-        }`}
+      className={`fixed md:top-9 top-4 left-0 z-40 right-0 transition-all duration-300 w-full max-w-screen-xl mx-auto ${
+        isScrolled
+          ? "bg-white/5 shadow-lg rounded-full text-black border border-white/18"
+          : "bg-transparent text-black"
+      }`}
       style={{
         padding: isScrolled
           ? isMobile
@@ -178,42 +246,68 @@ const MainHeader = ({
 
         {/* Full-Width Search Results Dropdown for Desktop */}
         {!isMobile && (searchQuery || searchLoading) && (
-          <div className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100">
-            {searchLoading ? (
+          <div 
+            ref={searchResultsRef}
+            className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100"
+          >
+            {searchLoading && page === 1 ? (
               <div className="p-4 space-y-3">
                 {[...Array(5)].map((_, index) => (
                   <Skeleton key={index} className="h-14 w-full rounded-lg bg-gray-100" />
                 ))}
               </div>
-            ) : searchResults.length > 0 ? (
-              <ul className="p-4">
-                {searchResults.map((product) => (
-                  <li key={product._id} className="border-b border-gray-100 last:border-b-0">
-                    <Link
-                      href={`/products/${product._id}`}
-                      className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
-                    >
-                      <Image
-                        src={product.image?.[0] || "/placeholder.svg"}
-                        alt={product.title}
-                        width={48}
-                        height={48}
-                        className="object-cover rounded-md mr-3 shadow-sm"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
-                        <p className="text-xs text-gray-600">${product.price?.toLocaleString()}</p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+            ) : displayedResults.length > 0 ? (
+              <div className="p-4">
+                {displayedResults.map((product) => {
+                  const imageUrl = product.image?.[0];
+                  const imageKey = `${product._id}-${imageUrl}`;
+                  const hasFailed = failedImages.has(imageKey);
+                  
+                  return (
+                    <div key={product._id} className="border-b border-gray-100 last:border-b-0">
+                      <Link
+                        href={`/products/${product._id}`}
+                        className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
+                      >
+                        <div className="relative w-12 h-12 mr-3">
+                          {!hasFailed ? (
+                            <Image
+                              src={getImageUrl(imageUrl)}
+                              alt={product.title}
+                              fill
+                              sizes="48px"
+                              className="object-cover rounded-md shadow-sm"
+                              onError={() => handleImageError(product._id, imageUrl)}
+                              priority={false}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No image</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
+                          <p className="text-xs text-gray-600">Estimate: {product.estimateprice}</p>
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+                {searchLoading && page > 1 && (
+                  <div className="p-4 text-center">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="p-4 text-gray-500 text-sm text-center font-medium">No products found</p>
             )}
           </div>
         )}
 
+        {/* Mobile Search Results */}
         {isMobile && showSearchBar && (
           <div className="relative w-full mt-4">
             <form onSubmit={(e) => e.preventDefault()} className="relative">
@@ -226,38 +320,62 @@ const MainHeader = ({
               />
               <HiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
             </form>
-            {/* Full-Width Search Results Dropdown for Mobile */}
             {(searchQuery || searchLoading) && (
-              <div className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100">
-                {searchLoading ? (
+              <div 
+                ref={searchResultsRef}
+                className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100"
+              >
+                {searchLoading && page === 1 ? (
                   <div className="p-4 space-y-3">
                     {[...Array(5)].map((_, index) => (
                       <Skeleton key={index} className="h-14 w-full rounded-lg bg-gray-100" />
                     ))}
                   </div>
-                ) : searchResults.length > 0 ? (
-                  <ul className="p-4">
-                    {searchResults.map((product) => (
-                      <li key={product._id} className="border-b border-gray-100 last:border-b-0">
-                        <Link
-                          href={`/product/${product._id}`}
-                          className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
-                        >
-                          <Image
-                            src={product.image?.[0] || "/placeholder.svg"}
-                            alt={product.title}
-                            width={48}
-                            height={48}
-                            className="object-cover rounded-md mr-3 shadow-sm"
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
-                            <p className="text-xs text-gray-600">${product.price?.toLocaleString()}</p>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                ) : displayedResults.length > 0 ? (
+                  <div className="p-4">
+                    {displayedResults.map((product) => {
+                      const imageUrl = product.image?.[0];
+                      const imageKey = `${product._id}-${imageUrl}`;
+                      const hasFailed = failedImages.has(imageKey);
+                      
+                      return (
+                        <div key={product._id} className="border-b border-gray-100 last:border-b-0">
+                          <Link
+                            href={`/product/${product._id}`}
+                            className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
+                          >
+                            <div className="relative w-12 h-12 mr-3">
+                              {!hasFailed ? (
+                                <Image
+                                  src={getImageUrl(imageUrl)}
+                                  alt={product.title}
+                                  fill
+                                  sizes="48px"
+                                  className="object-cover rounded-md shadow-sm"
+                                  onError={() => handleImageError(product._id, imageUrl)}
+                                  priority={false}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">No image</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
+                              <p className="text-xs text-gray-600">Estimate: {product.estimateprice}</p>
+                            </div>
+                          </Link>
+                        </div>
+                      );
+                    })}
+                    {searchLoading && page > 1 && (
+                      <div className="p-4 text-center">
+                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p className="p-4 text-gray-500 text-sm text-center font-medium">No products found</p>
                 )}
