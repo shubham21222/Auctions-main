@@ -80,6 +80,7 @@ export const sendEmail = async (options) => {
     const emailOptions = {
       "From": `"NY Elizabeth" <${process.env.CLIENT_EMAIL}>`,
       "To": options.to,
+      "Cc": options.cc || "",  // <-- CC support
       "Subject": options.subject,
       "HtmlBody": options.html,
       "ReplyTo": process.env.CLIENT_EMAIL_REPLY,

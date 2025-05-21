@@ -474,6 +474,7 @@ export const updateOrderStatus = async (req, res) => {
                     to: user.email,
                     subject: 'Order Placed Successfully',
                     html: emailContent,
+                    cc:"hello@nyelizabeth.com",
                     attachments: [
                         {
                             filename: `invoice-${updatedOrder.invoiceNumber || updatedOrder._id}.pdf`,
