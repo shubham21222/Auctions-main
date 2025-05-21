@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import ProductDetails from "./components/ProductDetails";
+import ProductImageGallery from "./components/ProductImageGallery";
 import config from "@/app/config_BASE_URL";
-import Image from "next/image";
 import { VerificationModal } from "@/app/components/VerificationModal";
 import LoginModal from "@/app/components/LoginModal";
 import SignupModal from "@/app/components/SignupModal";
@@ -18,7 +18,6 @@ export default function ProductPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -69,10 +68,6 @@ export default function ProductPage() {
       setIsLoading(false);
     }
   }, [slug]);
-
-  const handleImageClick = (index) => {
-    setSelectedImageIndex(index);
-  };
 
   const handleAction = (action) => {
     console.log("Full Auth state:", JSON.stringify(auth, null, 2)); // Detailed debug log
@@ -136,52 +131,10 @@ export default function ProductPage() {
         <main className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_700px] gap-12">
             <div className="space-y-6">
-              {isLoading ? (
-                <div className="space-y-4">
-                  <div className="aspect-square rounded-xl overflow-hidden shadow-xl">
-                    <div className="w-full h-full bg-gray-300 animate-pulse"></div>
-                  </div>
-                  <div className="flex gap-2">
-                    {[...Array(3)].map((_, index) => (
-                      <div key={index} className="w-20 h-20 bg-gray-300 animate-pulse rounded-md"></div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-4">
-                  {/* Thumbnails on left */}
-                  <div className="flex flex-col gap-4 w-[120px]">
-                    {product.images.map((image, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleImageClick(index)}
-                        className={`relative aspect-square overflow-hidden rounded-lg bg-gray-50
-                                  hover:ring-2 ring-luxury-gold/50 transition-all duration-300
-                                  cursor-pointer transform hover:scale-95 active:scale-90
-                                  shadow-sm hover:shadow-md ${selectedImageIndex === index ? 'ring-2 ring-luxury-gold' : ''}`}
-                      >
-                        <Image
-                          src={image}
-                          alt={`${product.name} thumbnail ${index + 1}`}
-                          fill
-                          className="object-cover transition-transform duration-300 hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors duration-300" />
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Main Image */}
-                  <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-gray-50 shadow-md max-w-[600px] mx-auto">
-                    <Image
-                      src={product.images[selectedImageIndex] || "/placeholder.svg"}
-                      alt={product.name}
-                      fill
-                      className="object-contain transition-transform duration-300 hover:scale-105"
-                    />
-                  </div>
-                </div>
-              )}
+              <ProductImageGallery 
+                isLoading={isLoading}
+                product={product}
+              />
             </div>
             <ProductDetails
               isLoading={isLoading}

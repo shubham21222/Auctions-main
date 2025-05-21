@@ -12,7 +12,9 @@ import { registerUser, updatePaymentMethod, verifyEmail } from "@/redux/authSlic
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe('pk_live_5g1wJkC7k0nwGoGDbLp6zVBZ');
+
+//pk_live_5g1wJkC7k0nwGoGDbLp6zVBZ
+const stripePromise = loadStripe('pk_test_51PAs60SB7WwtOtybIdvkn8Cre8ZL9v5RJc61u8kzkKYZEsQbsMK6hLTZGIRoF0VKePdCk4iHQzh3Rxrd4sqaN1xM00NO4Zh4S6');
 
 const PaymentForm = ({ token, onSuccess, billingDetails, email, dispatch }) => {
   const stripe = useStripe();
@@ -141,6 +143,8 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [token, setLocalToken] = useState(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [billingDetails, setBillingDetails] = useState({
     firstName: "",
     lastName: "",
@@ -286,6 +290,53 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
     }
   };
 
+  // Modify the email check function
+  const checkEmailExists = async (emailToCheck) => {
+    if (!emailToCheck || !emailToCheck.includes('@')) return false;
+    
+    setCheckingEmail(true);
+    setEmailError("");
+    try {
+      const response = await axios.post(
+        `${config.baseURL}/v1/api/auth/check-email`,
+        { email: emailToCheck }
+      );
+      
+      if (response.data.items?.exists) {
+        setEmailError("This email is already registered. Please try logging in instead.");
+        toast.error("This email is already registered. Please try logging in instead.", {
+          duration: 5000,
+        });
+        // Optionally redirect to login after a delay
+        setTimeout(() => {
+          onClose();
+          onOpenLogin();
+        }, 2000);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking email:", error);
+      setEmailError("Error checking email. Please try again.");
+      return false;
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
+
+  // Modify the Next button click handler in step 1
+  const handleStep1Next = async () => {
+    if (!acceptedTerms || !name || !email) return;
+    
+    setLoading(true);
+    const emailExists = await checkEmailExists(email);
+    setLoading(false);
+    
+    if (!emailExists) {
+      setStep(2);
+    }
+  };
+
   return (
     <>
       {/* <Toaster 
@@ -386,6 +437,11 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                   exit={{ opacity: 0, x: 20 }}
                   className="mt-6 sm:mt-8"
                 >
+                  {emailError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600">{emailError}</p>
+                    </div>
+                  )}
                   <p className="text-sm text-center text-gray-600 mb-6 sm:mb-8">
                     Creating an account allows you to place absentee and live bids, view auction
                     results, discover more, stay up to date, and manage your activity.
@@ -411,11 +467,17 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                       <input
                         type="email"
                         placeholder="Enter your email"
-                        className="input input-bordered w-full"
+                        className={`input input-bordered w-full ${emailError ? 'border-red-500' : ''}`}
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailError(""); // Clear error when user types
+                        }}
                         required
                       />
+                      {emailError && (
+                        <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                      )}
                     </div>
                     <div className="flex items-start">
                       <input
@@ -434,10 +496,10 @@ const SignupModal = ({ isOpen, onClose, onOpenLogin }) => {
                     </div>
                     <button
                       className="btn btn-primary w-full mt-4 sm:mt-6"
-                      onClick={() => setStep(2)}
-                      disabled={!acceptedTerms || !name || !email}
+                      onClick={handleStep1Next}
+                      disabled={!acceptedTerms || !name || !email || loading}
                     >
-                      Next
+                      {loading ? "Checking..." : "Next"}
                     </button>
                   </div>
                 </motion.div>

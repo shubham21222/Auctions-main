@@ -382,7 +382,6 @@ export default function AuctionCalendar() {
     setLoading(true);
     try {
       const headers = token ? { Authorization: `${token}` } : {};
-      // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const url = `${config.baseURL}/v1/api/auction/bulk?_t=${timestamp}`;
       
