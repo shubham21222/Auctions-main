@@ -49,7 +49,8 @@ export const createSeller = async (req, res) => {
 
         if (createSeller) {
             // Respond first
-            sendResponse(res, created, "Seller created successfully", createSeller);
+            // sendResponse(res, created, "Seller created successfully", createSeller);
+            success(res , "created" ,createSeller )
 
             // Email sending can happen after response
             setImmediate(async () => {
