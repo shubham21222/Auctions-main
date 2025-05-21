@@ -125,15 +125,25 @@ export const getAllSellers = async (req, res) => {
             .limit(limit);
 
         if (!allSellers.length) {
-            return sendResponse(res, notFound, "No sellers found");
+            // return sendResponse(res, notFound, "No sellers found");
+            return badRequest(res , "No sellers found")
         }
 
-        return sendResponse(res, success, "All Sellers", {
-            sellers: allSellers,
+        // return sendResponse(res, "All Sellers", {
+        //     sellers: allSellers,
+        //     totalSellers,
+        //     currentPage: page,
+        //     totalPages: Math.ceil(totalSellers / limit),
+        // });
+
+        return success(res , "All Sellers" , {
+              sellers: allSellers,
             totalSellers,
             currentPage: page,
             totalPages: Math.ceil(totalSellers / limit),
-        });
+        })
+
+
     } catch (error) {
         console.log(error);
         return unknownError(res, error.message);
@@ -165,9 +175,11 @@ export const getSellerById = async (req, res) => {
             select: 'name email'
         })
         if (seller) {
-            return sendResponse(res, success, "Seller", seller);
+            // return sendResponse(res, success, "Seller", seller);
+            return success(res , "Seller" , Seller)
         } else {
-            return sendResponse(res, notFound, "Seller not found");
+            // return sendResponse(res, notFound, "Seller not found");
+             return badRequest(res , "not found")
         }
     } catch (error) {
         console.log(error);
@@ -200,7 +212,8 @@ export const approveSeller = async (req, res) => {
         );
 
         if (!seller) {
-            return sendResponse(res, notFound, "Seller not found");
+            // return sendResponse(res, notFound, "Seller not found");
+            return badRequest(res , "seller not found")
         }
 
        return created(res, "Seller approved successfully", seller);
@@ -224,9 +237,10 @@ export const updateSeller = async (req, res) => {
             runValidators: true,
         });
         if (updatedSeller) {
-            return sendResponse(res, success, "Seller updated successfully", updatedSeller);
+            // return sendResponse(res, success, "Seller updated successfully", updatedSeller);
+            return success(res , "Seller updated successfully" , updatedSeller)
         } else {
-            return sendResponse(res, notFound, "Seller not found");
+            return badRequest(res , "seller not updated")
         }
     } catch (error) {
         return unknownError(res, error.message);
@@ -245,9 +259,11 @@ export const deleteSeller = async (req, res) => {
         }
         const deletedSeller = await sellerModel.findByIdAndDelete(id);
         if (deletedSeller) {
-            return sendResponse(res, success, "Seller deleted successfully");
+            // return sendResponse(res, success, "Seller deleted successfully");
+            return success(res , "Seller deleted successfully")
         } else {
-            return sendResponse(res, notFound, "Seller not found");
+            // return sendResponse(res, notFound, "Seller not found");
+            return badRequest(res , "seller not found")
         }
     } catch (error) {
         return unknownError(res, error.message);
