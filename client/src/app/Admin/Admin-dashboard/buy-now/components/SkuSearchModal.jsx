@@ -52,6 +52,8 @@ export default function SkuSearchModal({ isOpen, onClose, onProductFound }) {
   const handleSelectProduct = () => {
     if (foundProduct) {
       onProductFound([foundProduct]);
+      setSku("");
+      setFoundProduct(null);
       onClose();
     }
   };

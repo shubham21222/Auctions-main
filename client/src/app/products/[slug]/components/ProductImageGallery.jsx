@@ -49,7 +49,7 @@ export default function ProductImageGallery({ isLoading, product }) {
         } else if (isRightSwipe) {
             prevImage();
         }
-
+    
         setTouchStart(null);
         setTouchEnd(null);
     };

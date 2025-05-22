@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard", icon: Home, label: "Dashboard" },
     // "Auctions" will be handled separately as a dropdown
     { href: "/Admin/Admin-dashboard/buy-now", icon: ShoppingCart, label: "Buy Now" },
-    { href: "/Admin/Admin-dashboard/private-sales", icon: DollarSign, label: "Private Sales" },
+    // { href: "/Admin/Admin-dashboard/private-sales", icon: DollarSign, label: "Private Sales" },
     { href: "/Admin/Admin-dashboard/category", icon: Tag, label: "Category" },
     { href: "/Admin/Admin-dashboard/orders", icon: Truck, label: "Orders" },
     { href: "/Admin/Admin-dashboard/users", icon: Users, label: "Users" },

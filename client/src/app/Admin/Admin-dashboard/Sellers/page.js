@@ -4,12 +4,23 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
 
 const SellersPage = () => {
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedSeller, setSelectedSeller] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
   const limit = 10;
 
   // Get token from Redux store (assuming auth slice)
@@ -40,10 +51,9 @@ const SellersPage = () => {
         }
 
         const data = await response.json();
-        if (data.status === "All Sellers") {
-          setSellers(data.message.sellers || []);
-          setTotalPages(data.message.totalPages || 1);
-          toast.success("Sellers fetched successfully!");
+        if (data.status === true) {
+          setSellers(data.items.sellers || []);
+          setTotalPages(data.items.totalPages || 1);
         } else {
           throw new Error("API returned unsuccessful response");
         }
@@ -83,12 +93,12 @@ const SellersPage = () => {
 
       const result = await response.json();
       toast.success("Seller approved successfully!");
-      // Update local state to reflect approval
       setSellers((prevSellers) =>
         prevSellers.map((seller) =>
           seller._id === sellerId ? { ...seller, Approved: true } : seller
         )
       );
+      setSelectedSeller(prev => prev?._id === sellerId ? { ...prev, Approved: true } : prev);
     } catch (error) {
       console.error("Error approving seller:", error);
       toast.error("Failed to approve seller!");
@@ -119,8 +129,11 @@ const SellersPage = () => {
       }
 
       toast.success("Seller deleted successfully!");
-      // Remove seller from local state
       setSellers((prevSellers) => prevSellers.filter((seller) => seller._id !== sellerId));
+      if (selectedSeller?._id === sellerId) {
+        setSelectedSeller(null);
+        setShowDetails(false);
+      }
     } catch (error) {
       console.error("Error deleting seller:", error);
       toast.error("Failed to delete seller!");
@@ -133,6 +146,236 @@ const SellersPage = () => {
     }
   };
 
+  const SellerCard = ({ seller }) => (
+    <div
+      onClick={() => {
+        setSelectedSeller(seller);
+        setShowDetails(true);
+      }}
+      className=" p-6 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            {seller.General?.object || "Unnamed Item"}
+          </h2>
+          <Badge variant={seller.Approved ? "success" : "warning"} className="mb-2">
+            {seller.Approved ? "Approved" : "Pending"}
+          </Badge>
+        </div>
+        {seller.Documents?.frontImage && (
+          <img
+            src={seller.Documents.frontImage}
+            alt={seller.General?.object}
+            className="w-20 h-20 object-cover rounded-lg"
+          />
+        )}
+      </div>
+
+      <div className="space-y-2 text-sm text-gray-600">
+        <p>
+          <span className="font-medium">Category:</span> {seller.category?.name}
+        </p>
+        <p>
+          <span className="font-medium">Seller:</span> {seller.createdBy?.name}
+        </p>
+        <p>
+          <span className="font-medium">Email:</span> {seller.createdBy?.email}
+        </p>
+        <p>
+          <span className="font-medium">Location:</span>{" "}
+          {`${seller.logistic_info?.city}, ${seller.logistic_info?.country}`}
+        </p>
+        <p>
+          <span className="font-medium">Created:</span>{" "}
+          {format(new Date(seller.createdAt), "MMM d, yyyy")}
+        </p>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        {!seller.Approved && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleApprove(seller._id);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors text-sm"
+          >
+            Approve
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(seller._id);
+          }}
+          className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors text-sm"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+
+  const SellerDetails = ({ seller }) => (
+    <Dialog open={showDetails} onOpenChange={setShowDetails}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">
+            Seller Details - {seller.General?.object}
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="general">General Info</TabsTrigger>
+            <TabsTrigger value="details">Item Details</TabsTrigger>
+            <TabsTrigger value="logistics">Logistics</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold mb-2">Basic Information</h3>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Status:</span> <Badge variant={seller.Approved ? "success" : "warning"}>{seller.Approved ? "Approved" : "Pending"}</Badge></p>
+                  <p><span className="font-medium">Category:</span> {seller.category?.name}</p>
+                  <p><span className="font-medium">Created:</span> {format(new Date(seller.createdAt), "PPpp")}</p>
+                  <p><span className="font-medium">Last Updated:</span> {format(new Date(seller.updatedAt), "PPpp")}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Seller Information</h3>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Name:</span> {seller.createdBy?.name}</p>
+                  <p><span className="font-medium">Email:</span> {seller.createdBy?.email}</p>
+                  {seller.ApprovedBy && (
+                    <p><span className="font-medium">Approved By:</span> {seller.ApprovedBy.name}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="details" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold mb-2">General Details</h3>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(seller.General || {}).map(([key, value]) => (
+                    value && <p key={key}><span className="font-medium">{key}:</span> {value}</p>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Measurements & Condition</h3>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(seller.Measurement || {}).map(([key, value]) => (
+                    value && <p key={key}><span className="font-medium">{key}:</span> {value}</p>
+                  ))}
+                  {Object.entries(seller.Condition || {}).map(([key, value]) => (
+                    value && <p key={key}><span className="font-medium">{key}:</span> {value}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {seller.Provenance && Object.values(seller.Provenance).some(Boolean) && (
+              <div>
+                <h3 className="font-semibold mb-2">Provenance</h3>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(seller.Provenance).map(([key, value]) => (
+                    value && <p key={key}><span className="font-medium">{key}:</span> {value}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="logistics" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold mb-2">Contact Information</h3>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Name:</span> {seller.logistic_info?.firstName} {seller.logistic_info?.lastName}</p>
+                  <p><span className="font-medium">Email:</span> {seller.logistic_info?.email}</p>
+                  <p><span className="font-medium">Phone:</span> {seller.logistic_info?.phone || "N/A"}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Location</h3>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Country:</span> {seller.logistic_info?.country}</p>
+                  <p><span className="font-medium">State:</span> {seller.logistic_info?.state || "N/A"}</p>
+                  <p><span className="font-medium">City:</span> {seller.logistic_info?.city}</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">Shipping Information</h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">Same Location:</span> {seller.logistic_info?.samelocation}</p>
+                <p><span className="font-medium">Handling/Shipping:</span> {seller.logistic_info?.handlingshipping}</p>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {seller.Documents?.frontImage && (
+                <div>
+                  <h3 className="font-semibold mb-2">Front Image</h3>
+                  <img
+                    src={seller.Documents.frontImage}
+                    alt="Front"
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+              {seller.Documents?.backImage && (
+                <div>
+                  <h3 className="font-semibold mb-2">Back Image</h3>
+                  <img
+                    src={seller.Documents.backImage}
+                    alt="Back"
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+            </div>
+            {seller.Documents?.detailImage && (
+              <div>
+                <h3 className="font-semibold mb-2">Detail Image</h3>
+                <img
+                  src={seller.Documents.detailImage}
+                  alt="Detail"
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-6 flex justify-end gap-2">
+          {!seller.Approved && (
+            <button
+              onClick={() => handleApprove(seller._id)}
+              className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
+            >
+              Approve Seller
+            </button>
+          )}
+          <button
+            onClick={() => handleDelete(seller._id)}
+            className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+          >
+            Delete Seller
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
@@ -142,60 +385,15 @@ const SellersPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6">
+    <div className="min-h-screen p-6">
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">Sellers Dashboard</h1>
 
         {/* Sellers Grid */}
         {sellers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sellers.map((seller) => (
-              <div
-                key={seller._id}
-                className="bg-gray-50 p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300"
-              >
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {seller.General?.object || "Unnamed Item"}
-                </h2>
-                <p className="text-gray-600">
-                  Artist: {seller.General?.Artist || "Unknown"}
-                </p>
-                <p className="text-gray-600">
-                  Category: {seller.category?.name || "N/A"}
-                </p>
-                <p className="text-gray-600">
-                  Seller: {seller.createdBy?.name || "Unknown"} (
-                  {seller.createdBy?.email || "No email"})
-                </p>
-                <p className="text-gray-600">
-                  Price: ${seller.price?.paidPrice || "N/A"} (
-                  {seller.price?.currency || "N/A"})
-                </p>
-                <p className="text-gray-600">
-                  Approved: {seller.Approved ? "Yes" : "No"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Created: {new Date(seller.createdAt).toLocaleDateString()}
-                </p>
-
-                {/* Action Buttons */}
-                <div className="mt-4 flex gap-2">
-                  {!seller.Approved && (
-                    <button
-                      onClick={() => handleApprove(seller._id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
-                    >
-                      Approve
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(seller._id)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+              <SellerCard key={seller._id} seller={seller} />
             ))}
           </div>
         ) : (
@@ -222,6 +420,9 @@ const SellersPage = () => {
             Next
           </button>
         </div>
+
+        {/* Seller Details Modal */}
+        {selectedSeller && <SellerDetails seller={selectedSeller} />}
       </div>
     </div>
   );

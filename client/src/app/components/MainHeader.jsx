@@ -69,8 +69,10 @@ const MainHeader = ({
 
       setSearchLoading(true);
       try {
+        // Convert search query to lowercase for case-insensitive search
+        const normalizedQuery = searchQuery.toLowerCase().trim();
         const response = await axios.get(
-          `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(searchQuery)}&limit=10000`
+          `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(normalizedQuery)}&limit=10000`
         );
         const products = response.data.items?.items || [];
         setSearchResults(products);
@@ -78,6 +80,7 @@ const MainHeader = ({
         setHasMore(products.length > ITEMS_PER_PAGE);
         setPage(1);
       } catch (error) {
+        console.error("Search error:", error);
         setSearchResults([]);
         setDisplayedResults([]);
       } finally {

@@ -267,10 +267,40 @@ export default function BuyNow() {
     setCurrentPage(1);
   };
 
-  const handleProductFound = (product) => {
-    // If the product is not already in the list, add it
-    if (!products.some(p => p._id === product._id)) {
-      setProducts(prev => [product, ...prev]);
+  const handleProductFound = (newProducts) => {
+    // Filter out products that already exist in the current products list
+    const uniqueProducts = newProducts.filter(newProduct => 
+      !products.some(existingProduct => existingProduct._id === newProduct._id)
+    );
+    
+    if (uniqueProducts.length > 0) {
+      // Add new products to the beginning of the list
+      setProducts(prevProducts => [...uniqueProducts, ...prevProducts]);
+      
+      // Also add the new products to selectedProducts
+      setSelectedProducts(prevSelected => {
+        const newSelectedIds = uniqueProducts.map(p => p._id);
+        return [...new Set([...prevSelected, ...newSelectedIds])];
+      });
+      
+      toast.success(`Added and selected ${uniqueProducts.length} product(s)`);
+      // Refresh the product list to ensure everything is in sync
+      fetchProducts();
+    } else {
+      // If products already exist, just select them
+      const existingProductIds = newProducts
+        .filter(newProduct => products.some(p => p._id === newProduct._id))
+        .map(p => p._id);
+      
+      if (existingProductIds.length > 0) {
+        setSelectedProducts(prevSelected => {
+          const newSelected = [...new Set([...prevSelected, ...existingProductIds])];
+          return newSelected;
+        });
+        toast.info(`Selected ${existingProductIds.length} existing product(s)`);
+      } else {
+        toast.info("No products to select");
+      }
     }
   };
 

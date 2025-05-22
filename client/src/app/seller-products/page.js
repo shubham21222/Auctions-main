@@ -17,7 +17,6 @@ import { Toaster } from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
 // Map category names to their ItemForm components
 const formMap = {
-  "OTHERS": OthersItemForm,
   "MODERN ART": ModernArtItemForm,
   "JEWELRY": JewelryItemForm,
   "FINE ART": FineArtItemForm,
@@ -42,10 +41,9 @@ export default function Home() {
           setCategories(data.items);
           // Dynamically create categoryForms based on fetched categories
           const dynamicCategoryForms = data.items.reduce((acc, category) => {
-            const itemForm = formMap[category.name];
-            if (itemForm) {
-              acc[category._id] = { itemForm };
-            }
+            // Use OthersItemForm as default for any category not in formMap
+            const itemForm = formMap[category.name] || OthersItemForm;
+            acc[category._id] = { itemForm };
             return acc;
           }, {});
           setCategoryForms(dynamicCategoryForms);
@@ -65,7 +63,7 @@ export default function Home() {
   return (
     <>
       <Header />
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center ">
         <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6">
           {/* <Toaster position="top-right" /> */}
           {currentStep === 1 && (
