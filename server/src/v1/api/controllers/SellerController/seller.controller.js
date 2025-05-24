@@ -228,10 +228,6 @@ export const approveSeller = async (req, res) => {
 export const updateSeller = async (req, res) => {
     try {
         const { id } = req.params;
-        const isValidId = await isValidObjectId(res, id);
-        if (!isValidId) {
-            return badRequest(res, "Invalid seller ID");
-        }
         const updatedSeller = await sellerModel.findByIdAndUpdate(id, req.body, {
             new: true,
             runValidators: true,
@@ -253,10 +249,6 @@ export const updateSeller = async (req, res) => {
 export const deleteSeller = async (req, res) => {
     try {
         const { id } = req.params;
-        const isValidId = await isValidObjectId(res, id);
-        if (!isValidId) {
-            return badRequest(res, "Invalid seller ID");
-        }
         const deletedSeller = await sellerModel.findByIdAndDelete(id);
         if (deletedSeller) {
             // return sendResponse(res, success, "Seller deleted successfully");
