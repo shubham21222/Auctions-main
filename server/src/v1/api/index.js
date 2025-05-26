@@ -12,6 +12,7 @@ import brands from "./routes/brands/brands.routes.js";
 import rolePermissions from "./routes/RolePermission/role-permissions.route.js";
 import userRoute from "./routes/User/user.route.js";
 import newsLetter from "./routes/newsletter/newsletter.routes.js";
+import pastAuctionRoutes from "./routes/PastAuction/pastAuction.routes.js";
 
 const router = Router();
 
@@ -66,6 +67,9 @@ router.use("/user", userRoute);
 // Add API routes here for NewsLetter //
 
 router.use("/newsletter", newsLetter);
+
+// Add API routes here for Past Auction //
+router.use("/past-auction", pastAuctionRoutes);
 
 
 

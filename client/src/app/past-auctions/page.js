@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,12 +14,97 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import config from "@/app/config_BASE_URL";
 import { format } from "date-fns";
+import useEmblaCarousel from 'embla-carousel-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import axios from 'axios';
+
+const ProductCarousel = ({ images }) => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [prevBtnEnabled, setPrevBtnEnabled] = useState(false);
+  const [nextBtnEnabled, setNextBtnEnabled] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setPrevBtnEnabled(emblaApi.canScrollPrev());
+    setNextBtnEnabled(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+  }, [emblaApi, onSelect]);
+
+  if (!images || images.length === 0) {
+    return (
+      <div className="aspect-square relative rounded-lg overflow-hidden border bg-gray-100">
+        <Image
+          src="/placeholder.svg"
+          alt="No image available"
+          fill
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative group">
+      <div className="overflow-hidden rounded-lg" ref={emblaRef}>
+        <div className="flex">
+          {images.map((image, index) => (
+            <div key={index} className="flex-[0_0_100%] min-w-0 relative aspect-square">
+              <Image
+                src={image}
+                alt={`Product image ${index + 1}`}
+                fill
+                className="object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      {images.length > 1 && (
+        <>
+          <button
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+            onClick={scrollPrev}
+            disabled={!prevBtnEnabled}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+            onClick={scrollNext}
+            disabled={!nextBtnEnabled}
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, index) => (
+              <div
+                key={index}
+                className="w-2 h-2 rounded-full bg-white/50"
+                style={{
+                  backgroundColor: emblaApi?.selectedScrollSnap() === index ? 'white' : 'rgba(255,255,255,0.5)'
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export default function PastAuctions() {
   const [auctions, setAuctions] = useState([]);
@@ -32,67 +117,57 @@ export default function PastAuctions() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAuction, setSelectedAuction] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCatalog, setSelectedCatalog] = useState(null);
+  const [catalogProducts, setCatalogProducts] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const itemsPerPage = 6;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch API data
-        const response = await fetch(`${config.baseURL}/v1/api/auction/bulk?status=ENDED`);
-        if (!response.ok) throw new Error("Failed to fetch auctions");
-        const data = await response.json();
+        // Fetch API data using axios
+        console.log('Fetching catalogs...');
+        const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalogs`);
+        console.log('Catalogs API Response:', response.data);
+
+        // Process API data if available
+        if (response.data?.items?.catalogs) {
+          const catalogs = response.data.items.catalogs;
+          // Get first product image for each catalog
+          const catalogsWithImages = await Promise.all(
+            catalogs.map(async (catalog) => {
+              try {
+                const productsResponse = await axios.get(
+                  `${config.baseURL}/v1/api/past-auction/catalog/${catalog._id}/products`
+                );
+                const firstProduct = productsResponse.data?.items?.products?.[0];
+                return {
+                  ...catalog,
+                  firstImage: firstProduct?.images?.[0] || "/placeholder.svg"
+                };
+              } catch (err) {
+                console.error(`Error fetching first product for catalog ${catalog._id}:`, err);
+                return {
+                  ...catalog,
+                  firstImage: "/placeholder.svg"
+                };
+              }
+            })
+          );
+          setAuctions(catalogsWithImages);
+        }
 
         // Fetch scraped data
         const scrapedResponse = await fetch('/scraped_auction_data.json');
         const scrapedData = await scrapedResponse.json();
 
-        // Initialize empty arrays for both data sources
-        let apiAuctions = [];
-        let processedScrapedAuctions = [];
-
-        // Process API data if available
-        if (data?.items?.catalogs) {
-          apiAuctions = data.items.catalogs.flatMap(catalog => 
-            (catalog.auctions || []).map(auction => ({
-              ...auction,
-              catalogName: catalog.catalogName,
-              product: auction.product || { title: "Untitled Item", image: [""] },
-              source: 'api'
-            }))
-          );
-        }
-
         // Process scraped data if available
         if (Array.isArray(scrapedData)) {
-          processedScrapedAuctions = scrapedData.flatMap(auction => 
-            (auction.items || []).map(item => ({
-              _id: `scraped-${item.item_name}`,
-              title: item.item_name,
-              product: {
-                title: item.item_name,
-                image: [item.image_url],
-                description: item.image_alt,
-                estimateprice: item.price_estimate
-              },
-              lotNumber: item.item_name.split(':')[0],
-              currentBid: item.sold_price === "See Sold Price" ? "Sold" : item.sold_price,
-              winnerBidTime: auction.auction_date,
-              endDate: auction.auction_date,
-              status: "ENDED",
-              source: 'scraped',
-              catalogName: auction.auction_title,
-              location: auction.location
-            }))
-          );
+          setScrapedAuctions(scrapedData);
         }
-
-        // Combine both data sources
-        setAuctions([...apiAuctions, ...processedScrapedAuctions]);
-        setScrapedAuctions(processedScrapedAuctions);
       } catch (err) {
         console.error("Error fetching auction data:", err);
         setError(err.message);
-        // Set empty arrays as fallback
         setAuctions([]);
         setScrapedAuctions([]);
       } finally {
@@ -102,39 +177,72 @@ export default function PastAuctions() {
     fetchData();
   }, []);
 
-  const sortedAuctions = React.useMemo(() => {
+  const handleCatalogClick = async (catalogId) => {
+    setCatalogLoading(true);
+    try {
+      console.log('Fetching products for catalog:', catalogId);
+      const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalog/${catalogId}/products`);
+      console.log('Products API Response:', response.data);
+      
+      if (response.data?.items?.products) {
+        const products = response.data.items.products;
+        // Get the first product's image for the catalog preview
+        const firstProduct = products[0];
+        setCatalogProducts(products);
+        setSelectedCatalog({
+          id: catalogId,
+          firstImage: firstProduct?.images?.[0] || "/placeholder.svg"
+        });
+        setCurrentPage(1);
+      }
+    } catch (err) {
+      console.error("Error fetching catalog products:", err);
+      setError(err.message);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleBackToCatalogs = () => {
+    setSelectedCatalog(null);
+    setCatalogProducts([]);
+    setCurrentPage(1);
+  };
+
+  const sortedCatalogs = React.useMemo(() => {
     let sorted = [...auctions];
     if (sortBy === "date-ascending") {
-      sorted.sort((a, b) => new Date(a.winnerBidTime || a.endDate) - new Date(b.winnerBidTime || b.endDate));
+      sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     } else if (sortBy === "date-descending") {
-      sorted.sort((a, b) => new Date(b.winnerBidTime || b.endDate) - new Date(a.winnerBidTime || a.endDate));
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     } else if (sortBy === "title") {
-      sorted.sort((a, b) => (a.product?.title || "").localeCompare(b.product?.title || ""));
+      sorted.sort((a, b) => (a.catalogName || "").localeCompare(b.catalogName || ""));
     }
     return sorted;
   }, [auctions, sortBy]);
 
-  const filteredAuctions = React.useMemo(() => {
-    let filtered = sortedAuctions;
-    if (auctionDate) {
-      filtered = filtered.filter(
-        (auction) =>
-          auction.winnerBidTime &&
-          new Date(auction.winnerBidTime).toISOString().split("T")[0] === auctionDate
-      );
-    }
+  const filteredCatalogs = React.useMemo(() => {
+    let filtered = sortedCatalogs;
     if (searchQuery) {
-      filtered = filtered.filter((auction) =>
-        (auction.product?.title || "").toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((catalog) =>
+        (catalog.catalogName || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     return filtered;
-  }, [sortedAuctions, auctionDate, searchQuery]);
+  }, [sortedCatalogs, searchQuery]);
 
-  const totalPages = Math.ceil(filteredAuctions.length / itemsPerPage);
-  const paginatedAuctions = filteredAuctions.slice(
+  const paginatedCatalogs = filteredCatalogs.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
+  );
+
+  const paginatedProducts = catalogProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(
+    selectedCatalog ? catalogProducts.length / itemsPerPage : filteredCatalogs.length / itemsPerPage
   );
 
   const getPaginationRange = () => {
@@ -157,13 +265,13 @@ export default function PastAuctions() {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="text-center py-10 text-gray-500">Loading auctions...</div>;
+  if (loading) return <div className="text-center py-10 text-gray-500">Loading catalogs...</div>;
   if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
 
   return (
     <>
       <Header />
-      <div className="container mx-auto py-12 px-4 mt-[60px]  min-h-screen">
+      <div className="container mx-auto py-12 px-4 mt-[60px] min-h-screen">
         <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 text-gray-800 tracking-tight">
           Past Auctions
         </h1>
@@ -171,112 +279,148 @@ export default function PastAuctions() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Section */}
           <div className="space-y-6 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Search Auctions</label>
-              <Input
-                type="text"
-                placeholder="Search by title..."
-                className="w-full bg-gray-100"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
+            {selectedCatalog ? (
+              <Button
+                variant="secondary"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                onClick={handleBackToCatalogs}
+              >
+                ← Back to Catalogs
+              </Button>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Search Catalogs</label>
+                  <Input
+                    type="text"
+                    placeholder="Search by name..."
+                    className="w-full bg-gray-100"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Sort By</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full bg-gray-100">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date-ascending">Date: Ascending</SelectItem>
-                  <SelectItem value="date-descending">Date: Descending</SelectItem>
-                  <SelectItem value="title">Title (A-Z)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Sort By</label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full bg-gray-100">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-ascending">Date: Ascending</SelectItem>
+                      <SelectItem value="date-descending">Date: Descending</SelectItem>
+                      <SelectItem value="title">Name (A-Z)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Auction Date</label>
-              <Input
-                type="date"
-                className="w-full bg-gray-100"
-                value={auctionDate}
-                onChange={(e) => {
-                  setAuctionDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-
-            <Button
-              variant="secondary"
-              className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-              onClick={() => {
-                setSortBy("date-descending");
-                setAuctionDate("");
-                setSearchQuery("");
-                setCurrentPage(1);
-              }}
-            >
-              Reset Filters
-            </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  onClick={() => {
+                    setSortBy("date-descending");
+                    setSearchQuery("");
+                    setCurrentPage(1);
+                  }}
+                >
+                  Reset Filters
+                </Button>
+              </>
+            )}
           </div>
 
-          {/* Auctions Grid */}
+          {/* Content Section */}
           <div className="lg:col-span-3 space-y-6">
-            {paginatedAuctions.length > 0 ? (
-              paginatedAuctions.map((auction) => (
-                <div
-                  key={auction._id}
-                  onClick={() => handleAuctionClick(auction)}
-                  className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-                >
-                  <div className="sm:col-span-1">
-                    <div className="aspect-square relative rounded-lg overflow-hidden border">
-                      <Image
-                        src={auction.product?.image?.[0] || "/placeholder.svg"}
-                        alt={auction.product?.title || "Auction item"}
-                        fill
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                      />
+            {catalogLoading ? (
+              <div className="text-center py-10 text-gray-500">Loading products...</div>
+            ) : selectedCatalog ? (
+              // Products Grid
+              <>
+                {paginatedProducts.length > 0 ? (
+                  paginatedProducts.map((product) => (
+                    <div
+                      key={product._id}
+                      onClick={() => handleAuctionClick(product)}
+                      className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                    >
+                      <div className="sm:col-span-1">
+                        <div className="aspect-square relative rounded-lg overflow-hidden border">
+                          <ProductCarousel images={product.images} />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
+                            {product.title}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Lot Number:</span> {product.lotNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Condition:</span> {product.condition || "N/A"}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Estimate:</span> ${product.lowEstimate || "N/A"} - ${product.highEstimate || "N/A"}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">SKU:</span> {product.sku || "N/A"}
+                          </p>
+                          <div className="text-sm text-gray-600 line-clamp-2">
+                            <span className="font-medium">Description:</span>{" "}
+                            <span dangerouslySetInnerHTML={{ 
+                              __html: product.description?.replace(/<br>|<BR>/g, ' ') || "No description available" 
+                            }} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow-sm">
+                    No products found in this catalog.
                   </div>
-                  <div className="sm:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
-                        {auction.product?.title || "Untitled Item"}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Lot Number:</span> {auction.lotNumber}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Ended:</span> {format(new Date(auction.winnerBidTime || auction.endDate), "PPp")}
-                      </p>
-                      {auction.source === 'api' && (
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">Winner:</span> {auction.winner ? (typeof auction.winner === 'string' ? auction.winner : auction.winner.name) : "No winner"}
-                        </p>
-                      )}
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Final Bid:</span> {auction.currentBid}
-                      </p>
-                      {auction.location && (
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">Location:</span> {auction.location}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
+                )}
+              </>
             ) : (
-              <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow-sm">
-                No auctions found for the selected filters.
-              </div>
+              // Catalogs Grid
+              <>
+                {paginatedCatalogs.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {paginatedCatalogs.map((catalog) => (
+                      <div
+                        key={catalog._id}
+                        onClick={() => handleCatalogClick(catalog._id)}
+                        className="bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
+                      >
+                        {/* Catalog Preview Image */}
+                        <div className="aspect-video relative">
+                          <Image
+                            src={catalog.firstImage || "/placeholder.svg"}
+                            alt={catalog.catalogName}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="p-6">
+                          <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
+                            {catalog.catalogName}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-2">
+                            Created: {format(new Date(catalog.createdAt), "PPp")}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow-sm">
+                    No catalogs found for the selected filters.
+                  </div>
+                )}
+              </>
             )}
 
             {/* Pagination */}
@@ -315,84 +459,113 @@ export default function PastAuctions() {
         </div>
       </div>
 
-      {/* Auction Details Modal */}
+      {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-gray-900">
-              {selectedAuction?.product?.title || "Auction Details"}
+              {selectedAuction?.title || "Product Details"}
             </DialogTitle>
           </DialogHeader>
 
           {selectedAuction && (
             <div className="space-y-6">
-              {/* Product Images */}
-              {selectedAuction.product?.image && selectedAuction.product.image.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {selectedAuction.product.image.map((image, index) => (
-                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-                      <Image
-                        src={image}
-                        alt={`Product image ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
+              {/* Product Images Carousel */}
+              {selectedAuction.images && selectedAuction.images.length > 0 && (
+                <div className="w-full">
+                  <ProductCarousel images={selectedAuction.images} />
                 </div>
               )}
 
-              {/* Auction Details */}
+              {/* Product Details */}
               <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700 text-lg">
-                  <p><strong className="text-gray-900">Lot Number:</strong> {selectedAuction.lotNumber}</p>
-                  {selectedAuction.source === 'api' && (
-                    <>
-                      <p><strong className="text-gray-900">Starting Bid:</strong> ${Number(selectedAuction.startingBid).toFixed(2)}</p>
-                      <p><strong className="text-gray-900">Current Bid:</strong> ${Number(selectedAuction.currentBid).toFixed(2)}</p>
-                    </>
-                  )}
-                  <p><strong className="text-gray-900">Estimate Price:</strong> ${Number(selectedAuction.product?.estimateprice || 0).toFixed(2)}</p>
-                  {selectedAuction.source === 'api' && (
-                    <p><strong className="text-gray-900">Winner:</strong> {selectedAuction.winner ? (typeof selectedAuction.winner === 'string' ? selectedAuction.winner : selectedAuction.winner.name) : "No winner"}</p>
-                  )}
-                  <p><strong className="text-gray-900">Winning Time:</strong> {selectedAuction.winnerBidTime ? format(new Date(selectedAuction.winnerBidTime), "PPp") : "N/A"}</p>
-                  {selectedAuction.location && (
-                    <p><strong className="text-gray-900">Location:</strong> {selectedAuction.location}</p>
-                  )}
-                </div>
-                <div className="mt-6 text-gray-600 leading-relaxed">
-                  <strong className="text-gray-900">Description:</strong>
-                  <div className="mt-2" dangerouslySetInnerHTML={{ __html: selectedAuction.product?.description || "No description available" }} />
-                </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-semibold text-gray-900">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Lot Number</p>
+                        <p className="font-medium text-gray-900">{selectedAuction.lotNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Condition</p>
+                        <p className="font-medium text-gray-900">{selectedAuction.condition || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">SKU</p>
+                        <p className="font-medium text-gray-900">{selectedAuction.sku || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Created Date</p>
+                        <p className="font-medium text-gray-900">
+                          {format(new Date(selectedAuction.createdAt), "PPp")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Bid History - Only for API data */}
-              {selectedAuction.source === 'api' && selectedAuction.bids && (
-                <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Bid History</h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {(selectedAuction.bids || []).map((bid, index) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(selectedAuction.bids || []).length - index}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${Number(bid.bidAmount).toFixed(2)}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bid.bidTime ? format(new Date(bid.bidTime), "PPp") : "N/A"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {/* Pricing Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-semibold text-gray-900">Pricing Information</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Starting Price</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.startPrice}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Final Price</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.finalPrice}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Low Estimate</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.lowEstimate || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">High Estimate</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.highEstimate || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Reserve Price</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.reservePrice || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Online Price</p>
+                        <p className="font-medium text-gray-900">${selectedAuction.onlinePrice || "N/A"}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {/* Description */}
+                <div className="mt-8">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Description</h3>
+                  <div 
+                    className="prose prose-sm max-w-none text-gray-700"
+                    dangerouslySetInnerHTML={{ 
+                      __html: selectedAuction.description?.replace(/<br>|<BR>/g, '<br/>') || "No description available" 
+                    }}
+                  />
+                </div>
+
+                {/* Additional Information */}
+                {selectedAuction.url && (
+                  <div className="mt-6">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Additional Information</h3>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">URL:</span>{" "}
+                      <a 
+                        href={selectedAuction.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {selectedAuction.url}
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

@@ -33,13 +33,32 @@ async function forbidden(res, message) {
 
 //send validation error response -----------------------------------------------
 async function serverValidation(res, error) {
-    let responseErrors = {};
-    const errors = error.errors;
-    errors.forEach(error => {
-        const [key, value] = [error.param.toUpperCase().replace('.', '-'), error.msg.toUpperCase().replace('.', '-')]
-        responseErrors[key] = value.toUpperCase();
-    });
-    sendResponse(res, 400, false, 'Server Validation Errors', 'ValidationError', responseErrors);
+    if (error instanceof Error.ValidationError) {
+        // Handle Mongoose validation errors
+        const errors = {};
+        Object.keys(error.errors).forEach(key => {
+            errors[key] = error.errors[key].message;
+        });
+        sendResponse(res, 400, false, 'Validation Error', 'ValidationError', errors);
+    } else if (typeof error === 'string') {
+        // Handle string error messages
+        sendResponse(res, 400, false, error, 'ValidationError', { message: error });
+    } else if (error && error.errors) {
+        // Handle custom validation errors with errors array
+        const errors = {};
+        error.errors.forEach(err => {
+            if (err.param) {
+                errors[err.param] = err.msg;
+            }
+        });
+        sendResponse(res, 400, false, 'Validation Error', 'ValidationError', errors);
+    } else {
+        // Handle any other type of error
+        console.error('Server validation error:', error);
+        sendResponse(res, 400, false, 'Validation Error', 'ValidationError', { 
+            message: error?.message || 'An error occurred during validation' 
+        });
+    }
 }
 
 //send error response ----------------------------------------------------------

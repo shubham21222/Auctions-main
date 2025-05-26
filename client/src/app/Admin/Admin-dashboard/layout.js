@@ -23,7 +23,8 @@ import {
   Palette,
   Store,
   ChevronDown,
-  Mail
+  Mail,
+  File
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -91,6 +92,7 @@ export default function DashboardLayout({ children }) {
     // { href: "/Admin/Admin-dashboard/role-permissions", icon: UserCheck, label: "Roles" },
     // { href: "/Admin/Admin-dashboard/register-for-role", icon: UserCheck, label: "Staff" },
     { href: "/Admin/Admin-dashboard/newsletter", icon: Mail, label: "Newsletter" },
+    { href: "/Admin/Admin-dashboard/past-auction/upload", icon: File, label: "Past Auction" },
   ];
 
   const auctionSubItems = [
@@ -105,6 +107,10 @@ export default function DashboardLayout({ children }) {
     { href: "/Admin/Admin-dashboard/register-for-role", label: "Staff" },
     // { href: "/Admin/Admin-dashboard/remove-staff", label: "Remove Staff" },
   ];
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-200">
