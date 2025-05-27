@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import axios from 'axios';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProductCarousel = ({ images }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -106,6 +107,31 @@ const ProductCarousel = ({ images }) => {
   );
 };
 
+const ProductCardSkeleton = () => (
+  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md">
+    <div className="sm:col-span-1">
+      <Skeleton className="aspect-square w-full rounded-lg" />
+    </div>
+    <div className="sm:col-span-3 space-y-4">
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-1/3" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/2" />
+    </div>
+  </div>
+);
+
+const CatalogCardSkeleton = () => (
+  <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+    <Skeleton className="aspect-video w-full" />
+    <div className="p-6 space-y-3">
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+    </div>
+  </div>
+);
+
 export default function PastAuctions() {
   const [auctions, setAuctions] = useState([]);
   const [scrapedAuctions, setScrapedAuctions] = useState([]);
@@ -120,7 +146,7 @@ export default function PastAuctions() {
   const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
-  const itemsPerPage = 6;
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -224,9 +250,17 @@ export default function PastAuctions() {
   const filteredCatalogs = React.useMemo(() => {
     let filtered = sortedCatalogs;
     if (searchQuery) {
-      filtered = filtered.filter((catalog) =>
-        (catalog.catalogName || "").toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((catalog) => {
+        const searchableFields = [
+          catalog.catalogName,
+          catalog.description,
+          catalog.createdAt,
+          // Add any other fields you want to search
+        ].map(field => (field || "").toString().toLowerCase());
+        
+        return searchableFields.some(field => field.includes(query));
+      });
     }
     return filtered;
   }, [sortedCatalogs, searchQuery]);
@@ -265,7 +299,32 @@ export default function PastAuctions() {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="text-center py-10 text-gray-500">Loading catalogs...</div>;
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto py-12 px-4 mt-[60px] min-h-screen">
+          <Skeleton className="h-12 w-64 mx-auto mb-10" />
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="space-y-6 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <CatalogCardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
   if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
 
   return (
@@ -293,7 +352,7 @@ export default function PastAuctions() {
                   <label className="block text-sm font-semibold mb-2 text-gray-700">Search Catalogs</label>
                   <Input
                     type="text"
-                    placeholder="Search by name..."
+                    placeholder="Search by name, description..."
                     className="w-full bg-gray-100"
                     value={searchQuery}
                     onChange={(e) => {
@@ -335,7 +394,11 @@ export default function PastAuctions() {
           {/* Content Section */}
           <div className="lg:col-span-3 space-y-6">
             {catalogLoading ? (
-              <div className="text-center py-10 text-gray-500">Loading products...</div>
+              <div className="space-y-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
             ) : selectedCatalog ? (
               // Products Grid
               <>
@@ -347,7 +410,7 @@ export default function PastAuctions() {
                       className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                     >
                       <div className="sm:col-span-1">
-                        <div className="aspect-square relative rounded-lg overflow-hidden border">
+                        <div className="relative aspect-square rounded-lg overflow-hidden border">
                           <ProductCarousel images={product.images} />
                         </div>
                       </div>
@@ -395,17 +458,17 @@ export default function PastAuctions() {
                         onClick={() => handleCatalogClick(catalog._id)}
                         className="bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
                       >
-                        {/* Catalog Preview Image */}
-                        <div className="aspect-video relative">
+                        <div className="relative aspect-video">
                           <Image
                             src={catalog.firstImage || "/placeholder.svg"}
                             alt={catalog.catalogName}
                             fill
                             className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
                         </div>
                         <div className="p-6">
-                          <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
+                          <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors line-clamp-2">
                             {catalog.catalogName}
                           </h3>
                           <p className="text-sm text-gray-600 mt-2">
