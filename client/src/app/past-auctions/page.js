@@ -108,16 +108,12 @@ const ProductCarousel = ({ images }) => {
 };
 
 const ProductCardSkeleton = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md">
-    <div className="sm:col-span-1">
-      <Skeleton className="aspect-square w-full rounded-lg" />
-    </div>
-    <div className="sm:col-span-3 space-y-4">
-      <Skeleton className="h-6 w-3/4" />
+  <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+    <Skeleton className="aspect-square w-full" />
+    <div className="p-4 space-y-2">
+      <Skeleton className="h-5 w-3/4" />
       <Skeleton className="h-4 w-1/2" />
       <Skeleton className="h-4 w-1/3" />
-      <Skeleton className="h-4 w-2/3" />
-      <Skeleton className="h-4 w-1/2" />
     </div>
   </div>
 );
@@ -131,6 +127,11 @@ const CatalogCardSkeleton = () => (
     </div>
   </div>
 );
+
+const formatPrice = (price) => {
+  if (!price && price !== 0) return "N/A";
+  return Number(price).toFixed(2);
+};
 
 export default function PastAuctions() {
   const [auctions, setAuctions] = useState([]);
@@ -394,8 +395,8 @@ export default function PastAuctions() {
           {/* Content Section */}
           <div className="lg:col-span-3 space-y-6">
             {catalogLoading ? (
-              <div className="space-y-6">
-                {Array.from({ length: 3 }).map((_, i) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
                   <ProductCardSkeleton key={i} />
                 ))}
               </div>
@@ -403,44 +404,38 @@ export default function PastAuctions() {
               // Products Grid
               <>
                 {paginatedProducts.length > 0 ? (
-                  paginatedProducts.map((product) => (
-                    <div
-                      key={product._id}
-                      onClick={() => handleAuctionClick(product)}
-                      className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-6 bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-                    >
-                      <div className="sm:col-span-1">
-                        <div className="relative aspect-square rounded-lg overflow-hidden border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {paginatedProducts.map((product) => (
+                      <div
+                        key={product._id}
+                        onClick={() => handleAuctionClick(product)}
+                        className="bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden group"
+                      >
+                        <div className="relative aspect-square">
                           <ProductCarousel images={product.images} />
                         </div>
-                      </div>
-                      <div className="sm:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors">
+                        <div className="p-4 space-y-2">
+                          <h3 className="font-semibold text-lg text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2">
                             {product.title}
                           </h3>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Lot Number:</span> {product.lotNumber}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Condition:</span> {product.condition || "N/A"}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Estimate:</span> ${product.lowEstimate || "N/A"} - ${product.highEstimate || "N/A"}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">SKU:</span> {product.sku || "N/A"}
-                          </p>
-                          <div className="text-sm text-gray-600 line-clamp-2">
-                            <span className="font-medium">Description:</span>{" "}
-                            <span dangerouslySetInnerHTML={{ 
-                              __html: product.description?.replace(/<br>|<BR>/g, ' ') || "No description available" 
-                            }} />
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <p className="flex justify-between">
+                              <span className="font-medium">Lot:</span>
+                              <span>{product.lotNumber}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="font-medium">Estimate:</span>
+                              <span>${formatPrice(product.lowEstimate)} - ${formatPrice(product.highEstimate)}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="font-medium">Condition:</span>
+                              <span>{product.condition || "N/A"}</span>
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow-sm">
                     No products found in this catalog.
@@ -574,34 +569,34 @@ export default function PastAuctions() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600">Starting Price</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.startPrice}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.startPrice)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Final Price</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.finalPrice}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.finalPrice)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Low Estimate</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.lowEstimate || "N/A"}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.lowEstimate)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">High Estimate</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.highEstimate || "N/A"}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.highEstimate)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Reserve Price</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.reservePrice || "N/A"}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.reservePrice)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Online Price</p>
-                        <p className="font-medium text-gray-900">${selectedAuction.onlinePrice || "N/A"}</p>
+                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.onlinePrice)}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Description */}
-                <div className="mt-8">
+                {/* Description - Now only shown in modal */}
+                <div className="mt-8 border-t pt-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Description</h3>
                   <div 
                     className="prose prose-sm max-w-none text-gray-700"
@@ -613,7 +608,7 @@ export default function PastAuctions() {
 
                 {/* Additional Information */}
                 {selectedAuction.url && (
-                  <div className="mt-6">
+                  <div className="mt-6 border-t pt-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">Additional Information</h3>
                     <p className="text-sm text-gray-600">
                       <span className="font-medium">URL:</span>{" "}
