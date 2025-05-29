@@ -152,9 +152,17 @@ const MainHeader = ({
     }
   };
 
-  // Handle search input change and trigger parent filtering
+  // Update the search input handler to work consistently on both mobile and desktop
   const handleSearchInput = (e) => {
-    setSearchQuery(e.target.value); // Update parent state to trigger Home's fetch
+    const value = e.target.value;
+    setSearchQuery(value);
+  };
+
+  // Handle search results click
+  const handleSearchResultClick = (productId) => {
+    setSearchQuery("");
+    setShowSearchBar(false);
+    setMenuOpen(false);
   };
 
   return (
@@ -181,7 +189,12 @@ const MainHeader = ({
           {isMobile && (
             <button
               className="p-2 text-black font-semibold z-50"
-              onClick={() => setShowSearchBar(!showSearchBar)}
+              onClick={() => {
+                setShowSearchBar(!showSearchBar);
+                if (!showSearchBar) {
+                  setSearchQuery(""); // Clear search when opening
+                }
+              }}
               aria-label="Toggle search"
             >
               <HiSearch className="text-2xl" />
@@ -251,7 +264,7 @@ const MainHeader = ({
         {!isMobile && (searchQuery || searchLoading) && (
           <div 
             ref={searchResultsRef}
-            className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100"
+            className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-[80vh] overflow-y-auto border border-gray-100"
           >
             {searchLoading && page === 1 ? (
               <div className="p-4 space-y-3">
@@ -271,8 +284,9 @@ const MainHeader = ({
                       <Link
                         href={`/products/${product._id}`}
                         className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
+                        onClick={() => setSearchQuery("")}
                       >
-                        <div className="relative w-12 h-12 mr-3">
+                        <div className="relative w-12 h-12 mr-3 flex-shrink-0">
                           {!hasFailed ? (
                             <Image
                               src={getImageUrl(imageUrl)}
@@ -290,9 +304,12 @@ const MainHeader = ({
                             </div>
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
-                          <p className="text-xs text-gray-600">Estimate: {product.estimateprice}</p>
+                          <p className="text-xs text-gray-600 truncate">Estimate: {product.estimateprice}</p>
+                          {/* {product.price && (
+                            <p className="text-xs text-purple-600 font-medium">Price: ${product.price}</p>
+                          )} */}
                         </div>
                       </Link>
                     </div>
@@ -310,7 +327,7 @@ const MainHeader = ({
           </div>
         )}
 
-        {/* Mobile Search Results */}
+        {/* Mobile Search Bar - Keeping original UI */}
         {isMobile && showSearchBar && (
           <div className="relative w-full mt-4">
             <form onSubmit={(e) => e.preventDefault()} className="relative">
@@ -323,6 +340,8 @@ const MainHeader = ({
               />
               <HiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
             </form>
+
+            {/* Mobile Search Results - Keeping original UI but fixing functionality */}
             {(searchQuery || searchLoading) && (
               <div 
                 ref={searchResultsRef}
@@ -344,10 +363,11 @@ const MainHeader = ({
                       return (
                         <div key={product._id} className="border-b border-gray-100 last:border-b-0">
                           <Link
-                            href={`/product/${product._id}`}
+                            href={`/products/${product._id}`}
                             className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
+                            onClick={() => handleSearchResultClick(product._id)}
                           >
-                            <div className="relative w-12 h-12 mr-3">
+                            <div className="relative w-12 h-12 mr-3 flex-shrink-0">
                               {!hasFailed ? (
                                 <Image
                                   src={getImageUrl(imageUrl)}
@@ -365,9 +385,12 @@ const MainHeader = ({
                                 </div>
                               )}
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
-                              <p className="text-xs text-gray-600">Estimate: {product.estimateprice}</p>
+                              <p className="text-xs text-gray-600 truncate">Estimate: {product.estimateprice}</p>
+                              {/* {product.price && (
+                                <p className="text-xs text-purple-600 font-medium">Price: ${product.price}</p>
+                              )} */}
                             </div>
                           </Link>
                         </div>
