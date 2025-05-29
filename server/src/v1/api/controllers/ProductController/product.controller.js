@@ -225,20 +225,89 @@ export const getFilteredProducts = async (req, res) => {
         if (status) {
             matchStage.status = status;
         }
-        if (searchQuery) {
-            matchStage.$or = [
-                { title: { $regex: searchQuery, $options: "i" } },
-                { description: { $regex: searchQuery, $options: "i" } }
-            ];
-        }
         if (sku) {
             const escapedSku = escapeRegExp(sku);
             matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
         }
 
-        // Get all products first to shuffle them
-        const allProducts = await ProductModel.aggregate([
+        let pipeline = [];
+        
+        // Add search conditions if searchQuery exists
+        if (searchQuery) {
+            // Escape special characters in search query
+            const escapedQuery = escapeRegExp(searchQuery.trim());
+            // Split search query into words for better matching
+            const searchWords = escapedQuery.split(/\s+/).filter(word => word.length > 0);
+            
+            // Create a more precise search condition
+            const searchConditions = searchWords.map(word => ({
+                $or: [
+                    // Exact word match in title (highest priority)
+                    { title: { $regex: `\\b${word}\\b`, $options: 'i' } },
+                    // Word match at start of title (high priority)
+                    { title: { $regex: `^${word}\\b`, $options: 'i' } },
+                    // Word match at end of title (high priority)
+                    { title: { $regex: `\\b${word}$`, $options: 'i' } },
+                    // Exact word match in description (medium priority)
+                    { description: { $regex: `\\b${word}\\b`, $options: 'i' } },
+                    // Word match at start of description (lower priority)
+                    { description: { $regex: `^${word}\\b`, $options: 'i' } },
+                    // Word match at end of description (lower priority)
+                    { description: { $regex: `\\b${word}$`, $options: 'i' } }
+                ]
+            }));
+
+            // Combine all conditions with $and to ensure all words are matched
+            matchStage.$and = searchConditions;
+
+            // Add text score for relevance sorting
+            pipeline.push({
+                $addFields: {
+                    searchScore: {
+                        $sum: searchWords.map(word => ({
+                            $cond: [
+                                // Exact word match in title gets highest score (5)
+                                { $regexMatch: { input: "$title", regex: new RegExp(`\\b${word}\\b`, 'i') } },
+                                5,
+                                {
+                                    $cond: [
+                                        // Word at start/end of title gets high score (4)
+                                        { $or: [
+                                            { $regexMatch: { input: "$title", regex: new RegExp(`^${word}\\b`, 'i') } },
+                                            { $regexMatch: { input: "$title", regex: new RegExp(`\\b${word}$`, 'i') } }
+                                        ]},
+                                        4,
+                                        {
+                                            $cond: [
+                                                // Exact word match in description gets medium score (3)
+                                                { $regexMatch: { input: "$description", regex: new RegExp(`\\b${word}\\b`, 'i') } },
+                                                3,
+                                                {
+                                                    $cond: [
+                                                        // Word at start/end of description gets lower score (2)
+                                                        { $or: [
+                                                            { $regexMatch: { input: "$description", regex: new RegExp(`^${word}\\b`, 'i') } },
+                                                            { $regexMatch: { input: "$description", regex: new RegExp(`\\b${word}$`, 'i') } }
+                                                        ]},
+                                                        2,
+                                                        0
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }))
+                    }
+                }
+            });
+        }
+
+        // Build the aggregation pipeline
+        pipeline = [
             { $match: matchStage },
+            ...pipeline,
             {
                 $lookup: {
                     from: "categories",
@@ -265,69 +334,47 @@ export const getFilteredProducts = async (req, res) => {
                     favorite: 1,
                     link: 1,
                     category: { _id: 1, name: 1 },
-                    // Add a random field for shuffling
+                    searchScore: 1,
                     random: { $rand: {} }
                 }
             }
-        ]).allowDiskUse(true);
+        ];
 
-        // Group products by category
-        const productsByCategory = allProducts.reduce((acc, product) => {
-            const categoryId = product.category._id.toString();
-            if (!acc[categoryId]) {
-                acc[categoryId] = [];
-            }
-            acc[categoryId].push(product);
-            return acc;
-        }, {});
-
-        // Shuffle products within each category
-        Object.keys(productsByCategory).forEach(categoryId => {
-            productsByCategory[categoryId].sort((a, b) => a.random - b.random);
-        });
-
-        // Interleave products from different categories
-        const shuffledProducts = [];
-        const categoryIds = Object.keys(productsByCategory);
-        let currentIndex = 0;
-        let hasMoreProducts = true;
-
-        while (hasMoreProducts) {
-            hasMoreProducts = false;
-            for (const categoryId of categoryIds) {
-                const categoryProducts = productsByCategory[categoryId];
-                if (currentIndex < categoryProducts.length) {
-                    shuffledProducts.push(categoryProducts[currentIndex]);
-                    hasMoreProducts = true;
+        // Add sorting
+        if (searchQuery) {
+            pipeline.push({ $sort: { searchScore: -1, random: 1 } });
+        } else if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
+            pipeline.push({
+                $addFields: {
+                    numericPrice: {
+                        $toDouble: {
+                            $replaceAll: {
+                                input: { $arrayElemAt: [{ $split: ["$estimateprice", " - "] }, 0] },
+                                find: "$",
+                                replacement: ""
+                            }
+                        }
+                    }
                 }
-            }
-            currentIndex++;
-        }
-
-        // Apply sorting if specified
-        if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
-            shuffledProducts.sort((a, b) => {
-                const aPrice = parseFloat(a.estimateprice.replace(/[^0-9.-]+/g, ""));
-                const bPrice = parseFloat(b.estimateprice.replace(/[^0-9.-]+/g, ""));
-                return sortByPrice === "High Price" ? bPrice - aPrice : aPrice - bPrice;
+            });
+            pipeline.push({
+                $sort: {
+                    numericPrice: sortByPrice === "High Price" ? -1 : 1
+                }
             });
         } else if (sortField && sortOrder) {
-            shuffledProducts.sort((a, b) => {
-                if (sortField === "title") {
-                    return sortOrder === "asc" ? 
-                        a.title.localeCompare(b.title) : 
-                        b.title.localeCompare(a.title);
-                } else if (sortField === "created_at") {
-                    return sortOrder === "asc" ? 
-                        new Date(a.created_at) - new Date(b.created_at) : 
-                        new Date(b.created_at) - new Date(a.created_at);
+            pipeline.push({
+                $sort: {
+                    [sortField]: sortOrder === "asc" ? 1 : -1
                 }
-                return 0;
             });
         }
 
-        // Remove the random field before sending response
-        const cleanedProducts = shuffledProducts.map(({ random, ...product }) => product);
+        // Execute the aggregation
+        const allProducts = await ProductModel.aggregate(pipeline).allowDiskUse(true);
+
+        // Remove the random and searchScore fields before sending response
+        const cleanedProducts = allProducts.map(({ random, searchScore, numericPrice, ...product }) => product);
 
         // Apply pagination
         const paginatedProducts = cleanedProducts.slice(skip, skip + parseInt(limit));

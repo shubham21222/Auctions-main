@@ -23,7 +23,7 @@ const getImageUrl = (originalUrl) => {
 };
 
 const MainHeader = ({
-  isScrolled,
+  isScrolled, 
   isMobile,
   menuOpen,
   setMenuOpen,

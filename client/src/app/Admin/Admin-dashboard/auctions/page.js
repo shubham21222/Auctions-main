@@ -369,6 +369,16 @@ export default function Auctions() {
   const handleUpdateDateTime = async () => {
     if (!selectedCatalogForEdit) return;
 
+    // Check if auction has already started
+    const currentTime = moment().tz("Asia/Kolkata");
+    const auctionStartTime = moment(selectedCatalogForEdit.startDate).tz("Asia/Kolkata");
+    
+    if (currentTime.isAfter(auctionStartTime)) {
+      toast.error("Cannot edit auction dates after the auction has started");
+      setOpenEditDateTimeDialog(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const startDateTimeUTC = moment
@@ -706,88 +716,114 @@ export default function Auctions() {
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Edit Auction Date and Time</DialogTitle>
+            <p className="text-red-500 text-sm mt-2">Note: Once an auction starts, its date and time cannot be changed.</p>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="editStartDate" className="text-right">
-                Start Date
-              </Label>
-              <Input
-                id="editStartDate"
-                type="text"
-                value={editStartDate}
-                onChange={(e) => setEditStartDate(e.target.value)}
-                className="col-span-3 bg-white border-luxury-gold/20"
-                placeholder="DD-MM-YYYY"
-                required
-                pattern="\d{2}-\d{2}-\d{4}"
-                title="Please enter date in DD-MM-YYYY format"
-              />
-            </div>
+          {(() => {
+            const currentTime = moment().tz("Asia/Kolkata");
+            const auctionStartTime = selectedCatalogForEdit ? moment(selectedCatalogForEdit.startDate).tz("Asia/Kolkata") : null;
+            const hasStarted = auctionStartTime && currentTime.isAfter(auctionStartTime);
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Auction Type</Label>
-              <div className="col-span-3 space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="editLiveAuction"
-                    checked={editAuctionType === "LIVE"}
-                    onChange={() => setEditAuctionType("LIVE")}
-                  />
-                  <Label htmlFor="editLiveAuction">Live Auction</Label>
+            if (hasStarted) {
+              return (
+                <div className="p-4 text-center">
+                  <p className="text-red-500 font-medium mb-2">This auction has already started</p>
+                  <p className="text-gray-600">Auction dates cannot be modified after the auction has begun.</p>
+                  <Button
+                    className="mt-4"
+                    onClick={() => setOpenEditDateTimeDialog(false)}
+                  >
+                    Close
+                  </Button>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="editTimedAuction"
-                    checked={editAuctionType === "TIMED"}
-                    onChange={() => setEditAuctionType("TIMED")}
-                  />
-                  <Label htmlFor="editTimedAuction">Timed Auction</Label>
-                </div>
-              </div>
-            </div>
+              );
+            }
 
-            {editAuctionType === "TIMED" && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="editEndDate" className="text-right">
-                  End Date
-                </Label>
-                <Input
-                  id="editEndDate"
-                  type="text"
-                  value={editEndDate}
-                  onChange={(e) => setEditEndDate(e.target.value)}
-                  className="col-span-3 bg-white border-luxury-gold/20"
-                  placeholder="DD-MM-YYYY"
-                  required
-                  pattern="\d{2}-\d{2}-\d{4}"
-                  title="Please enter date in DD-MM-YYYY format"
-                />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOpenEditDateTimeDialog(false);
-                setSelectedCatalogForEdit(null);
-                setEditStartDate("");
-                setEditEndDate("");
-                setEditAuctionType("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdateDateTime}
-              disabled={loading || !editStartDate || (editAuctionType === "TIMED" && !editEndDate)}
-            >
-              {loading ? "Updating..." : "Update"}
-            </Button>
-          </DialogFooter>
+            return (
+              <>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="editStartDate" className="text-right">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="editStartDate"
+                      type="text"
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                      className="col-span-3 bg-white border-luxury-gold/20"
+                      placeholder="DD-MM-YYYY"
+                      required
+                      pattern="\d{2}-\d{2}-\d{4}"
+                      title="Please enter date in DD-MM-YYYY format"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Auction Type</Label>
+                    <div className="col-span-3 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="editLiveAuction"
+                          checked={editAuctionType === "LIVE"}
+                          onChange={() => setEditAuctionType("LIVE")}
+                        />
+                        <Label htmlFor="editLiveAuction">Live Auction</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="editTimedAuction"
+                          checked={editAuctionType === "TIMED"}
+                          onChange={() => setEditAuctionType("TIMED")}
+                        />
+                        <Label htmlFor="editTimedAuction">Timed Auction</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {editAuctionType === "TIMED" && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="editEndDate" className="text-right">
+                        End Date
+                      </Label>
+                      <Input
+                        id="editEndDate"
+                        type="text"
+                        value={editEndDate}
+                        onChange={(e) => setEditEndDate(e.target.value)}
+                        className="col-span-3 bg-white border-luxury-gold/20"
+                        placeholder="DD-MM-YYYY"
+                        required
+                        pattern="\d{2}-\d{2}-\d{4}"
+                        title="Please enter date in DD-MM-YYYY format"
+                      />
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setOpenEditDateTimeDialog(false);
+                      setSelectedCatalogForEdit(null);
+                      setEditStartDate("");
+                      setEditEndDate("");
+                      setEditAuctionType("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUpdateDateTime}
+                    disabled={loading || !editStartDate || (editAuctionType === "TIMED" && !editEndDate)}
+                  >
+                    {loading ? "Updating..." : "Update"}
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

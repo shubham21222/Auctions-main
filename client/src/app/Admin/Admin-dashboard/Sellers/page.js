@@ -9,10 +9,16 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import EditModal from './components/EditModal';
 
 const SellersPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -21,6 +27,18 @@ const SellersPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedSeller, setSelectedSeller] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSeller, setEditingSeller] = useState(null);
+  const [editForm, setEditForm] = useState({
+    General: {},
+    Measurement: {},
+    Condition: {},
+    Provenance: {},
+    price: {},
+    Documents: {},
+    logistic_info: {},
+    category: "",
+  });
   const limit = 10;
 
   // Get token from Redux store (assuming auth slice)
@@ -146,6 +164,34 @@ const SellersPage = () => {
     }
   };
 
+  const handleEdit = (seller) => {
+    setEditingSeller(seller);
+    setShowEditModal(true);
+  };
+
+  const handleEditSuccess = (updatedData) => {
+    // Update the sellers list
+    setSellers((prevSellers) =>
+      prevSellers.map((seller) =>
+        seller._id === editingSeller._id ? { ...seller, ...updatedData } : seller
+      )
+    );
+    // Update selected seller if it's the one being edited
+    if (selectedSeller?._id === editingSeller._id) {
+      setSelectedSeller((prev) => ({ ...prev, ...updatedData }));
+    }
+  };
+
+  const handleInputChange = (section, field, value) => {
+    setEditForm((prev) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value,
+      },
+    }));
+  };
+
   const SellerCard = ({ seller }) => (
     <div
       onClick={() => {
@@ -204,6 +250,15 @@ const SellersPage = () => {
             Approve
           </button>
         )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleEdit(seller);
+          }}
+          className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-sm"
+        >
+          Edit
+        </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -423,6 +478,15 @@ const SellersPage = () => {
 
         {/* Seller Details Modal */}
         {selectedSeller && <SellerDetails seller={selectedSeller} />}
+
+        {/* Edit Modal */}
+        <EditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          seller={editingSeller}
+          onSuccess={handleEditSuccess}
+          token={token}
+        />
       </div>
     </div>
   );
