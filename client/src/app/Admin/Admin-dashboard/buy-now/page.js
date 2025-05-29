@@ -284,8 +284,7 @@ export default function BuyNow() {
       });
       
       toast.success(`Added and selected ${uniqueProducts.length} product(s)`);
-      // Refresh the product list to ensure everything is in sync
-      fetchProducts();
+      // Remove the fetchProducts call to prevent refreshing the list
     } else {
       // If products already exist, just select them
       const existingProductIds = newProducts
