@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { HiMenu, HiX, HiSearch } from "react-icons/hi";
 import Link from "next/link";
 import Image from "next/image";
@@ -55,45 +55,73 @@ const MainHeader = ({
     setFailedImages(prev => new Set([...prev, `${productId}-${imageUrl}`]));
   };
 
-  // Handle search input change with API call
-  useEffect(() => {
-    const fetchSearchResults = async () => {
-      if (!searchQuery.trim()) {
-        setSearchResults([]);
-        setDisplayedResults([]);
-        setPage(1);
-        setHasMore(true);
-        setSearchLoading(false);
-        return;
-      }
+  const abortControllerRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
-      setSearchLoading(true);
-      try {
-        // Convert search query to lowercase for case-insensitive search
-        const normalizedQuery = searchQuery.toLowerCase().trim();
-        const response = await axios.get(
-          `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(normalizedQuery)}&limit=10000`
-        );
-        const products = response.data.items?.items || [];
-        setSearchResults(products);
-        setDisplayedResults(products.slice(0, ITEMS_PER_PAGE));
-        setHasMore(products.length > ITEMS_PER_PAGE);
-        setPage(1);
-      } catch (error) {
+  // Debounced search function
+  const debouncedSearch = useCallback(async (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setDisplayedResults([]);
+      setPage(1);
+      setHasMore(true);
+      setSearchLoading(false);
+      return;
+    }
+
+    // Cancel previous request if it exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
+    setSearchLoading(true);
+    try {
+      const normalizedQuery = query.toLowerCase().trim();
+      const response = await axios.get(
+        `${config.baseURL}/v1/api/product/filter?searchQuery=${encodeURIComponent(normalizedQuery)}&limit=10000`,
+        {
+          signal: abortControllerRef.current.signal
+        }
+      );
+      
+      const products = response.data.items?.items || [];
+      setSearchResults(products);
+      setDisplayedResults(products.slice(0, ITEMS_PER_PAGE));
+      setHasMore(products.length > ITEMS_PER_PAGE);
+      setPage(1);
+    } catch (error) {
+      if (!axios.isCancel(error)) {
         console.error("Search error:", error);
         setSearchResults([]);
         setDisplayedResults([]);
-      } finally {
-        setSearchLoading(false);
       }
-    };
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
 
-    const debounce = setTimeout(() => {
-      fetchSearchResults();
+  // Handle search input change with debouncing
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      debouncedSearch(searchQuery);
     }, 300);
 
-    return () => clearTimeout(debounce);
-  }, [searchQuery]);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [searchQuery, debouncedSearch]);
 
   // Handle scroll to load more
   useEffect(() => {
@@ -152,13 +180,12 @@ const MainHeader = ({
     }
   };
 
-  // Update the search input handler to work consistently on both mobile and desktop
+  // Keep the original handleSearchInput
   const handleSearchInput = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
+    setSearchQuery(e.target.value);
   };
 
-  // Handle search results click
+  // Common search result click handler for both mobile and desktop
   const handleSearchResultClick = (productId) => {
     setSearchQuery("");
     setShowSearchBar(false);
@@ -189,12 +216,7 @@ const MainHeader = ({
           {isMobile && (
             <button
               className="p-2 text-black font-semibold z-50"
-              onClick={() => {
-                setShowSearchBar(!showSearchBar);
-                if (!showSearchBar) {
-                  setSearchQuery(""); // Clear search when opening
-                }
-              }}
+              onClick={() => setShowSearchBar(!showSearchBar)}
               aria-label="Toggle search"
             >
               <HiSearch className="text-2xl" />
@@ -264,7 +286,7 @@ const MainHeader = ({
         {!isMobile && (searchQuery || searchLoading) && (
           <div 
             ref={searchResultsRef}
-            className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-[80vh] overflow-y-auto border border-gray-100"
+            className="absolute top-full left-0 right-0 w-full bg-white shadow-2xl rounded-xl mt-2 z-50 max-h-96 overflow-y-auto border border-gray-100"
           >
             {searchLoading && page === 1 ? (
               <div className="p-4 space-y-3">
@@ -284,7 +306,7 @@ const MainHeader = ({
                       <Link
                         href={`/products/${product._id}`}
                         className="flex items-center p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
-                        onClick={() => setSearchQuery("")}
+                        onClick={() => handleSearchResultClick(product._id)}
                       >
                         <div className="relative w-12 h-12 mr-3 flex-shrink-0">
                           {!hasFailed ? (
@@ -307,9 +329,6 @@ const MainHeader = ({
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
                           <p className="text-xs text-gray-600 truncate">Estimate: {product.estimateprice}</p>
-                          {/* {product.price && (
-                            <p className="text-xs text-purple-600 font-medium">Price: ${product.price}</p>
-                          )} */}
                         </div>
                       </Link>
                     </div>
@@ -327,7 +346,7 @@ const MainHeader = ({
           </div>
         )}
 
-        {/* Mobile Search Bar - Keeping original UI */}
+        {/* Mobile Search Bar */}
         {isMobile && showSearchBar && (
           <div className="relative w-full mt-4">
             <form onSubmit={(e) => e.preventDefault()} className="relative">
@@ -341,7 +360,7 @@ const MainHeader = ({
               <HiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
             </form>
 
-            {/* Mobile Search Results - Keeping original UI but fixing functionality */}
+            {/* Mobile Search Results */}
             {(searchQuery || searchLoading) && (
               <div 
                 ref={searchResultsRef}
@@ -388,9 +407,6 @@ const MainHeader = ({
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-800 truncate">{product.title}</p>
                               <p className="text-xs text-gray-600 truncate">Estimate: {product.estimateprice}</p>
-                              {/* {product.price && (
-                                <p className="text-xs text-purple-600 font-medium">Price: ${product.price}</p>
-                              )} */}
                             </div>
                           </Link>
                         </div>
