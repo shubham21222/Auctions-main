@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { Plus, X, Download } from "lucide-react";
+import { Plus, X, Download, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import config from "@/app/config_BASE_URL";
 import { createExcelTemplate } from './createExcelTemplate';
@@ -32,6 +32,10 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
   const [categories, setCategories] = useState([]);
   const [excelFile, setExcelFile] = useState(null);
   const [parsedProducts, setParsedProducts] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const BATCH_SIZE = 10; // Number of products to upload in each batch
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -90,83 +94,114 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
 
   const handleExcelUpload = async () => {
     console.log("handleExcelUpload triggered");
+    setIsProcessingExcel(true);
 
     if (!excelFile) {
       toast.error("Please select an Excel file to upload.");
       console.log("No Excel file selected");
+      setIsProcessingExcel(false);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(excelFile);
+      });
+
+      const workbook = XLSX.read(data, { type: "array" });
+      let products = [];
+
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        const sheetProducts = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        if (sheetProducts.length > 0) {
+          products = sheetProducts;
+          break;
+        }
+      }
+
+      if (products.length === 0) {
+        toast.error("No products found in the Excel file. Please ensure the file has data with the correct column headers.");
+        setIsProcessingExcel(false);
+        return;
+      }
+
+      const mappedProducts = products.map(product => {
+        const images = [];
+        for (let i = 1; i <= 12; i++) {
+          const imageField = product[`ImageFile.${i}`];
+          if (imageField) {
+            images.push(String(imageField).trim());
+          }
+        }
+
+        const estimateprice = product.LowEst && product.HighEst 
+          ? `$${product.LowEst} - $${product.HighEst}` 
+          : "";
+
+        return {
+          title: String(product.Title || "").trim(),
+          description: String(product.Description || "").trim(),
+          price: Number(product.StartPrice || 0),
+          estimateprice: estimateprice,
+          offerAmount: Number(product["Reserve Price"] || 0),
+          category: newProduct.category || "",
+          stock: 1,
+          status: "Not Sold",
+          sortByPrice: String(product.sortByPrice || "High Price").trim(),
+          image: images,
+          link: String(product.Link || "").trim()
+        };
+      });
+
+      setParsedProducts(mappedProducts);
+      toast.success(`Successfully parsed ${mappedProducts.length} product(s) from the Excel file. Please select a category and click 'Add Product' to upload them.`);
+    } catch (error) {
+      toast.error("Error parsing Excel file: " + error.message);
+      console.error("Error parsing Excel file:", error);
+    } finally {
+      setIsProcessingExcel(false);
+    }
+  };
+
+  const uploadBatch = async (products, startIndex) => {
+    const batch = products.slice(startIndex, startIndex + BATCH_SIZE);
+    const uploadPromises = batch.map(async (product) => {
+      const payload = {
+        ...product,
+        category: newProduct.category,
+      };
+
+      if (!payload.title || !payload.price || !payload.category) {
+        console.warn("Skipping invalid product:", payload);
+        return { success: false, error: "Missing required fields" };
+      }
+
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-
-        console.log("Available sheets in Excel file:", workbook.SheetNames);
-
-        let products = [];
-        for (const sheetName of workbook.SheetNames) {
-          const worksheet = workbook.Sheets[sheetName];
-          console.log("Raw worksheet data for sheet", sheetName, ":", worksheet);
-          const sheetProducts = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-          if (sheetProducts.length > 0) {
-            products = sheetProducts;
-            console.log(`Found data in sheet: ${sheetName}`);
-            break;
-          }
-        }
-
-        console.log("Parsed Excel Data:", products);
-
-        if (products.length === 0) {
-          toast.error("No products found in the Excel file. Please ensure the file has data with the correct column headers.");
-          return;
-        }
-
-        const mappedProducts = products.map(product => {
-          const images = [];
-          for (let i = 1; i <= 12; i++) {
-            const imageField = product[`ImageFile.${i}`];
-            if (imageField) {
-              images.push(String(imageField).trim());
-            }
-          }
-
-          const estimateprice = product.LowEst && product.HighEst 
-            ? `$${product.LowEst} - $${product.HighEst}` 
-            : "";
-
-          return {
-            title: String(product.Title || "").trim(),
-            description: String(product.Description || "").trim(),
-            price: Number(product.StartPrice || 0),
-            estimateprice: estimateprice,
-            offerAmount: Number(product["Reserve Price"] || 0),
-            category: newProduct.category || "",
-            stock: 1,
-            status: "Not Sold",
-            sortByPrice: String(product.sortByPrice || "High Price").trim(),
-            image: images,
-            link: String(product.Link || "").trim()
-          };
+        const response = await fetch(`${config.baseURL}/v1/api/product/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+          body: JSON.stringify(payload),
         });
 
-        setParsedProducts(mappedProducts);
-        toast.success(`Successfully parsed ${mappedProducts.length} product(s) from the Excel file. Please select a category and click 'Add Product' to upload them.`);
-        console.log("Mapped Products:", mappedProducts);
+        const responseData = await response.json();
+        if (!responseData.status) {
+          throw new Error(responseData.message || "Unknown error");
+        }
+        return { success: true };
       } catch (error) {
-        toast.error("Error parsing Excel file: " + error.message);
-        console.error("Error parsing Excel file:", error);
+        console.error("Error uploading product:", error);
+        return { success: false, error: error.message };
       }
-    };
+    });
 
-    reader.onerror = (error) => {
-      toast.error("Error reading Excel file: " + error.message);
-      console.error("Error reading Excel file:", error);
-    };
-
-    reader.readAsArrayBuffer(excelFile);
+    return Promise.all(uploadPromises);
   };
 
   const handleSubmit = async (e) => {
@@ -174,56 +209,29 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
     console.log("handleSubmit triggered");
 
     try {
-      // If there are parsed products from Excel, upload them
       if (parsedProducts.length > 0) {
         if (!newProduct.category) {
           toast.error("Please select a category before uploading products from Excel.");
           return;
         }
 
+        setIsUploading(true);
+        setUploadProgress(0);
         let uploadedCount = 0;
-        for (const product of parsedProducts) {
-          const payload = {
-            ...product,
-            category: newProduct.category,
-          };
+        let failedCount = 0;
 
-          console.log("Product payload:", payload);
-
-          if (!payload.title || !payload.price || !payload.category) {
-            console.warn("Skipping invalid product:", payload);
-            toast.error(`Skipping invalid product: Missing required fields in row - ${JSON.stringify(product)}`);
-            continue;
-          }
-
-          const categoryExists = categories.some(cat => cat._id === payload.category);
-          if (!categoryExists) {
-            console.warn("Invalid category for product:", payload);
-            toast.error(`Skipping product: Invalid category ID "${payload.category}" in row - ${JSON.stringify(product)}`);
-            continue;
-          }
-
-          const response = await fetch(`${config.baseURL}/v1/api/product/create`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `${token}`,
-            },
-            body: JSON.stringify(payload),
-          });
-
-          const responseData = await response.json();
-          console.log("API Response (Excel Upload):", responseData);
-
-          if (!responseData.status) {
-            throw new Error(`Failed to create product: ${responseData.message || "Unknown error"}`);
-          }
-
-          uploadedCount++;
+        for (let i = 0; i < parsedProducts.length; i += BATCH_SIZE) {
+          const results = await uploadBatch(parsedProducts, i);
+          const successfulUploads = results.filter(r => r.success).length;
+          uploadedCount += successfulUploads;
+          failedCount += results.length - successfulUploads;
+          
+          const progress = Math.min(100, Math.round((i + BATCH_SIZE) / parsedProducts.length * 100));
+          setUploadProgress(progress);
         }
 
         if (uploadedCount > 0) {
-          toast.success(`Successfully uploaded ${uploadedCount} product(s)!`);
+          toast.success(`Successfully uploaded ${uploadedCount} product(s)!${failedCount > 0 ? ` Failed to upload ${failedCount} product(s).` : ''}`);
           fetchProducts();
         }
         setParsedProducts([]);
@@ -301,18 +309,21 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
       setImageInputs([{ type: 'url', value: '', file: null }]);
       onClose();
     } catch (error) {
-      toast.error("Error creating product: " + error.message);
-      console.error("Error creating product:", error);
+      console.error("Error in handleSubmit:", error);
+      toast.error(error.message || "An error occurred while uploading products");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
-            Add a new product to the Buy Now section. If uploading from Excel, please select a category below.
+            Fill in the product details below or upload an Excel file.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -414,46 +425,75 @@ export default function AddProductDialog({ fetchProducts, token, onClose, open, 
             {/* Excel Upload Section */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-700">Bulk Upload</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 <Input
                   type="file"
-                  accept=".xls,.xlsx"
+                  accept=".xlsx,.xls"
                   onChange={handleExcelFileChange}
-                  className="flex-1"
+                  disabled={isProcessingExcel || isUploading}
                 />
                 <Button
-                  type="button"
-                  variant="outline"
                   onClick={handleExcelUpload}
-                  disabled={!excelFile}
-                  className="shrink-0"
+                  disabled={!excelFile || isProcessingExcel || isUploading}
                 >
-                  Upload Excel
+                  {isProcessingExcel ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Process Excel"
+                  )}
                 </Button>
                 <Button
-                  type="button"
                   variant="outline"
-                  onClick={() => {
-                    const excelBuffer = createExcelTemplate();
-                    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'product_upload_template.xlsx';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                  }}
-                  className="flex items-center gap-2 shrink-0"
+                  onClick={createExcelTemplate}
+                  disabled={isProcessingExcel || isUploading}
                 >
-                  <Download className="h-4 w-4" /> Sample
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Template
                 </Button>
               </div>
+
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Uploading products...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {parsedProducts.length > 0 && (
+                <div className="bg-blue-50 p-4 rounded-md">
+                  <p className="text-sm text-blue-700">
+                    {parsedProducts.length} products ready to upload. Please select a category and click "Add Product" to proceed.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Add Product</Button>
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={isUploading || isProcessingExcel}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                "Add Product"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
