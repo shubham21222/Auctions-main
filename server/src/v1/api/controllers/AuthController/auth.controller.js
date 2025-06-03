@@ -37,7 +37,7 @@ const sendVerificationEmail = async (user) => {
         { expiresIn: '1h' }
     );
 
-    const verificationLink = `http://localhost:3000/verify-email?token=${token}`;
+    const verificationLink = `https://bid.nyelizabeth.com/verify-email?token=${token}`;
 
     const html = `
     <!DOCTYPE html>
