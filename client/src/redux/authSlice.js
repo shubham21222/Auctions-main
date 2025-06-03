@@ -128,6 +128,10 @@ export const authSlice = createSlice({
       state.isLoggedIn = false;
       state.isPaymentMethodAdded = false;
       state.isEmailVerified = false;
+      // Clear redirect URL when logging out
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem("redirectAfterVerification");
+      }
     },
     setUser: (state, action) => {
       const userData = action.payload;
@@ -292,5 +296,13 @@ export const selectIsBillingDetailsAvailable = (state) => state.auth.isBillingDe
 export const selectPaymentDetails = (state) => state.auth.paymentDetails;
 export const selectIsPaymentMethodAdded = (state) => state.auth.isPaymentMethodAdded;
 export const selectIsEmailVerified = (state) => state.auth.isEmailVerified;
+
+// Add a new selector for the redirect URL
+export const selectRedirectUrl = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem("redirectAfterVerification");
+  }
+  return null;
+};
 
 export default authSlice.reducer;

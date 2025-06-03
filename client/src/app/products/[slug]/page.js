@@ -70,11 +70,28 @@ export default function ProductPage() {
   }, [slug]);
 
   const handleAction = (action) => {
-    console.log("Full Auth state:", JSON.stringify(auth, null, 2)); // Detailed debug log
+    console.log("Full Auth state:", JSON.stringify(auth, null, 2));
     console.log("User object:", auth.user);
     console.log("isEmailVerified in user:", auth.user?.isEmailVerified);
     console.log("isVerified in auth:", auth.isVerified);
     console.log("isEmailVerified in auth:", auth.isEmailVerified);
+
+    // Store current URL and product ID for redirect after verification
+    const currentUrl = window.location.href;
+    const productId = slug; // Using the slug as product ID
+    
+    // Store in both localStorage and sessionStorage for redundancy
+    localStorage.setItem("redirectAfterVerification", currentUrl);
+    localStorage.setItem("productIdAfterVerification", productId);
+    sessionStorage.setItem("tempRedirectAfterVerification", currentUrl);
+    sessionStorage.setItem("tempProductIdAfterVerification", productId);
+    
+    // Dispatch a custom event to notify other tabs
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'redirectAfterVerification',
+      newValue: currentUrl,
+      url: window.location.href
+    }));
 
     if (!auth.token) {
       console.log("User not logged in, showing login modal");
@@ -85,7 +102,11 @@ export default function ProductPage() {
     // Check all possible verification states
     if (!auth.user?.isEmailVerified) {
       console.log("User not verified, showing verification modal");
+      // Modify the verification URL to include product ID
+      const verificationUrl = `${window.location.origin}/verify-email?token=${auth.token}&productId=${productId}`;
       setIsVerificationModalOpen(true);
+      // Store the modified verification URL
+      localStorage.setItem("verificationUrl", verificationUrl);
       return;
     }
 

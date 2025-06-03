@@ -10,9 +10,9 @@ import 'rc-slider/assets/index.css';
 
 export function AuctionFilters({ onFilterChange }) {
   const [date, setDate] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [priceRange, setPriceRange] = useState([0, 500000]);
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(5000);
+  const [maxPrice, setMaxPrice] = useState(500000);
   const [auctionTypes, setAuctionTypes] = useState({
     "Live Auction": false,
     "Timed Auction": false,
@@ -263,7 +263,7 @@ export function AuctionFilters({ onFilterChange }) {
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Catalogs</h3>
         <div className="space-y-3">
           {Object.keys(catalogs).length > 0 ? (
@@ -286,7 +286,7 @@ export function AuctionFilters({ onFilterChange }) {
             <p className="text-sm text-muted-foreground">Loading catalogs...</p>
           )}
         </div>
-      </div>
+      </div> */}
 
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-luxury-charcoal">Status</h3>

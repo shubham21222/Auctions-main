@@ -261,6 +261,12 @@ export const getFilteredProducts = async (req, res) => {
                 }
             },
             { $unwind: "$category" },
+            // Add a random field for complete shuffling
+            {
+                $addFields: {
+                    randomSort: { $rand: {} }
+                }
+            },
             {
                 $project: {
                     title: 1,
@@ -277,7 +283,8 @@ export const getFilteredProducts = async (req, res) => {
                     details: 1,
                     favorite: 1,
                     link: 1,
-                    category: { _id: 1, name: 1 },
+                    category: 1,
+                    randomSort: 1,
                     // Add a computed field for sorting
                     priceValue: {
                         $cond: {
@@ -303,14 +310,25 @@ export const getFilteredProducts = async (req, res) => {
             }
         ];
 
-        // Add sorting
+        // Add sorting only if not shuffling (i.e., when search query or specific sort is requested)
         let sortOptions = {};
         if (searchQuery) {
-            sortOptions = { searchScore: -1, random: { $rand: {} } };
+            // Remove random sort and just use createdAt for search results
+            sortOptions = { created_at: -1 };
         } else if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
             sortOptions = { priceValue: sortByPrice === "High Price" ? -1 : 1 };
         } else if (sortField && sortOrder) {
-            sortOptions = { [sortField]: sortOrder === "asc" ? 1 : -1 };
+            // Ensure sortField is a valid field name
+            const validSortFields = ['title', 'price', 'estimateprice', 'created_at', 'updated_at', 'sku'];
+            if (validSortFields.includes(sortField)) {
+                sortOptions = { [sortField]: sortOrder === "asc" ? 1 : -1 };
+            } else {
+                // Default to created_at if invalid sort field
+                sortOptions = { created_at: -1 };
+            }
+        } else {
+            // If no specific sort is requested, use complete random shuffle
+            sortOptions = { randomSort: 1 };
         }
 
         // Add sort stage if we have sort options
@@ -338,8 +356,8 @@ export const getFilteredProducts = async (req, res) => {
 
         const result = await ProductModel.aggregatePaginate(pipeline, options);
 
-        // Remove the temporary priceValue field from the results
-        result.items = result.items.map(({ priceValue, ...item }) => item);
+        // Remove the temporary fields from the results
+        result.items = result.items.map(({ priceValue, randomSort, ...item }) => item);
 
         return success(res, "Products fetched successfully", result);
 

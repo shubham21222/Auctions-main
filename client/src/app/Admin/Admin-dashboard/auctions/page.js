@@ -41,6 +41,8 @@ export default function Auctions() {
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   const [editAuctionType, setEditAuctionType] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
   const auth = useSelector((state) => state.auth);
   const token = auth?.token;
 
@@ -381,22 +383,31 @@ export default function Auctions() {
 
     setLoading(true);
     try {
+      // Combine date and time for start
       const startDateTimeUTC = moment
-        .tz(`${editStartDate} 00:00`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
+        .tz(`${editStartDate} ${editStartTime}`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
         .utc()
         .format("YYYY-MM-DDTHH:mm:ss.SSSZ");
       
       let endDateTimeUTC = null;
       if (editAuctionType === "TIMED") {
-        if (!editEndDate) {
-          toast.error("End date is required for Timed auctions");
+        if (!editEndDate || !editEndTime) {
+          toast.error("End date and time are required for Timed auctions");
           setLoading(false);
           return;
         }
+        // Combine date and time for end
         endDateTimeUTC = moment
-          .tz(`${editEndDate} 23:59`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
+          .tz(`${editEndDate} ${editEndTime}`, "DD-MM-YYYY HH:mm", "Asia/Kolkata")
           .utc()
           .format("YYYY-MM-DDTHH:mm:ss.SSSZ");
+
+        // Validate end date/time is after start date/time
+        if (moment(endDateTimeUTC).isSameOrBefore(startDateTimeUTC)) {
+          toast.error("End date and time must be after start date and time");
+          setLoading(false);
+          return;
+        }
       }
 
       const response = await fetch(`${config.baseURL}/v1/api/auction/updateStartDateTime/${selectedCatalogForEdit._id}`, {
@@ -430,6 +441,22 @@ export default function Auctions() {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCatalogEditClick = (catalog) => {
+    const catalogAuctions = auctions.filter(a => a.catalog === catalog);
+    if (catalogAuctions.length > 0) {
+      setSelectedCatalogForEdit(catalogAuctions[0]);
+      const startDateTime = moment(catalogAuctions[0].startDate).tz("Asia/Kolkata");
+      const endDateTime = catalogAuctions[0].endDate ? moment(catalogAuctions[0].endDate).tz("Asia/Kolkata") : null;
+      
+      setEditStartDate(startDateTime.format("DD-MM-YYYY"));
+      setEditStartTime(startDateTime.format("HH:mm"));
+      setEditEndDate(endDateTime ? endDateTime.format("DD-MM-YYYY") : "");
+      setEditEndTime(endDateTime ? endDateTime.format("HH:mm") : "");
+      setEditAuctionType(catalogAuctions[0].auctionType);
+      setOpenEditDateTimeDialog(true);
     }
   };
 
@@ -483,16 +510,7 @@ export default function Auctions() {
                   <Button
                     variant="outline"
                     className="w-full border-luxury-gold/20 text-luxury-gold hover:bg-luxury-gold/10"
-                    onClick={() => {
-                      const catalogAuctions = auctions.filter(a => a.catalog === catalog);
-                      if (catalogAuctions.length > 0) {
-                        setSelectedCatalogForEdit(catalogAuctions[0]);
-                        setEditStartDate(moment(catalogAuctions[0].startDate).tz("Asia/Kolkata").format("DD-MM-YYYY"));
-                        setEditEndDate(moment(catalogAuctions[0].endDate).tz("Asia/Kolkata").format("DD-MM-YYYY"));
-                        setEditAuctionType(catalogAuctions[0].auctionType);
-                        setOpenEditDateTimeDialog(true);
-                      }
-                    }}
+                    onClick={() => handleCatalogEditClick(catalog)}
                   >
                     Edit Date & Time
                   </Button>
@@ -743,19 +761,29 @@ export default function Auctions() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="editStartDate" className="text-right">
-                      Start Date
+                      Start Date & Time
                     </Label>
-                    <Input
-                      id="editStartDate"
-                      type="text"
-                      value={editStartDate}
-                      onChange={(e) => setEditStartDate(e.target.value)}
-                      className="col-span-3 bg-white border-luxury-gold/20"
-                      placeholder="DD-MM-YYYY"
-                      required
-                      pattern="\d{2}-\d{2}-\d{4}"
-                      title="Please enter date in DD-MM-YYYY format"
-                    />
+                    <div className="col-span-3 grid grid-cols-3 gap-2">
+                      <Input
+                        id="editStartDate"
+                        type="text"
+                        value={editStartDate}
+                        onChange={(e) => setEditStartDate(e.target.value)}
+                        className="col-span-2 bg-white border-luxury-gold/20"
+                        placeholder="DD-MM-YYYY"
+                        required
+                        pattern="\d{2}-\d{2}-\d{4}"
+                        title="Please enter date in DD-MM-YYYY format"
+                      />
+                      <Input
+                        id="editStartTime"
+                        type="time"
+                        value={editStartTime}
+                        onChange={(e) => setEditStartTime(e.target.value)}
+                        className="col-span-1 bg-white border-luxury-gold/20"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -785,19 +813,29 @@ export default function Auctions() {
                   {editAuctionType === "TIMED" && (
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="editEndDate" className="text-right">
-                        End Date
+                        End Date & Time
                       </Label>
-                      <Input
-                        id="editEndDate"
-                        type="text"
-                        value={editEndDate}
-                        onChange={(e) => setEditEndDate(e.target.value)}
-                        className="col-span-3 bg-white border-luxury-gold/20"
-                        placeholder="DD-MM-YYYY"
-                        required
-                        pattern="\d{2}-\d{2}-\d{4}"
-                        title="Please enter date in DD-MM-YYYY format"
-                      />
+                      <div className="col-span-3 grid grid-cols-3 gap-2">
+                        <Input
+                          id="editEndDate"
+                          type="text"
+                          value={editEndDate}
+                          onChange={(e) => setEditEndDate(e.target.value)}
+                          className="col-span-2 bg-white border-luxury-gold/20"
+                          placeholder="DD-MM-YYYY"
+                          required
+                          pattern="\d{2}-\d{2}-\d{4}"
+                          title="Please enter date in DD-MM-YYYY format"
+                        />
+                        <Input
+                          id="editEndTime"
+                          type="time"
+                          value={editEndTime}
+                          onChange={(e) => setEditEndTime(e.target.value)}
+                          className="col-span-1 bg-white border-luxury-gold/20"
+                          required
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -808,7 +846,9 @@ export default function Auctions() {
                       setOpenEditDateTimeDialog(false);
                       setSelectedCatalogForEdit(null);
                       setEditStartDate("");
+                      setEditStartTime("");
                       setEditEndDate("");
+                      setEditEndTime("");
                       setEditAuctionType("");
                     }}
                   >
@@ -816,7 +856,7 @@ export default function Auctions() {
                   </Button>
                   <Button
                     onClick={handleUpdateDateTime}
-                    disabled={loading || !editStartDate || (editAuctionType === "TIMED" && !editEndDate)}
+                    disabled={loading || !editStartDate || !editStartTime || (editAuctionType === "TIMED" && (!editEndDate || !editEndTime))}
                   >
                     {loading ? "Updating..." : "Update"}
                   </Button>
