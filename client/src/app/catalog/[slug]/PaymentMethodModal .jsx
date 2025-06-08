@@ -17,7 +17,7 @@ import { Elements, CardElement, useStripe, useElements } from "@stripe/react-str
 import config from "@/app/config_BASE_URL";
 
 // Ensure this is your correct Stripe test public key
-const stripePromise = loadStripe('pk_test_51QvrYjAyvNAmOwKWxkE96ErZaYGx3LcIivgG0OUWeUowZUupEuM7ir6fLdxhtssPtNQnruXmKMfjB9CDbA8KjG1u00thCR8WnJ');
+const stripePromise = loadStripe('pk_live_5g1wJkC7k0nwGoGDbLp6zVBZ');
 
 const PaymentForm = ({ onSuccess, onClose, token }) => {
   const stripe = useStripe();

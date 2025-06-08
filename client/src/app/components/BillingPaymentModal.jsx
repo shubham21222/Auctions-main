@@ -8,7 +8,7 @@ import { Elements, CardElement, useStripe, useElements } from "@stripe/react-str
 import toast from "react-hot-toast";
 import config from "../config_BASE_URL";
 
-const stripePromise = loadStripe('pk_test_51PAs60SB7WwtOtybIdvkn8Cre8ZL9v5RJc61u8kzkKYZEsQbsMK6hLTZGIRoF0VKePdCk4iHQzh3Rxrd4sqaN1xM00NO4Zh4S6');
+const stripePromise = loadStripe('pk_live_5g1wJkC7k0nwGoGDbLp6zVBZ');
 
 const PaymentForm = ({ token, onSuccess, billingDetails, email, onClose }) => {
   const stripe = useStripe();
