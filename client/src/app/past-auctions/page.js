@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -150,31 +150,121 @@ const formatPrice = (price) => {
   return Number(price).toFixed(2);
 };
 
+// Global image cache to prevent duplicate requests
+const imageCache = new Map();
+
+// Custom CachedImage component to prevent duplicate requests
+const CachedImage = ({ src, alt, className, priority = false, onError }) => {
+  const [imageSrc, setImageSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!src || src === "/placeholder.svg") {
+      setImageSrc("/placeholder.svg");
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if image is already cached
+    if (imageCache.has(src)) {
+      setImageSrc(imageCache.get(src));
+      setIsLoading(false);
+      return;
+    }
+
+    // Load new image
+    setIsLoading(true);
+    setImageSrc(src);
+    setHasError(false);
+
+    // Preload image to cache it
+    const img = new window.Image();
+    img.onload = () => {
+      imageCache.set(src, src);
+      setIsLoading(false);
+      console.log(`✅ Image cached: ${src}`);
+    };
+    img.onerror = () => {
+      setHasError(true);
+      setImageSrc("/placeholder.svg");
+      setIsLoading(false);
+      console.log(`❌ Image failed to load: ${src}`);
+      if (onError) onError();
+    };
+    img.src = src;
+  }, [src, onError]);
+
+  if (isLoading) {
+    return (
+      <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <div className="text-xs text-gray-500">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasError || !imageSrc || imageSrc === "/placeholder.svg") {
+    return (
+      <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+        <div className="text-center text-xs text-gray-500">No Image</div>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      fill
+      className={className}
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      priority={priority}
+      loading={priority ? "eager" : "lazy"}
+      unoptimized={false}
+    />
+  );
+};
+
 export default function PastAuctions() {
+  // State for catalogs and pagination
   const [auctions, setAuctions] = useState([]);
-  const [scrapedAuctions, setScrapedAuctions] = useState([]);
+  const [catalogPaginationInfo, setCatalogPaginationInfo] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingImages, setLoadingImages] = useState(false);
   const [error, setError] = useState(null);
-  const [sortBy, setSortBy] = useState("date-descending");
-  const [auctionDate, setAuctionDate] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
+  const [scrapedAuctions, setScrapedAuctions] = useState([]);
   const [selectedAuction, setSelectedAuction] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State for products within a catalog
   const [selectedCatalog, setSelectedCatalog] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [productPaginationInfo, setProductPaginationInfo] = useState({});
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [showProducts, setShowProducts] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogPagination, setCatalogPagination] = useState(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+
+  // Image loading state
+  const [catalogImages, setCatalogImages] = useState({});
+  const [processedCatalogs, setProcessedCatalogs] = useState(new Set());
+  const initialImagesLoaded = useRef(false);
+
+  const [sortBy, setSortBy] = useState("date-descending");
+  const [auctionDate, setAuctionDate] = useState("");
   const [productSortBy, setProductSortBy] = useState('lotNumber');
   const [productSortOrder, setProductSortOrder] = useState('asc');
   const [retryCount, setRetryCount] = useState(0);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [catalogPaginationInfo, setCatalogPaginationInfo] = useState(null);
   const [catalogClickLoading, setCatalogClickLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
-
-  // Debounce search query
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const retryFetch = () => {
     setRetryCount(prev => prev + 1);
@@ -213,14 +303,8 @@ export default function PastAuctions() {
           // Store catalog pagination info
           setCatalogPaginationInfo(pagination);
           
-          // Don't fetch product images initially - just show catalogs with counts
-          // This makes the initial load much faster
-          const catalogsWithPlaceholders = catalogs.map(catalog => ({
-            ...catalog,
-            firstImage: "/placeholder.svg" // Use placeholder until catalog is clicked
-          }));
-          
-          setAuctions(catalogsWithPlaceholders);
+          // Catalogs now come with images from backend - no need for complex processing!
+          setAuctions(catalogs);
           setLoadingProgress(100);
         }
 
@@ -255,6 +339,165 @@ export default function PastAuctions() {
     };
     fetchData();
   }, [retryCount]);
+
+  // Smart image loading functions
+  const loadCatalogImages = async (catalogIds) => {
+    if (catalogIds.length === 0 || loadingImages) {
+      console.log('🚫 Skipping image load - already loading or no catalogs');
+      return;
+    }
+    
+    setLoadingImages(true);
+    console.log(`🖼️ Loading images for ${catalogIds.length} catalogs...`);
+    
+    try {
+      // Process catalogs in batches of 5 for better performance
+      const batchSize = 5;
+      const newImages = {};
+      
+      for (let i = 0; i < catalogIds.length; i += batchSize) {
+        const batch = catalogIds.slice(i, i + batchSize);
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (catalogId) => {
+          try {
+            // Get the first product from this catalog to get its image
+            const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalog/${catalogId}/products`, {
+              params: { page: 1, limit: 1, sortBy: 'lotNumber', sortOrder: 'asc' },
+              timeout: 10000
+            });
+            
+            if (response.data?.items?.products?.[0]?.images?.[0]) {
+              return { catalogId, image: response.data.items.products[0].images[0] };
+            }
+            return { catalogId, image: '/placeholder.svg' };
+          } catch (error) {
+            console.error(`Error loading image for catalog ${catalogId}:`, error);
+            return { catalogId, image: '/placeholder.svg' };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        batchResults.forEach(({ catalogId, image }) => {
+          newImages[catalogId] = image;
+        });
+        
+        // Update images progressively
+        setCatalogImages(prev => ({ ...prev, ...newImages }));
+        
+        // Small delay between batches to prevent overwhelming the server
+        if (i + batchSize < catalogIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      console.log(`✅ Loaded ${Object.keys(newImages).length} catalog images`);
+      
+    } catch (error) {
+      console.error('Error in batch image loading:', error);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
+
+  const loadAllCatalogImages = async () => {
+    if (loadingImages) {
+      console.log('🚫 Already loading images, skipping...');
+      return;
+    }
+    
+    const unprocessedCatalogs = auctions
+      .filter(catalog => !processedCatalogs.has(catalog._id))
+      .map(catalog => catalog._id);
+    
+    if (unprocessedCatalogs.length === 0) {
+      console.log('✅ All catalog images already loaded');
+      return;
+    }
+    
+    console.log(`🖼️ Loading all remaining ${unprocessedCatalogs.length} catalog images...`);
+    await loadCatalogImages(unprocessedCatalogs);
+    setProcessedCatalogs(prev => new Set([...prev, ...unprocessedCatalogs]));
+  };
+
+  // Reset image loading state when auctions change completely
+  useEffect(() => {
+    if (auctions && auctions.length > 0) {
+      // Reset processed catalogs when auctions change
+      setProcessedCatalogs(new Set());
+      setCatalogImages({});
+      initialImagesLoaded.current = false;
+      
+      // Clear old images from cache to prevent memory leaks
+      const currentImageUrls = new Set();
+      auctions.forEach(catalog => {
+        if (catalog.firstImage) currentImageUrls.add(catalog.firstImage);
+      });
+      
+      // Remove old cached images that are no longer needed
+      for (const [url] of imageCache) {
+        if (!currentImageUrls.has(url)) {
+          imageCache.delete(url);
+        }
+      }
+      
+      console.log('🔄 Reset image loading state for new auctions');
+    }
+  }, [auctions.length]);
+
+  // Load images for visible catalogs
+  useEffect(() => {
+    // Only run once when auctions are first loaded
+    if (auctions && auctions.length > 0 && !loadingImages && !initialImagesLoaded.current) {
+      const visibleCatalogs = auctions.slice(0, 20).map(catalog => catalog._id);
+      const unprocessedVisible = visibleCatalogs.filter(id => !processedCatalogs.has(id));
+      
+      // Only load if there are actually unprocessed catalogs
+      if (unprocessedVisible.length > 0) {
+        console.log(`🖼️ Loading initial images for ${unprocessedVisible.length} visible catalogs`);
+        loadCatalogImages(unprocessedVisible);
+        setProcessedCatalogs(prev => new Set([...prev, ...unprocessedVisible]));
+        initialImagesLoaded.current = true; // Mark as loaded
+      }
+    }
+  }, [auctions.length]); // Only depend on auctions.length, not the full auctions array
+
+  // Load more images when scrolling - with better throttling
+  useEffect(() => {
+    let scrollTimeout;
+    
+    const handleScroll = () => {
+      // Clear previous timeout
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      
+      // Throttle scroll events
+      scrollTimeout = setTimeout(() => {
+        if (loadingImages || !auctions || auctions.length === 0) return;
+        
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // Load more images when user is near bottom
+        if (scrollPosition > documentHeight - 500) {
+          const unprocessedCatalogs = auctions
+            .filter(catalog => !processedCatalogs.has(catalog._id))
+            .map(catalog => catalog._id);
+          
+          if (unprocessedCatalogs.length > 0) {
+            console.log(`🖼️ Loading ${Math.min(10, unprocessedCatalogs.length)} more images on scroll`);
+            loadCatalogImages(unprocessedCatalogs.slice(0, 10));
+            setProcessedCatalogs(prev => new Set([...prev, ...unprocessedCatalogs.slice(0, 10)]));
+          }
+        }
+      }, 200); // 200ms throttle
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [auctions.length, loadingImages]); // Simplified dependencies
 
   const handleCatalogClick = async (catalogId) => {
     setCatalogClickLoading(true);
@@ -356,25 +599,21 @@ export default function PastAuctions() {
         
         console.log(`Loaded ${newCatalogs.length} new catalogs for page ${page}`);
         
-        // Don't fetch product images - just show catalogs with counts
-        const newCatalogsWithPlaceholders = newCatalogs.map(catalog => ({
-          ...catalog,
-          firstImage: "/placeholder.svg" // Use placeholder until catalog is clicked
-        }));
+        // Catalogs now come with images from backend - no need for complex processing!
         
         // If this is page 1, replace all catalogs
         // If this is page 2+, append to existing catalogs
         if (page === 1) {
-          setAuctions(newCatalogsWithPlaceholders);
+          setAuctions(newCatalogs);
         } else {
-          setAuctions(prevCatalogs => [...prevCatalogs, ...newCatalogsWithPlaceholders]);
+          setAuctions(prevCatalogs => [...prevCatalogs, ...newCatalogs]);
         }
         
         // Update pagination info to reflect the new state
         setCatalogPaginationInfo(pagination);
         setCurrentPage(page);
         
-        console.log(`Total catalogs now: ${page === 1 ? newCatalogsWithPlaceholders.length : auctions.length + newCatalogsWithPlaceholders.length}`);
+        console.log(`Total catalogs now: ${page === 1 ? newCatalogs.length : auctions.length + newCatalogs.length}`);
         console.log(`Updated pagination:`, pagination);
       }
     } catch (err) {
@@ -385,7 +624,7 @@ export default function PastAuctions() {
     }
   };
 
-  const sortedCatalogs = React.useMemo(() => {
+  const sortedCatalogs = useMemo(() => {
     let sorted = [...auctions];
     if (sortBy === "date-ascending") {
       sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -541,7 +780,7 @@ export default function PastAuctions() {
 
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-gray-700">Sort By</label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
+                  <Select value={sortBy} onValueChange={setSortBy}> 
                     <SelectTrigger className="w-full bg-gray-100">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
@@ -664,22 +903,70 @@ export default function PastAuctions() {
                   </div>
                 </div> */}
 
+                {/* Image Loading Controls */}
+                <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      {Object.keys(catalogImages).length} of {auctions.length} catalogs have images loaded
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={loadAllCatalogImages}
+                        disabled={loadingImages}
+                        variant="outline"
+                        className="text-sm"
+                      >
+                        {loadingImages ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                            Loading Images...
+                          </>
+                        ) : (
+                          'Load All Images'
+                        )}
+                      </Button>
+                      {loadingImages && (
+                        <div className="text-xs text-gray-500">
+                          Loading {auctions.length - Object.keys(catalogImages).length} remaining images...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
                 {paginatedCatalogs.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {paginatedCatalogs.map((catalog) => (
+                    {paginatedCatalogs.map((catalog, index) => (
                       <div
                         key={catalog._id}
+                        data-catalog-id={catalog._id}
+                        data-catalog-index={index}
                         onClick={() => handleCatalogClick(catalog._id)}
                         className="bg-white border rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
                       >
                         <div className="relative aspect-video">
-                          <Image
-                            src={catalog.firstImage || "/placeholder.svg"}
+                          <CachedImage
+                            src={catalogImages[catalog._id] || catalog.firstImage || "/placeholder.svg"}
                             alt={catalog.catalogName}
                             fill
                             className="object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            priority={index < 6} // Only prioritize first 6 images
+                            onError={() => {
+                              // This onError is for the CachedImage component itself, not the Image component
+                              // The Image component handles its own onError.
+                            }}
                           />
+                          
+                          {/* Loading indicator for images */}
+                          {!catalogImages[catalog._id] && !catalog.firstImage && (
+                            <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                <div className="text-xs text-gray-500">Loading Image...</div>
+                              </div>
+                            </div>
+                          )}
+                          
                           {/* Overlay to indicate it's clickable */}
                           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                             <div className="text-white text-center">

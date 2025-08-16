@@ -123,21 +123,62 @@ export const getPastAuctionCatalogs = async (req, res) => {
     // Get total count for pagination
     const totalCatalogs = await PastAuction.countDocuments();
 
-    // Get paginated catalogs WITHOUT populate to avoid slow loading
+    // Debug: Check collection names
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    console.log('📚 Available collections:', collections.map(c => c.name));
+
+    // Simple approach: Get catalogs first, then fetch first product image for each
     const catalogs = await PastAuction.find()
       .sort(sortObj)
       .skip(skip)
       .limit(limitNum)
-      .select('_id catalogName createdAt updatedAt products'); // Include products array for count
+      .select('_id catalogName createdAt updatedAt products');
 
-    // Add product count to each catalog
-    const catalogsWithCount = catalogs.map(catalog => ({
-      _id: catalog._id,
-      catalogName: catalog.catalogName,
-      createdAt: catalog.createdAt,
-      updatedAt: catalog.updatedAt,
-      productCount: catalog.products ? catalog.products.length : 0
-    }));
+    console.log(`Found ${catalogs.length} catalogs`);
+
+    // Get first product image for each catalog (simple and reliable)
+    const catalogsWithImages = [];
+    
+    for (const catalog of catalogs) {
+      try {
+        // Get the first product with image for this catalog
+        const firstProduct = await PastAuctionProduct.findOne(
+          { _id: { $in: catalog.products } },
+          { images: 1, lotNumber: 1 }
+        ).sort({ lotNumber: 1 });
+
+        const catalogWithImage = {
+          _id: catalog._id,
+          catalogName: catalog.catalogName,
+          createdAt: catalog.createdAt,
+          updatedAt: catalog.updatedAt,
+          productCount: catalog.products ? catalog.products.length : 0,
+          firstImage: firstProduct?.images?.[0] || "/placeholder.svg"
+        };
+
+        catalogsWithImages.push(catalogWithImage);
+        
+        console.log(`Catalog ${catalog.catalogName}: ${firstProduct ? 'Found image' : 'No image'}`);
+        
+      } catch (error) {
+        console.error(`Error getting image for catalog ${catalog.catalogName}:`, error);
+        
+        // Add catalog without image as fallback
+        catalogsWithImages.push({
+          _id: catalog._id,
+          catalogName: catalog.catalogName,
+          createdAt: catalog.createdAt,
+          updatedAt: catalog.updatedAt,
+          productCount: catalog.products ? catalog.products.length : 0,
+          firstImage: "/placeholder.svg"
+        });
+      }
+    }
+
+    console.log(`✅ Processed ${catalogsWithImages.length} catalogs with images`);
+    if (catalogsWithImages.length > 0) {
+      console.log(`📸 First catalog image: ${catalogsWithImages[0].firstImage}`);
+    }
 
     // Calculate pagination info
     const totalPages = Math.ceil(totalCatalogs / limitNum);
@@ -149,7 +190,7 @@ export const getPastAuctionCatalogs = async (req, res) => {
     res.set('ETag', `catalogs-${pageNum}-${limitNum}-${sortBy}-${sortOrder}`);
 
     return success(res, 'Catalogs retrieved successfully', { 
-      catalogs: catalogsWithCount,
+      catalogs: catalogsWithImages,
       pagination: {
         currentPage: pageNum,
         totalPages,
