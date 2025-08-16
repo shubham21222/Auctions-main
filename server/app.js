@@ -1,6 +1,7 @@
 import express, { static as expressStatic, urlencoded, json } from 'express';
 import cors from "cors";
 import { notFoundMiddleware } from "./src/v1/api/middlewares/notfoundmiddleware.js";
+import { performanceMiddleware } from "./src/v1/api/middlewares/performanceMiddleware.js";
 import Routerlocation from "./src/v1/api/index.js";
 import { badRequest } from './src/v1/api/formatters/globalResponse.js';
 import compression from 'compression';
@@ -30,6 +31,9 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.options('*', cors());
+
+// Add performance monitoring middleware
+app.use(performanceMiddleware);
 
 // Increase URL-encoded payload limit to 10MB
 // ✅ Increase URL-encoded payload limit to 100MB

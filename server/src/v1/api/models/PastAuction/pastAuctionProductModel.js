@@ -75,6 +75,17 @@ const pastAuctionProductSchema = new mongoose.Schema({
 // Add index for faster queries
 pastAuctionProductSchema.index({ lotNumber: 1 });
 pastAuctionProductSchema.index({ sku: 1 });
+pastAuctionProductSchema.index({ title: 1 });
+pastAuctionProductSchema.index({ startPrice: 1 });
+pastAuctionProductSchema.index({ finalPrice: 1 });
+pastAuctionProductSchema.index({ createdAt: 1 });
+pastAuctionProductSchema.index({ lotNumber: 1, title: 1 });
+pastAuctionProductSchema.index({ startPrice: 1, finalPrice: 1 });
+
+// Add compound index for catalog products query performance
+pastAuctionProductSchema.index({ _id: 1, lotNumber: 1 });
+pastAuctionProductSchema.index({ _id: 1, title: 1 });
+pastAuctionProductSchema.index({ _id: 1, startPrice: 1 });
 
 const PastAuctionProduct = mongoose.model('PastAuctionProduct', pastAuctionProductSchema);
 

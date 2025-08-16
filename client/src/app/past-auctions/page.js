@@ -25,6 +25,23 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import axios from 'axios';
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Debounce hook for search
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const ProductCarousel = ({ images }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [prevBtnEnabled, setPrevBtnEnabled] = useState(false);
@@ -147,41 +164,64 @@ export default function PastAuctions() {
   const [selectedCatalog, setSelectedCatalog] = useState(null);
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogPagination, setCatalogPagination] = useState(null);
+  const [productSortBy, setProductSortBy] = useState('lotNumber');
+  const [productSortOrder, setProductSortOrder] = useState('asc');
+  const [retryCount, setRetryCount] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [catalogPaginationInfo, setCatalogPaginationInfo] = useState(null);
+  const [catalogClickLoading, setCatalogClickLoading] = useState(false);
   const itemsPerPage = 50;
+
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  const retryFetch = () => {
+    setRetryCount(prev => prev + 1);
+    setError(null);
+    setLoading(true);
+    setLoadingProgress(0);
+    setCatalogPaginationInfo(null);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch API data using axios
+        // Fetch API data using axios with pagination
         console.log('Fetching catalogs...');
-        const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalogs`);
+        const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalogs`, {
+          params: {
+            page: 1,
+            limit: 100, // Increased from 20 to 100 to get more catalogs initially
+            sortBy: 'uploadedAt',
+            sortOrder: 'desc'
+          },
+          timeout: 30000 // 30 second timeout
+        });
         console.log('Catalogs API Response:', response.data);
 
         // Process API data if available
         if (response.data?.items?.catalogs) {
           const catalogs = response.data.items.catalogs;
-          // Get first product image for each catalog
-          const catalogsWithImages = await Promise.all(
-            catalogs.map(async (catalog) => {
-              try {
-                const productsResponse = await axios.get(
-                  `${config.baseURL}/v1/api/past-auction/catalog/${catalog._id}/products`
-                );
-                const firstProduct = productsResponse.data?.items?.products?.[0];
-                return {
-                  ...catalog,
-                  firstImage: firstProduct?.images?.[0] || "/placeholder.svg"
-                };
-              } catch (err) {
-                console.error(`Error fetching first product for catalog ${catalog._id}:`, err);
-                return {
-                  ...catalog,
-                  firstImage: "/placeholder.svg"
-                };
-              }
-            })
-          );
-          setAuctions(catalogsWithImages);
+          const pagination = response.data.items.pagination;
+          console.log(`Processing ${catalogs.length} catalogs...`);
+          console.log(`Catalog pagination:`, pagination);
+          console.log(`Total catalogs in database: ${pagination.totalCatalogs}`);
+          console.log(`Current page: ${pagination.currentPage}`);
+          console.log(`Has next page: ${pagination.hasNextPage}`);
+          
+          // Store catalog pagination info
+          setCatalogPaginationInfo(pagination);
+          
+          // Don't fetch product images initially - just show catalogs with counts
+          // This makes the initial load much faster
+          const catalogsWithPlaceholders = catalogs.map(catalog => ({
+            ...catalog,
+            firstImage: "/placeholder.svg" // Use placeholder until catalog is clicked
+          }));
+          
+          setAuctions(catalogsWithPlaceholders);
+          setLoadingProgress(100);
         }
 
         // Fetch scraped data
@@ -194,7 +234,19 @@ export default function PastAuctions() {
         }
       } catch (err) {
         console.error("Error fetching auction data:", err);
-        setError(err.message);
+        let errorMessage = err.message;
+        
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (err.response?.status === 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'API endpoint not found.';
+        } else if (!err.response) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+        
+        setError(errorMessage);
         setAuctions([]);
         setScrapedAuctions([]);
       } finally {
@@ -202,20 +254,30 @@ export default function PastAuctions() {
       }
     };
     fetchData();
-  }, []);
+  }, [retryCount]);
 
   const handleCatalogClick = async (catalogId) => {
+    setCatalogClickLoading(true);
     setCatalogLoading(true);
     try {
       console.log('Fetching products for catalog:', catalogId);
-      const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalog/${catalogId}/products`);
+      const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalog/${catalogId}/products`, {
+        params: {
+          page: 1,
+          limit: itemsPerPage,
+          sortBy: productSortBy,
+          sortOrder: productSortOrder
+        }
+      });
       console.log('Products API Response:', response.data);
       
       if (response.data?.items?.products) {
         const products = response.data.items.products;
+        const pagination = response.data.items.pagination;
         // Get the first product's image for the catalog preview
         const firstProduct = products[0];
         setCatalogProducts(products);
+        setCatalogPagination(pagination);
         setSelectedCatalog({
           id: catalogId,
           firstImage: firstProduct?.images?.[0] || "/placeholder.svg"
@@ -227,13 +289,100 @@ export default function PastAuctions() {
       setError(err.message);
     } finally {
       setCatalogLoading(false);
+      setCatalogClickLoading(false);
     }
   };
 
   const handleBackToCatalogs = () => {
     setSelectedCatalog(null);
     setCatalogProducts([]);
+    setCatalogPagination(null);
     setCurrentPage(1);
+  };
+
+  const loadMoreProducts = async (page) => {
+    if (!selectedCatalog) return;
+    
+    setCatalogLoading(true);
+    try {
+      const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalog/${selectedCatalog.id}/products`, {
+        params: {
+          page: page,
+          limit: itemsPerPage,
+          sortBy: productSortBy,
+          sortOrder: productSortOrder
+        }
+      });
+      
+      if (response.data?.items?.products) {
+        const products = response.data.items.products;
+        const pagination = response.data.items.pagination;
+        setCatalogProducts(products);
+        setCatalogPagination(pagination);
+        setCurrentPage(page);
+      }
+    } catch (err) {
+      console.error("Error fetching more products:", err);
+      setError(err.message);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleProductSortChange = async (newSortBy, newSortOrder) => {
+    setProductSortBy(newSortBy);
+    setProductSortOrder(newSortOrder);
+    setCurrentPage(1);
+    await loadMoreProducts(1);
+  };
+
+  const loadMoreCatalogs = async (page) => {
+    setLoading(true);
+    try {
+      console.log(`Loading more catalogs: page ${page}`);
+      const response = await axios.get(`${config.baseURL}/v1/api/past-auction/catalogs`, {
+        params: {
+          page: page,
+          limit: 100,
+          sortBy: 'uploadedAt',
+          sortOrder: 'desc'
+        },
+        timeout: 30000
+      });
+
+      if (response.data?.items?.catalogs) {
+        const newCatalogs = response.data.items.catalogs;
+        const pagination = response.data.items.pagination;
+        
+        console.log(`Loaded ${newCatalogs.length} new catalogs for page ${page}`);
+        
+        // Don't fetch product images - just show catalogs with counts
+        const newCatalogsWithPlaceholders = newCatalogs.map(catalog => ({
+          ...catalog,
+          firstImage: "/placeholder.svg" // Use placeholder until catalog is clicked
+        }));
+        
+        // If this is page 1, replace all catalogs
+        // If this is page 2+, append to existing catalogs
+        if (page === 1) {
+          setAuctions(newCatalogsWithPlaceholders);
+        } else {
+          setAuctions(prevCatalogs => [...prevCatalogs, ...newCatalogsWithPlaceholders]);
+        }
+        
+        // Update pagination info to reflect the new state
+        setCatalogPaginationInfo(pagination);
+        setCurrentPage(page);
+        
+        console.log(`Total catalogs now: ${page === 1 ? newCatalogsWithPlaceholders.length : auctions.length + newCatalogsWithPlaceholders.length}`);
+        console.log(`Updated pagination:`, pagination);
+      }
+    } catch (err) {
+      console.error("Error loading more catalogs:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sortedCatalogs = React.useMemo(() => {
@@ -250,8 +399,8 @@ export default function PastAuctions() {
 
   const filteredCatalogs = React.useMemo(() => {
     let filtered = sortedCatalogs;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter((catalog) => {
         const searchableFields = [
           catalog.catalogName,
@@ -264,21 +413,18 @@ export default function PastAuctions() {
       });
     }
     return filtered;
-  }, [sortedCatalogs, searchQuery]);
+  }, [sortedCatalogs, debouncedSearchQuery]);
 
   const paginatedCatalogs = filteredCatalogs.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const paginatedProducts = catalogProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedProducts = catalogProducts;
 
-  const totalPages = Math.ceil(
-    selectedCatalog ? catalogProducts.length / itemsPerPage : filteredCatalogs.length / itemsPerPage
-  );
+  const totalPages = selectedCatalog 
+    ? (catalogPagination ? catalogPagination.totalPages : 1)
+    : (catalogPaginationInfo ? catalogPaginationInfo.totalPages : 1);
 
   const getPaginationRange = () => {
     const range = [];
@@ -306,6 +452,22 @@ export default function PastAuctions() {
         <Header />
         <div className="container mx-auto py-12 px-4 mt-[60px] min-h-screen">
           <Skeleton className="h-12 w-64 mx-auto mb-10" />
+          
+          {/* Progress Bar */}
+          {loadingProgress > 0 && (
+            <div className="max-w-md mx-auto mb-8">
+              <div className="text-center text-sm text-gray-600 mb-2">
+                Loading catalogs... {Math.round(loadingProgress)}%
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${loadingProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="space-y-6 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
               <Skeleton className="h-10 w-full" />
@@ -326,7 +488,14 @@ export default function PastAuctions() {
     );
   }
 
-  if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
+  if (error) return (
+    <div className="text-center py-10">
+      <div className="text-red-500 mb-4">Error: {error}</div>
+      <Button onClick={retryFetch} variant="outline">
+        Retry
+      </Button>
+    </div>
+  );
 
   return (
     <>
@@ -351,16 +520,23 @@ export default function PastAuctions() {
               <>
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-gray-700">Search Catalogs</label>
-                  <Input
-                    type="text"
-                    placeholder="Search by name, description..."
-                    className="w-full bg-gray-100"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Search by name, description..."
+                      className="w-full bg-gray-100 pr-8"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    />
+                    {searchQuery !== debouncedSearchQuery && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -403,6 +579,35 @@ export default function PastAuctions() {
             ) : selectedCatalog ? (
               // Products Grid
               <>
+                {/* Product Sorting Controls */}
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white p-4 rounded-lg shadow-sm border">
+                  <div className="text-lg font-semibold text-gray-800">
+                    Products in {selectedCatalog.catalogName || 'Catalog'}
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={productSortBy} onValueChange={(value) => handleProductSortChange(value, productSortOrder)}>
+                      <SelectTrigger className="w-32 bg-gray-100">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lotNumber">Lot Number</SelectItem>
+                        <SelectItem value="title">Title</SelectItem>
+                        <SelectItem value="startPrice">Start Price</SelectItem>
+                        <SelectItem value="finalPrice">Final Price</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={productSortOrder} onValueChange={(value) => handleProductSortChange(productSortBy, value)}>
+                      <SelectTrigger className="w-20 bg-gray-100">
+                        <SelectValue placeholder="Order" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">↑</SelectItem>
+                        <SelectItem value="desc">↓</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 {paginatedProducts.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {paginatedProducts.map((product) => (
@@ -445,6 +650,20 @@ export default function PastAuctions() {
             ) : (
               // Catalogs Grid
               <>
+                {/* Info message */}
+                {/* <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center">
+                    <div className="text-blue-600 mr-3">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="text-sm text-blue-800">
+                      <strong>Tip:</strong> Click on any catalog to view its products. Products are loaded on-demand for faster browsing.
+                    </div>
+                  </div>
+                </div> */}
+
                 {paginatedCatalogs.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {paginatedCatalogs.map((catalog) => (
@@ -461,14 +680,36 @@ export default function PastAuctions() {
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
+                          {/* Overlay to indicate it's clickable */}
+                          <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="text-white text-center">
+                              <div className="text-lg font-semibold">Click to View</div>
+                              <div className="text-sm">{catalog.productCount || 0} Products</div>
+                            </div>
+                          </div>
+                          
+                          {/* Loading indicator when catalog is being clicked */}
+                          {catalogClickLoading && (
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                              <div className="text-white text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <div className="text-sm">Loading Products...</div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="p-6">
                           <h3 className="font-semibold text-xl text-gray-800 hover:text-blue-600 transition-colors line-clamp-2">
                             {catalog.catalogName}
                           </h3>
-                          <p className="text-sm text-gray-600 mt-2">
-                            Created: {format(new Date(catalog.createdAt), "PPp")}
-                          </p>
+                          <div className="flex justify-between items-center mt-2">
+                            <p className="text-sm text-gray-600">
+                              Created: {format(new Date(catalog.createdAt), "PPp")}
+                            </p>
+                            <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                              {catalog.productCount || 0} products
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -483,34 +724,94 @@ export default function PastAuctions() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 pt-8">
-                <Button
-                  variant="outline"
-                  className="w-10 h-10 p-0"
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  ←
-                </Button>
-                {getPaginationRange().map((page, index) => (
+              <div className="space-y-4 pt-8">
+                {/* Page Info */}
+                {selectedCatalog && catalogPagination ? (
+                  <div className="text-center text-sm text-gray-600">
+                    Showing page {catalogPagination.currentPage} of {catalogPagination.totalPages} 
+                    ({catalogPagination.totalProducts} total products)
+                  </div>
+                ) : catalogPaginationInfo ? (
+                  <div className="text-center text-sm text-gray-600">
+                    Showing page {catalogPaginationInfo.currentPage} of {catalogPaginationInfo.totalPages} 
+                    ({catalogPaginationInfo.totalCatalogs} total catalogs)
+                  </div>
+                ) : null}
+                
+                {/* Load More Button for Catalogs */}
+                {!selectedCatalog && catalogPaginationInfo && catalogPaginationInfo.hasNextPage && (
+                  <div className="text-center space-y-2">
+                    <Button 
+                      onClick={() => loadMoreCatalogs(catalogPaginationInfo.currentPage + 1)}
+                      disabled={loading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loading ? 'Loading...' : `Load More Catalogs (${catalogPaginationInfo.totalCatalogs - (catalogPaginationInfo.currentPage * catalogPaginationInfo.limit)} remaining)`}
+                    </Button>
+                    
+                    {loading && (
+                      <div className="text-sm text-gray-600">
+                        Loading additional catalogs... Please wait.
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex justify-center items-center gap-2">
                   <Button
-                    key={index}
-                    variant={page === currentPage ? "default" : "outline"}
-                    className={`w-10 h-10 p-0 text-sm font-medium ${page === "..." ? "cursor-default hover:bg-transparent" : ""}`}
-                    onClick={() => typeof page === "number" && setCurrentPage(page)}
-                    disabled={page === "..."}
+                    variant="outline"
+                    className="w-10 h-10 p-0"
+                    onClick={() => {
+                      if (selectedCatalog) {
+                        loadMoreProducts(currentPage - 1);
+                      } else {
+                        loadMoreCatalogs(currentPage - 1);
+                      }
+                    }}
+                    disabled={currentPage === 1 || catalogLoading}
                   >
-                    {page}
+                    ←
                   </Button>
-                ))}
-                <Button
-                  variant="outline"
-                  className="w-10 h-10 p-0"
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  →
-                </Button>
+                  {getPaginationRange().map((page, index) => (
+                    <Button
+                      key={index}
+                      variant={page === currentPage ? "default" : "outline"}
+                      className={`w-10 h-10 p-0 text-sm font-medium ${page === "..." ? "cursor-default hover:bg-transparent" : ""}`}
+                      onClick={() => {
+                        if (typeof page === "number") {
+                          if (selectedCatalog) {
+                            loadMoreProducts(page);
+                          } else {
+                            loadMoreCatalogs(page);
+                          }
+                        }
+                      }}
+                      disabled={page === "..." || catalogLoading}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="w-10 h-10 p-0"
+                    onClick={() => {
+                      if (selectedCatalog) {
+                        loadMoreProducts(currentPage + 1);
+                      } else {
+                        loadMoreCatalogs(currentPage + 1);
+                      }
+                    }}
+                    disabled={currentPage === totalPages || catalogLoading}
+                  >
+                    →
+                  </Button>
+                </div>
+                
+                {catalogLoading && (
+                  <div className="text-center text-sm text-gray-600">
+                    Loading products...
+                  </div>
+                )}
               </div>
             )}
           </div>

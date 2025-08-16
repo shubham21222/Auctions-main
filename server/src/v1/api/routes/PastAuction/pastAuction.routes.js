@@ -5,7 +5,8 @@ import {
   uploadPastAuctionCatalog, 
   deletePastAuctionCatalog,
   getPastAuctionCatalogs,
-  getPastAuctionCatalogProducts 
+  getPastAuctionCatalogProducts,
+  debugDatabase
 } from '../../controllers/PastAuctionController/pastAuction.controller.js';
 
 const router = express.Router();
@@ -15,7 +16,7 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, path.join(process.cwd(), 'server', 'uploads'));
   },
-  filename: function (req, file, cb) {
+  filename: function (req, file) {
     cb(null, Date.now() + '-' + file.originalname);
   }
 });
@@ -26,6 +27,9 @@ router.get('/catalogs', getPastAuctionCatalogs);
 
 // Get products for a specific catalog
 router.get('/catalog/:id/products', getPastAuctionCatalogProducts);
+
+// Debug endpoint
+router.get('/debug', debugDatabase);
 
 // Upload catalog
 router.post('/upload', upload.single('catalog'), uploadPastAuctionCatalog);
