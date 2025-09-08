@@ -676,7 +676,7 @@ class SEOPageGenerator {
       const pageContent = this.generatePageTemplate(pageData, schema);
       
       // Write page file
-      const filePath = path.join(CONFIG.OUTPUT_DIR, `${slug}`, 'page.tsx');
+      const filePath = path.join(CONFIG.OUTPUT_DIR, `${slug}`, 'page.js');
       await utils.safeWriteFile(filePath, pageContent);
       
       // Update progress tracker
