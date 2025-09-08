@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+#Scripts and miscellaneous files
+keywords.xlsx
+README-SEO-GENERATOR.md
+seo-generation-report-2025-09-08.json
+generated-seo-pages-2025-09-08.csv
