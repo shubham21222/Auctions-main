@@ -5,15 +5,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-11-15",
 });
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { orderId } = req.query;
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const orderId = searchParams.get('orderId');
 
   if (!orderId) {
-    return res.status(400).json({ error: "Missing orderId" });
+    return Response.json({ error: "Missing orderId" }, { status: 400 });
   }
 
   try {
@@ -54,16 +51,16 @@ export default async function handler(req, res) {
       }
 
       console.log("Matching PaymentIntent from Stripe:", matchingIntent);
-      return res.status(200).json(matchingIntent);
+      return Response.json(matchingIntent, { status: 200 });
     }
 
     // Fetch PaymentIntent directly if ID is available
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     console.log("Retrieved PaymentIntent:", paymentIntent);
 
-    return res.status(200).json(paymentIntent);
+    return Response.json(paymentIntent, { status: 200 });
   } catch (error) {
     console.error("Error verifying order payment:", error.message, error.stack);
-    return res.status(500).json({ error: "Failed to verify payment", details: error.message });
+    return Response.json({ error: "Failed to verify payment", details: error.message }, { status: 500 });
   }
 }
