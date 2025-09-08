@@ -1,5 +1,4 @@
 // pages/checkout.js
-"use client";
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -434,4 +433,9 @@ export default function Checkout() {
       <Footer />
     </Elements>
   );
+}
+
+// Force server-side rendering to prevent Redux prerendering errors
+export async function getServerSideProps() {
+  return { props: {} };
 }

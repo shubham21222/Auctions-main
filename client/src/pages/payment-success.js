@@ -130,4 +130,9 @@ const PaymentSuccess = () => {
   );
 };
 
-export default PaymentSuccess; 
+export default PaymentSuccess;
+
+// Force server-side rendering to prevent Redux prerendering errors
+export async function getServerSideProps() {
+  return { props: {} };
+} 

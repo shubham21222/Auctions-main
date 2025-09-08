@@ -77,7 +77,7 @@ export default function ArtForSalePage() {
           <div className="container mx-auto px-4 max-w-6xl">
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-                Authentic Art For Sale
+                Art For Sale
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
                 Art For Sale represent specialized fields of collecting that demand expertise, patience, and access to authentic examples with verifiable provenance. Our carefully assembled collection features pieces that have been rigorously authenticated and evaluated, ensuring collectors receive objects of genuine historical and cultural significance.
@@ -193,13 +193,13 @@ export default function ArtForSalePage() {
                   
                   <Link href="/art-pieces-for-sale" className="block p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow">
                     <span className="text-blue-600 hover:text-blue-800 font-medium">
-                      art pieces for sale collection
+                      rare art pieces for sale
                     </span>
                   </Link>
                   
                   <Link href="/fine-art-for-sale" className="block p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow">
                     <span className="text-blue-600 hover:text-blue-800 font-medium">
-                      authentic fine art for sale
+                      premium fine art for sale
                     </span>
                   </Link>
                   
@@ -230,7 +230,7 @@ export default function ArtForSalePage() {
               
               <section className="mt-12">
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  Whether seeking to begin a new collection or enhance an existing one, our art for sale selection offers unparalleled quality and authenticity. Contact our specialists to learn more about specific pieces and discover how these remarkable works can enrich your collecting journey.
+                  The exceptional quality and authenticity of our art for sale collection reflect decades of expertise in identifying and acquiring remarkable works. We invite discerning collectors to explore these extraordinary pieces and discover the perfect additions to their collections.
                 </p>
               </section>
             </article>
