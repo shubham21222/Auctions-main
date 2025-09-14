@@ -2,57 +2,33 @@
 
 import { Heart, Share2 } from "lucide-react"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, memo } from "react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
-import axios from "axios" // Import Axios for API calls
-import toast, { Toaster } from "react-hot-toast" // Import React Hot Toast
-import { useSelector } from "react-redux" // Import useSelector to access Redux state
-import config from "@/app/config_BASE_URL"
+import toast from "react-hot-toast"
+import { useSelector } from "react-redux"
 import { VerificationModal } from "@/app/components/VerificationModal"
+import { useWishlist } from "./WishlistProvider"
 
 // Add price formatting function
 const formatPrice = (price) => {
   return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
 
-export function ProductCard({ image, name, price, estimatePrice, slug }) {
-  const [isLiked, setIsLiked] = useState(false) // State to track if the product is liked
+// Memoized ProductCard component to prevent unnecessary re-renders
+const ProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
 
-  // Access the Redux state for authentication
+  // Access the Redux state for authentication and wishlist context
   const auth = useSelector((state) => state.auth)
+  const { isInWishlist, toggleWishlist } = useWishlist()
 
-  // Function to fetch the user's wishlist and check if the product is already in it
-  const fetchWishlist = async () => {
-    try {
-      // Ensure the user is authenticated (token exists)
-      if (!auth.token) {
-        console.error("User is not authenticated")
-        return
-      }
-
-      // Make the API call to fetch the wishlist
-      const response = await axios.get(`${config.baseURL}/v1/api/favorite/all`, {
-        headers: {
-          Authorization: `${auth.token}`, // Include the token in the headers
-        },
-      })
-
-      // Extract the list of product IDs from the response
-      const wishlistProducts = response.data.items.map((item) => item.product._id)
-
-      // Check if the current product (slug) is in the wishlist
-      setIsLiked(wishlistProducts.includes(slug))
-    } catch (error) {
-      console.error("Error fetching wishlist:", error)
-      // toast.error("An error occurred while fetching your wishlist.")
-    }
-  }
+  // Check if product is in wishlist
+  const isLiked = isInWishlist(slug)
 
   // Function to handle toggling the wishlist
-  const toggleWishlist = async () => {
+  const handleToggleWishlist = async () => {
     try {
       if (!auth.token) {
         toast.error("Please log in to add items to your wishlist.")
@@ -65,41 +41,17 @@ export function ProductCard({ image, name, price, estimatePrice, slug }) {
         return
       }
 
-      const response = await axios.post(
-        `${config.baseURL}/v1/api/favorite/toggle`,
-        { productId: slug },
-        {
-          headers: {
-            Authorization: `${auth.token}`,
-          },
-        }
-      )
-
-      console.log("API Response:", response.data)
-
-      let isNowFavorited
-      if (response.data.isFavorited !== undefined) {
-        isNowFavorited = response.data.isFavorited
+      const result = await toggleWishlist(slug, name)
+      
+      if (result.success) {
+        toast.success(result.message)
       } else {
-        isNowFavorited = !isLiked
-      }
-
-      setIsLiked(isNowFavorited)
-
-      if (isNowFavorited) {
-        toast.success(`${name} has been added to your wishlist!`)
-      } else {
-        toast.success(`${name} has been removed from your wishlist.`)
+        toast.error(result.message)
       }
     } catch (error) {
       console.error("Error toggling wishlist:", error)
     }
   }
-
-  // Fetch the wishlist when the component mounts
-  useEffect(() => {
-    fetchWishlist()
-  }, []) // Empty dependency array ensures this runs only once on mount
 
   return (
     <>
@@ -119,6 +71,9 @@ export function ProductCard({ image, name, price, estimatePrice, slug }) {
             src={image || "/placeholder.svg"}
             alt={name}
             fill
+            loading="lazy"
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
             className={cn("object-cover transition-transform duration-700 ease-out", isHovered && "scale-110")}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -130,7 +85,7 @@ export function ProductCard({ image, name, price, estimatePrice, slug }) {
               whileTap={{ scale: 0.9 }}
               onClick={(e) => {
                 e.stopPropagation();
-                toggleWishlist();
+                handleToggleWishlist();
               }}
               className={cn(
                 "p-3 rounded-full",
@@ -197,3 +152,14 @@ export function ProductCard({ image, name, price, estimatePrice, slug }) {
     </>
   )
 }
+
+// Export memoized component with stable comparison
+export const ProductCard = memo(ProductCardComponent, (prevProps, nextProps) => {
+  // Only re-render if essential props change
+  return (
+    prevProps.slug === nextProps.slug &&
+    prevProps.name === nextProps.name &&
+    prevProps.price === nextProps.price &&
+    prevProps.image === nextProps.image
+  );
+});

@@ -14,10 +14,13 @@ import {
     getProductBySku // Added new endpoint
 } from "../../controllers/ProductController/product.controller.js";
 
+import { getProductsFast } from "../../controllers/ProductController/fast-product.controller.js";
+
 import { IsAuthenticated, authorizeBackendRole } from "../../middlewares/authicationmiddleware.js";
 
 // Routes
 router.post("/create", IsAuthenticated, authorizeBackendRole, createProduct);
+router.get("/fast", getProductsFast); // Fast endpoint for initial load
 router.get("/filter", getFilteredProducts);
 router.put("/update/:productId", IsAuthenticated, authorizeBackendRole, updateProduct);
 router.delete("/delete/:productId", IsAuthenticated, authorizeBackendRole, deleteProduct);

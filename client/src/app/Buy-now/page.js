@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { Filters } from "./components/filters";
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
+import { WishlistProvider } from "./components/WishlistProvider";
 
 // Add price formatting function
 const formatPrice = (price) => {
@@ -32,7 +33,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true); // Controls initial loading state
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewOption, setViewOption] = useState("60"); // Set default to 60 items per page
+  const [viewOption, setViewOption] = useState("24"); // Further reduced to 24 items per page
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
@@ -45,100 +46,228 @@ export default function Home() {
   const [selectedSortField, setSelectedSortField] = useState("created_at");
   const [selectedSortOrder, setSelectedSortOrder] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   // Categories state
   const [categories, setCategories] = useState([]);
+  
+  // Cache for products
+  const [productsCache, setProductsCache] = useState(new Map());
+  
+  // Request cancellation
+  const [abortController, setAbortController] = useState(null);
+  
+  // Progressive loading states
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const isFetchingRef = useRef(false);
 
   // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch(`${config.baseURL}/v1/api/category/all`);
+        const response = await fetch(`${config.baseURL}/v1/api/category/all`, {
+          headers: {
+            'Cache-Control': 'max-age=3600', // Cache for 1 hour
+          }
+        });
         if (!response.ok) throw new Error("Failed to fetch categories");
         const data = await response.json();
-        setCategories(data.items);
+        setCategories(data.items || []);
       } catch (error) {
         console.error("Error fetching categories:", error.message);
+        // Set empty array as fallback
+        setCategories([]);
       }
     }
     fetchCategories();
   }, []);
 
-  // Fetch products with pagination
+  // Debounced search query
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        setLoading(true);
-        
-        const params = new URLSearchParams();
-        
-        if (selectedCategories.length > 0) {
-          params.append("category", selectedCategories.join(","));
-        }
-        
-        if (selectedStatus) {
-          params.append("status", selectedStatus);
-        }
-        
-        if (selectedPriceRange) {
-          params.append("sortByPrice", selectedPriceRange); // Triggers High Price or Low Price sorting
-        }
-        
-        if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
-          params.append("sortField", selectedSortField);
-          params.append("sortOrder", selectedSortOrder);
-        }
-        
-        if (searchQuery) {
-          params.append("searchQuery", searchQuery);
-        }
-        
-        params.append("page", currentPage);
-        params.append("limit", viewOption);
-        
-        const queryString = params.toString();
-        
-        const response = await fetch(`${config.baseURL}/v1/api/product/filter?${queryString}`);
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const data = await response.json();
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
 
-        const products = data.items?.items || [];
-        setAllProducts(products);
-        setTotalItems(data.items?.total || 0);
-        setTotalPages(Math.ceil((data.items?.total || 0) / parseInt(viewOption)));
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
-        if (
-          selectedCategories.length === 0 &&
-          !selectedStatus &&
-          !selectedPriceRange &&
-          selectedSortField === "created_at" &&
-          selectedSortOrder === "desc" &&
-          !searchQuery
-        ) {
-          setOriginalProducts(products);
-        }
 
-        setDisplayedProducts(products);
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
+  // Optimized fetch products function with aggressive caching and cancellation
+  const fetchProducts = useCallback(async () => {
+    const cacheKey = JSON.stringify({
+      categories: selectedCategories.sort(),
+      status: selectedStatus,
+      priceRange: selectedPriceRange,
+      sortField: selectedSortField,
+      sortOrder: selectedSortOrder,
+      searchQuery: debouncedSearchQuery,
+      page: currentPage,
+      limit: viewOption,
+    });
+    
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) {
+      return;
     }
-    fetchProducts();
-  }, [
-    selectedCategories,
-    selectedStatus,
-    selectedPriceRange, // Ensures price filter changes trigger a refetch
-    selectedSortField,
-    selectedSortOrder,
-    searchQuery,
-    currentPage,
-    viewOption,
-  ]);
+    
+    isFetchingRef.current = true;
+    
+    // Cancel previous request
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    // Create new abort controller
+    const newAbortController = new AbortController();
+    setAbortController(newAbortController);
+    
+    // Check cache first
+    if (productsCache.has(cacheKey)) {
+      const cachedData = productsCache.get(cacheKey);
+      setAllProducts(cachedData.products);
+      setTotalItems(cachedData.totalItems);
+      setTotalPages(cachedData.totalPages);
+      setDisplayedProducts(cachedData.products);
+      setLoading(false);
+      isFetchingRef.current = false;
+      return;
+    }
 
-  // Generate pagination items with truncation
-  const getPaginationItems = () => {
+    try {
+      setLoading(true);
+      setLoadingProgress(10);
+      
+      const params = new URLSearchParams();
+      
+      if (selectedCategories.length > 0) {
+        params.append("category", selectedCategories.join(","));
+      }
+      
+      if (selectedStatus) {
+        params.append("status", selectedStatus);
+      }
+      
+      if (selectedPriceRange) {
+        params.append("sortByPrice", selectedPriceRange);
+      }
+      
+      if (selectedSortField !== "created_at" || selectedSortOrder !== "desc") {
+        params.append("sortField", selectedSortField);
+        params.append("sortOrder", selectedSortOrder);
+      }
+      
+      if (debouncedSearchQuery) {
+        params.append("searchQuery", debouncedSearchQuery);
+      }
+      
+      params.append("page", currentPage);
+      params.append("limit", viewOption);
+      
+      const queryString = params.toString();
+      setLoadingProgress(30);
+      
+      // Use fast endpoint for initial load without filters
+      const isInitialLoadWithoutFilters = isInitialLoad && 
+        selectedCategories.length === 0 && 
+        !selectedStatus && 
+        !selectedPriceRange && 
+        !debouncedSearchQuery &&
+        selectedSortField === "created_at" && 
+        selectedSortOrder === "desc";
+      
+      const endpoint = isInitialLoadWithoutFilters ? 
+        `${config.baseURL}/v1/api/product/fast?page=${currentPage}&limit=${viewOption}` :
+        `${config.baseURL}/v1/api/product/filter?${queryString}`;
+      
+      const response = await fetch(endpoint, {
+        signal: newAbortController.signal,
+        headers: {
+          'Cache-Control': 'max-age=300', // 5 minutes cache
+        }
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch products");
+      
+      setLoadingProgress(60);
+      const data = await response.json();
+      setLoadingProgress(80);
+
+      const products = data.items?.items || [];
+      const totalItemsCount = data.items?.total || 0;
+      const totalPagesCount = Math.ceil(totalItemsCount / parseInt(viewOption));
+
+      // Cache the result
+      setProductsCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(cacheKey, {
+          products,
+          totalItems: totalItemsCount,
+          totalPages: totalPagesCount,
+        });
+        // Limit cache size to prevent memory issues
+        if (newCache.size > 100) {
+          const firstKey = newCache.keys().next().value;
+          newCache.delete(firstKey);
+        }
+        return newCache;
+      });
+
+      setAllProducts(products);
+      setTotalItems(totalItemsCount);
+      setTotalPages(totalPagesCount);
+
+      if (
+        selectedCategories.length === 0 &&
+        !selectedStatus &&
+        !selectedPriceRange &&
+        selectedSortField === "created_at" &&
+        selectedSortOrder === "desc" &&
+        !debouncedSearchQuery
+      ) {
+        setOriginalProducts(products);
+      }
+
+      setDisplayedProducts(products);
+      setLoadingProgress(100);
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+      console.error('Fetch products error:', error);
+      setError(error.message || 'Failed to load products');
+      
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false);
+      setLoadingProgress(0);
+      isFetchingRef.current = false;
+    }
+  }, [selectedCategories, selectedStatus, selectedPriceRange, selectedSortField, selectedSortOrder, debouncedSearchQuery, currentPage, viewOption]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Trigger fetchProducts when dependencies change
+  useEffect(() => {
+    fetchProducts();
+  }, [selectedCategories, selectedStatus, selectedPriceRange, selectedSortField, selectedSortOrder, debouncedSearchQuery, currentPage, viewOption]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [abortController]);
+
+  // Reset error state when filters change
+  useEffect(() => {
+    setError(null);
+  }, [selectedCategories, selectedStatus, selectedPriceRange, selectedSortField, selectedSortOrder, debouncedSearchQuery, currentPage, viewOption]);
+
+  // Memoized pagination items
+  const paginationItems = useMemo(() => {
     const items = [];
     const maxVisiblePages = 5;
 
@@ -160,7 +289,7 @@ export default function Home() {
     }
 
     return items;
-  };
+  }, [totalPages, currentPage]);
 
   // Reset to first page when view option changes
   useEffect(() => {
@@ -174,15 +303,18 @@ export default function Home() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setSelectedCategories([]);
     setSelectedStatus("");
     setSelectedPriceRange("");
     setSelectedSortField("created_at");
     setSelectedSortOrder("desc");
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setCurrentPage(1);
-  };
+    // Clear cache on reset to ensure fresh data
+    setProductsCache(new Map());
+  }, []);
 
   const handleViewDetails = (slug) => {
     router.push(`/products/${slug}`);
@@ -192,7 +324,7 @@ export default function Home() {
   const productsPerPage = parseInt(viewOption);
 
   return (
-    <>
+    <WishlistProvider>
       <Header />
       <LuxuryBackground />
       <main className="min-h-screen pt-[100px]">
@@ -241,34 +373,61 @@ export default function Home() {
               </div>
 
               {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {[...Array(productsPerPage)].map((_, index) => (
-                    <div key={index} className="space-y-4">
-                      <Skeleton className="h-[450px] w-full rounded-xl bg-gray-400" />
-                      <Skeleton className="h-10 w-3/4 rounded-xl bg-gray-400" />
-                      <Skeleton className="h-8 w-1/2 rounded-xl bg-gray-400" />
+                <div className="space-y-6">
+                  {/* Loading Progress Bar */}
+                  {isInitialLoad && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${loadingProgress}%` }}
+                      ></div>
                     </div>
-                  ))}
+                  )}
+                  
+                  {/* Loading Message */}
+                  <div className="text-center text-gray-600">
+                    {isInitialLoad ? `Loading products... ${loadingProgress}%` : "Loading products..."}
+                  </div>
+                  
+                  {/* Skeleton Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {[...Array(productsPerPage)].map((_, index) => (
+                      <div key={index} className="space-y-4">
+                        <Skeleton className="h-[450px] w-full rounded-xl bg-gray-200" />
+                        <Skeleton className="h-10 w-3/4 rounded-xl bg-gray-200" />
+                        <Skeleton className="h-8 w-1/2 rounded-xl bg-gray-200" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : error ? (
-                <p className="text-center text-red-500">Error: {error}</p>
+                <div className="text-center space-y-4">
+                  <p className="text-red-500">Error: {error}</p>
+                  <button 
+                    onClick={() => {
+                      setError(null);
+                      fetchProducts();
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : displayedProducts.length === 0 ? (
                 <p className="text-center text-gray-500">No products available.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {displayedProducts.map((product, index) => {
-                    const uniqueKey = `${product._id}-${product.title}-${index}`;
+                  {displayedProducts.map((product) => {
                     const productData = {
-                      id: uniqueKey,
-                      image: product.image[0],
-                      name: product.title,
+                      image: product.image?.[0] || "/placeholder.svg",
+                      name: product.title || "Untitled Product",
                       price: formatPrice(product.estimateprice),
                       slug: product._id,
                     };
                     return (
                       <Link
-                        key={uniqueKey}
-                        href={`/products/${productData.slug}`}
+                        key={product._id}
+                        href={`/products/${product._id}`}
                         className="block"
                       >
                         <ProductCard
@@ -293,7 +452,7 @@ export default function Home() {
                     Previous
                   </button>
 
-                  {getPaginationItems().map((item, index) => (
+                  {paginationItems.map((item, index) => (
                     <button
                       key={index}
                       onClick={() => typeof item === "number" && handlePageChange(item)}
@@ -324,6 +483,6 @@ export default function Home() {
         </div>
       </main>
       <Footer />
-    </>
+    </WishlistProvider>
   );
 }
