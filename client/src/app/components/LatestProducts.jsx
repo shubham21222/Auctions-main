@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from "react";
-import { ProductCard } from "../Buy-now/components/product-card";
+import { GeneralProductCard } from "./GeneralProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import config from "@/app/config_BASE_URL";
@@ -81,7 +81,7 @@ export default function LatestProducts() {
                                         className="cursor-pointer"
                                         onClick={() => window.location.href = `/products/${product._id}`}
                                     >
-                                        <ProductCard
+                                        <GeneralProductCard
                                             image={productData.image}
                                             name={productData.name}
                                             price={productData.price}
