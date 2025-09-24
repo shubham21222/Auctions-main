@@ -19,6 +19,7 @@ import ProductModel from "../../models/Products/product.model.js"
 import auctionModel from "../../models/Auction/auctionModel.js";
 import mongoose from "mongoose";
 import categoryModel from "../../models/Category/category.model.js";
+import redisClient from "../../config/redis.config.js"
 
 
 
@@ -195,21 +196,232 @@ const escapeRegExp = (string) => {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
+// export const getFilteredProducts = async (req, res) => {
+//     try {
+//         const { 
+//             category, 
+//             status, 
+//             sortByPrice, 
+//             sortField, 
+//             sortOrder, 
+//             searchQuery,
+//             sku,
+//             page = 1,
+//             limit = 10
+//         } = req.query;
+
+//         // Build match stage
+//         let matchStage = {};
+//         if (category) {
+//             const categoryArray = category.split(",");
+//             for (const id of categoryArray) {
+//                 if (!isValidObjectId(id.trim())) {
+//                     return badRequest(res, `Invalid category ID: ${id}`, "Invalid ObjectId");
+//                 }
+//             }
+//             matchStage.category = {
+//                 $in: categoryArray.map(id => new mongoose.Types.ObjectId(id.trim()))
+//             };
+//         }
+//         if (status) {
+//             matchStage.status = status;
+//         }
+//         if (sku) {
+//             const escapedSku = escapeRegExp(sku);
+//             matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
+//         }
+
+//         // Build search conditions if searchQuery exists
+//         if (searchQuery) {
+//             const escapedQuery = escapeRegExp(searchQuery.trim());
+//             const searchWords = escapedQuery.split(/\s+/).filter(word => word.length > 0);
+            
+//             const searchConditions = searchWords.map(word => ({
+//                 $or: [
+//                     { title: { $regex: `\\b${word}\\b`, $options: 'i' } },
+//                     { title: { $regex: `^${word}\\b`, $options: 'i' } },
+//                     { title: { $regex: `\\b${word}$`, $options: 'i' } },
+//                     { description: { $regex: `\\b${word}\\b`, $options: 'i' } },
+//                     { description: { $regex: `^${word}\\b`, $options: 'i' } },
+//                     { description: { $regex: `\\b${word}$`, $options: 'i' } }
+//                 ]
+//             }));
+
+//             matchStage.$and = searchConditions;
+//         }
+
+//         // Build the aggregation pipeline
+//         const pipeline = [
+//             { $match: matchStage },
+//             {
+//                 $lookup: {
+//                     from: "categories",
+//                     localField: "category",
+//                     foreignField: "_id",
+//                     as: "category"
+//                 }
+//             },
+//             { $unwind: "$category" },
+//             // Add a random field for complete shuffling
+//             {
+//                 $addFields: {
+//                     randomSort: { $rand: {} }
+//                 }
+//             },
+//             {
+//                 $project: {
+//                     title: 1,
+//                     sku: 1,
+//                     description: 1,
+//                     price: 1,
+//                     estimateprice: 1,
+//                     offerAmount: 1,
+//                     image: 1,
+//                     status: 1,
+//                     sortByPrice: 1,
+//                     created_at: 1,
+//                     updated_at: 1,
+//                     details: 1,
+//                     favorite: 1,
+//                     link: 1,
+//                     category: 1,
+//                     randomSort: 1,
+//                     // Add a computed field for sorting
+//                     priceValue: {
+//                         $cond: {
+//                             if: {
+//                                 $regexMatch: {
+//                                     input: "$estimateprice",
+//                                     regex: "^\\$\\d+\\.?\\d*\\s*-\\s*\\$\\d+\\.?\\d*$"
+//                                 }
+//                             },
+//                             then: {
+//                                 $toDouble: {
+//                                     $substr: [
+//                                         { $arrayElemAt: [{ $split: ["$estimateprice", " - "] }, 0] },
+//                                         1,
+//                                         -1
+//                                     ]
+//                                 }
+//                             },
+//                             else: 0
+//                         }
+//                     }
+//                 }
+//             }
+//         ];
+
+//         // Add sorting only if not shuffling (i.e., when search query or specific sort is requested)
+//         let sortOptions = {};
+//         if (searchQuery) {
+//             // Remove random sort and just use createdAt for search results
+//             sortOptions = { created_at: -1 };
+//         } else if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
+//             sortOptions = { priceValue: sortByPrice === "High Price" ? -1 : 1 };
+//         } else if (sortField && sortOrder) {
+//             // Ensure sortField is a valid field name
+//             const validSortFields = ['title', 'price', 'estimateprice', 'created_at', 'updated_at', 'sku'];
+//             if (validSortFields.includes(sortField)) {
+//                 sortOptions = { [sortField]: sortOrder === "asc" ? 1 : -1 };
+//             } else {
+//                 // Default to created_at if invalid sort field
+//                 sortOptions = { created_at: -1 };
+//             }
+//         } else {
+//             // If no specific sort is requested, use complete random shuffle
+//             sortOptions = { randomSort: 1 };
+//         }
+
+//         // Add sort stage if we have sort options
+//         if (Object.keys(sortOptions).length > 0) {
+//             pipeline.push({ $sort: sortOptions });
+//         }
+
+//         // Execute aggregation with pagination
+//         const options = {
+//             page: parseInt(page),
+//             limit: parseInt(limit),
+//             customLabels: {
+//                 totalDocs: 'total',
+//                 docs: 'items',
+//                 limit: 'limit',
+//                 page: 'page',
+//                 totalPages: 'totalPages',
+//                 pagingCounter: 'pagingCounter',
+//                 hasPrevPage: 'hasPrevPage',
+//                 hasNextPage: 'hasNextPage',
+//                 prevPage: 'prevPage',
+//                 nextPage: 'nextPage'
+//             }
+//         };
+
+//         const result = await ProductModel.aggregatePaginate(pipeline, options);
+
+//         // Remove the temporary fields from the results
+//         result.items = result.items.map(({ priceValue, randomSort, ...item }) => item);
+
+//         return success(res, "Products fetched successfully", result);
+
+//     } catch (error) {
+//         console.error("GetFilteredProducts Error:", error);
+//         return unknownError(res, error.message || "Failed to fetch filtered products");
+//     }
+// };
+
+
+// Update a product //
+export const updateProduct = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const updatedData = req.body;
+
+        const updatedProduct = await ProductModel.findByIdAndUpdate(
+            productId,
+            updatedData,
+            { new: true, runValidators: true } // Returns updated document & validates fields
+        );
+
+        if (!updatedProduct) {
+            return badRequest(res, "Product not found");
+        }
+
+        return success(res, "Product updated successfully", updatedProduct);
+    } catch (error) {
+        return unknownError(res, error.message);
+    }
+};
+
+
+
 export const getFilteredProducts = async (req, res) => {
     try {
-        const { 
-            category, 
-            status, 
-            sortByPrice, 
-            sortField, 
-            sortOrder, 
+        const {
+            category,
+            status,
+            sortByPrice,
+            sortField,
+            sortOrder,
             searchQuery,
             sku,
             page = 1,
             limit = 10
         } = req.query;
 
-        // Build match stage
+        // ✅ Create unique cache key based on request query
+        const cacheKey = `products:${JSON.stringify(req.query)}`;
+
+        // 1️⃣ Try Redis cache first
+        const cachedData = await redisClient.get(cacheKey);
+        if (cachedData) {
+            console.log("Cache Hit ✅");
+            return success(res, "Products fetched successfully", JSON.parse(cachedData));
+        }
+
+        console.log("Cache Miss ❌");
+
+        // -----------------------
+        // Your original code
+        // -----------------------
         let matchStage = {};
         if (category) {
             const categoryArray = category.split(",");
@@ -230,11 +442,10 @@ export const getFilteredProducts = async (req, res) => {
             matchStage.sku = { $regex: `^${escapedSku}$`, $options: "i" };
         }
 
-        // Build search conditions if searchQuery exists
         if (searchQuery) {
             const escapedQuery = escapeRegExp(searchQuery.trim());
             const searchWords = escapedQuery.split(/\s+/).filter(word => word.length > 0);
-            
+
             const searchConditions = searchWords.map(word => ({
                 $or: [
                     { title: { $regex: `\\b${word}\\b`, $options: 'i' } },
@@ -249,7 +460,6 @@ export const getFilteredProducts = async (req, res) => {
             matchStage.$and = searchConditions;
         }
 
-        // Build the aggregation pipeline
         const pipeline = [
             { $match: matchStage },
             {
@@ -261,7 +471,6 @@ export const getFilteredProducts = async (req, res) => {
                 }
             },
             { $unwind: "$category" },
-            // Add a random field for complete shuffling
             {
                 $addFields: {
                     randomSort: { $rand: {} }
@@ -285,7 +494,6 @@ export const getFilteredProducts = async (req, res) => {
                     link: 1,
                     category: 1,
                     randomSort: 1,
-                    // Add a computed field for sorting
                     priceValue: {
                         $cond: {
                             if: {
@@ -310,33 +518,26 @@ export const getFilteredProducts = async (req, res) => {
             }
         ];
 
-        // Add sorting only if not shuffling (i.e., when search query or specific sort is requested)
         let sortOptions = {};
         if (searchQuery) {
-            // Remove random sort and just use createdAt for search results
             sortOptions = { created_at: -1 };
         } else if (sortByPrice === "High Price" || sortByPrice === "Low Price") {
             sortOptions = { priceValue: sortByPrice === "High Price" ? -1 : 1 };
         } else if (sortField && sortOrder) {
-            // Ensure sortField is a valid field name
             const validSortFields = ['title', 'price', 'estimateprice', 'created_at', 'updated_at', 'sku'];
             if (validSortFields.includes(sortField)) {
                 sortOptions = { [sortField]: sortOrder === "asc" ? 1 : -1 };
             } else {
-                // Default to created_at if invalid sort field
                 sortOptions = { created_at: -1 };
             }
         } else {
-            // If no specific sort is requested, use complete random shuffle
             sortOptions = { randomSort: 1 };
         }
 
-        // Add sort stage if we have sort options
         if (Object.keys(sortOptions).length > 0) {
             pipeline.push({ $sort: sortOptions });
         }
 
-        // Execute aggregation with pagination
         const options = {
             page: parseInt(page),
             limit: parseInt(limit),
@@ -356,37 +557,16 @@ export const getFilteredProducts = async (req, res) => {
 
         const result = await ProductModel.aggregatePaginate(pipeline, options);
 
-        // Remove the temporary fields from the results
         result.items = result.items.map(({ priceValue, randomSort, ...item }) => item);
+
+        // 2️⃣ Save result in Redis (cache for 60s)
+        await redisClient.setEx(cacheKey, 60, JSON.stringify(result));
 
         return success(res, "Products fetched successfully", result);
 
     } catch (error) {
         console.error("GetFilteredProducts Error:", error);
         return unknownError(res, error.message || "Failed to fetch filtered products");
-    }
-};
-
-
-// Update a product //
-export const updateProduct = async (req, res) => {
-    try {
-        const { productId } = req.params;
-        const updatedData = req.body;
-
-        const updatedProduct = await ProductModel.findByIdAndUpdate(
-            productId,
-            updatedData,
-            { new: true, runValidators: true } // Returns updated document & validates fields
-        );
-
-        if (!updatedProduct) {
-            return badRequest(res, "Product not found");
-        }
-
-        return success(res, "Product updated successfully", updatedProduct);
-    } catch (error) {
-        return unknownError(res, error.message);
     }
 };
 
