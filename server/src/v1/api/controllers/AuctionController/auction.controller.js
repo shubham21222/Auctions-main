@@ -32,6 +32,7 @@ import { createAuctionCalendarEvent } from "../calenderController/googlecalander
 import dotenv from "dotenv"
 import { UnknownError } from "postmark/dist/client/errors/Errors.js"
 dotenv.config()
+import redisClient from "../../config/redis.config.js"
 
 
 //Geerate LOT //
