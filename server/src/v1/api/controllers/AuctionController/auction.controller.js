@@ -1132,7 +1132,7 @@ export const getbulkAuctions = async (req, res) => {
     };
 
     // 2️⃣ Cache for 60 seconds
-    await redisClient.setEx(cacheKey, 60, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 90, JSON.stringify(result));
 
     return success(res, "Auctions retrieved successfully.", result);
 
