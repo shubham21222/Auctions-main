@@ -894,10 +894,10 @@ export const getbulkAuctions = async (req, res) => {
       shipping_status
     } = req.query;
 
-    // ⚡ Create deterministic cache key
-    const cacheKey = `bulkAuctions:${Buffer.from(JSON.stringify(req.query)).toString('base64')}`;
+    // ✅ Compact Redis cache key
+    const cacheKey = `bulkAuctions:${Buffer.from(JSON.stringify(req.query)).toString("base64")}`;
 
-    // 1️⃣ Redis cache check
+    // 1️⃣ Redis Cache Check
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       console.log("Cache Hit ✅");
@@ -906,12 +906,12 @@ export const getbulkAuctions = async (req, res) => {
 
     console.log("Cache Miss ❌");
 
-    // ✅ Basic pagination
+    // ⚙️ Pagination
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10000;
     const skip = (pageNumber - 1) * pageSize;
 
-    // ⚡ Build match filters efficiently
+    // 🧩 Build Query Filters
     const matchStage = {};
     if (category) matchStage.category = new mongoose.Types.ObjectId(category);
     if (auctionType) matchStage.auctionType = { $in: auctionType.split(",").map(t => t.trim()) };
@@ -920,8 +920,8 @@ export const getbulkAuctions = async (req, res) => {
     if (payment_status) matchStage.payment_status = payment_status;
     if (shipping_status) matchStage.shipping_status = shipping_status;
 
-    // ⚡ Date filters
-    if (upcoming === 'true') {
+    // 📅 Upcoming auctions
+    if (upcoming === "true") {
       const today = new Date();
       const utcToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
       matchStage.$or = [
@@ -929,14 +929,13 @@ export const getbulkAuctions = async (req, res) => {
         {
           $and: [
             { startDate: { $lte: utcToday } },
-            {
-              $or: [{ endDate: { $gt: utcToday } }, { endDate: null }]
-            }
+            { $or: [{ endDate: { $gt: utcToday } }, { endDate: null }] }
           ]
         }
       ];
     }
 
+    // 📆 Specific date filter
     if (queryDate) {
       const [y, m, d] = queryDate.split("-").map(Number);
       const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
@@ -944,7 +943,7 @@ export const getbulkAuctions = async (req, res) => {
       matchStage.createdAt = { $gte: start, $lte: end };
     }
 
-    // ⚡ Text search (use $regex only when needed)
+    // 🔍 Search
     if (searchQuery?.trim()) {
       const regex = new RegExp(searchQuery, "i");
       matchStage.$or = [
@@ -954,7 +953,7 @@ export const getbulkAuctions = async (req, res) => {
       ];
     }
 
-    // ⚡ Numeric filters
+    // 💰 Price range filter
     if (minPrice || maxPrice || priceRange) {
       const pMin = minPrice ? parseFloat(minPrice) : undefined;
       const pMax = maxPrice ? parseFloat(maxPrice) : undefined;
@@ -966,19 +965,17 @@ export const getbulkAuctions = async (req, res) => {
       if (pRange && !pMax) matchStage.currentBid.$lte = pRange;
     }
 
-    // ⚡ Sorting logic
+    // 📊 Sorting
     let sortStage = {};
     if (sortByPrice) sortStage.currentBid = sortByPrice === "High Price" ? -1 : 1;
     else if (sortField && sortOrder) sortStage[sortField] = sortOrder === "asc" ? 1 : -1;
     else sortStage.startDate = -1;
 
-    // Debug info
-    console.log("🔍 Query:", { matchStage, pageNumber, pageSize, sortStage });
+    console.log("🔍 Query Params:", { matchStage, pageNumber, pageSize, sortStage });
 
-    // ⚡ Aggregation Pipeline — Optimized for Speed
-    const auctions = await auctionModel.aggregate([
+    // ⚡ Optimized Aggregation Pipeline
+    const pipeline = [
       { $match: matchStage },
-      // ⚡ Project only required fields before heavy lookups
       {
         $project: {
           catalog: 1,
@@ -1003,8 +1000,6 @@ export const getbulkAuctions = async (req, res) => {
           createdAt: 1
         }
       },
-
-      // ⚡ Pre-filtered $lookup joins with pipelines (avoids big array unwinds)
       {
         $lookup: {
           from: "auctionproducts",
@@ -1031,7 +1026,6 @@ export const getbulkAuctions = async (req, res) => {
         }
       },
       { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
-
       {
         $lookup: {
           from: "aunctioncategories",
@@ -1042,7 +1036,6 @@ export const getbulkAuctions = async (req, res) => {
         }
       },
       { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
-
       {
         $lookup: {
           from: "users",
@@ -1053,8 +1046,6 @@ export const getbulkAuctions = async (req, res) => {
         }
       },
       { $unwind: { path: "$winner", preserveNullAndEmptyArrays: true } },
-
-      // ⚡ Only lookup needed user fields once
       {
         $lookup: {
           from: "users",
@@ -1064,7 +1055,6 @@ export const getbulkAuctions = async (req, res) => {
           as: "participants"
         }
       },
-
       {
         $lookup: {
           from: "bidincrements",
@@ -1085,11 +1075,9 @@ export const getbulkAuctions = async (req, res) => {
           }
         }
       },
-
       { $sort: sortStage },
       { $skip: skip },
       { $limit: pageSize },
-
       {
         $project: {
           catalog: 1,
@@ -1120,14 +1108,19 @@ export const getbulkAuctions = async (req, res) => {
           auctions: { $push: "$$ROOT" }
         }
       }
-    ])
-      .allowDiskUse(true) // ⚡ Use disk for large sets
-      .maxTimeMS(30000);   // ⚡ Safety cap
+    ];
+
+    // ✅ Run with disk usage + timeout protection
+    const auctions = await auctionModel.aggregate(pipeline, {
+      allowDiskUse: true,
+      maxTimeMS: 30000
+    });
 
     if (!auctions?.length) {
       return success(res, "No auctions found.", []);
     }
 
+    // 🧾 Final Result
     const result = {
       catalogs: auctions.map(c => ({
         catalogName: c._id || "Uncategorized",
@@ -1138,15 +1131,17 @@ export const getbulkAuctions = async (req, res) => {
       limit: pageSize
     };
 
-    // 2️⃣ Store in Redis for 60 seconds
+    // 2️⃣ Cache for 60 seconds
     await redisClient.setEx(cacheKey, 60, JSON.stringify(result));
 
     return success(res, "Auctions retrieved successfully.", result);
+
   } catch (error) {
     console.error("Error fetching auctions:", error);
     return unknownError(res, error.message);
   }
 };
+
 
 
 // Update action via catalog and lot number //
