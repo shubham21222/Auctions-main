@@ -18,6 +18,8 @@ import {
     getBidIncrement,
     createBulkAuction,
     getbulkAuctions,
+    getbulkAuctionsLimited,
+    getCatalogByAuctionId,
     getbulkAuctionById,
     getWinners,
     deleteCatalog,
@@ -37,6 +39,12 @@ router.post("/bulkCreate", IsAuthenticated , authorizeBackendRole , createBulkAu
 router.get("/all", getAuctions);
 
 router.get("/bulk" , getbulkAuctions)
+
+// get bulk auctions with limited products per catalog (optimized) //
+router.get("/bulk-limited" , getbulkAuctionsLimited)
+
+// get single catalog by auction ID (optimized for catalog details page) //
+router.get("/catalog/:auctionId" , getCatalogByAuctionId)
 
 // get actions by id //
 

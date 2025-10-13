@@ -120,21 +120,22 @@ function CatalogCard({
   return (
     <Link
       href={`/catalog-details/${firstAuction._id}`}
-      className="group relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-6 flex flex-row gap-10 items-start 
+      className="group relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-4 md:p-6 
+                    flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-10 items-start 
                     shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(212,175,55,0.15)] 
                     transition-all duration-500 ease-out hover:-translate-y-1 border border-gray-100/20
                     hover:border-luxury-gold/20 cursor-pointer"
     >
       {/* Left: Main Image with Thumbnails */}
-      <div className="flex-shrink-0 w-[450px] relative group/images">
-        <div className="flex gap-4">
-          {/* Thumbnails on left */}
-          <div className="flex flex-col gap-4 w-[120px]">
+      <div className="flex-shrink-0 w-full lg:w-[450px] relative group/images">
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+          {/* Thumbnails - horizontal on mobile, vertical on desktop */}
+          <div className="flex sm:flex-col gap-2 md:gap-4 w-full sm:w-[80px] md:w-[120px] order-2 sm:order-1">
             {images.map((image, index) => (
               <div
                 key={index}
                 onClick={(e) => handleThumbnailClick(e, index)}
-                className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50
+                className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-50 flex-1 sm:flex-none
                             hover:ring-2 ring-luxury-gold/50 transition-all duration-300
                             cursor-pointer transform hover:scale-95 active:scale-90
                             shadow-sm hover:shadow-md ${currentMainImage === index ? 'ring-2 ring-luxury-gold' : ''}`}
@@ -151,7 +152,7 @@ function CatalogCard({
           </div>
 
           {/* Main Image with Carousel Controls */}
-          <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-50 shadow-md">
+          <div className="flex-1 relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-50 shadow-md order-1 sm:order-2">
             <div className="relative w-full h-full">
               {images.map((image, index) => (
                 <img
@@ -167,27 +168,27 @@ function CatalogCard({
             {/* Carousel Controls */}
             <button
               onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 md:p-2 rounded-full
                        opacity-0 group-hover/images:opacity-100 transition-opacity duration-300
-                       hover:bg-black/70 focus:outline-none"
+                       hover:bg-black/70 focus:outline-none z-10"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
               onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 md:p-2 rounded-full
                        opacity-0 group-hover/images:opacity-100 transition-opacity duration-300
-                       hover:bg-black/70 focus:outline-none"
+                       hover:bg-black/70 focus:outline-none z-10"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
               </svg>
             </button>
 
             {/* Image Counter */}
-            <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-sm">
+            <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-xs md:text-sm">
               {currentMainImage + 1} / {images.length}
             </div>
 
@@ -198,29 +199,29 @@ function CatalogCard({
         {/* Hover Overlay */}
         <div
           className="absolute -bottom-1 left-0 right-0 h-24 bg-gradient-to-t from-white/95 to-transparent 
-                     opacity-0 group-hover/images:opacity-100 transition-opacity duration-300"
+                     opacity-0 group-hover/images:opacity-100 transition-opacity duration-300 hidden sm:block"
         />
       </div>
 
       {/* Middle: Content with enhanced typography and animations */}
-      <div className="flex-1 py-3 relative">
+      <div className="flex-1 py-0 lg:py-3 relative w-full">
         <h3
-          className="text-3xl font-semibold text-gray-800 mb-4 transition-all duration-300 
+          className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-800 mb-3 md:mb-4 transition-all duration-300 
                      group-hover:text-luxury-gold group-hover:translate-x-1"
         >
           {catalog.catalogName}
         </h3>
         <p
-          className="text-gray-600 text-base mb-6 line-clamp-2 transition-all duration-300 
+          className="text-gray-600 text-sm md:text-base mb-4 md:mb-6 line-clamp-2 transition-all duration-300 
                     group-hover:text-gray-700"
         >
           Join us for Catalog {catalog.catalogName}, an exclusive auction featuring a
           curated collection of fine items from renowned designers...
         </p>
-        <div className="flex flex-col gap-4 relative">
-          <div className="flex items-center gap-3 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+        <div className="flex flex-col gap-3 md:gap-4 relative">
+          <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
             <svg
-              className="w-5 h-5 text-luxury-gold"
+              className="w-4 h-4 md:w-5 md:h-5 text-luxury-gold flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -232,13 +233,13 @@ function CatalogCard({
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span className="group-hover:text-gray-700 transition-colors duration-300">
+            <span className="group-hover:text-gray-700 transition-colors duration-300 break-words">
               Starts on: {auctionDate}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
+          <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-gray-500 transition-all duration-300 group-hover:translate-x-1">
             <svg
-              className="w-5 h-5 text-luxury-gold"
+              className="w-4 h-4 md:w-5 md:h-5 text-luxury-gold flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -261,9 +262,9 @@ function CatalogCard({
             </span>
           </div>
           {isLive ? (
-            <div className="flex items-center gap-3 text-sm font-medium text-green-500">
+            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm font-medium text-green-500">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -278,9 +279,9 @@ function CatalogCard({
               <span>Live Now</span>
             </div>
           ) : isUpcoming || isCatalogUpcoming ? (
-            <div className="flex items-center gap-3 text-sm font-medium text-green-700">
+            <div className="flex items-start gap-2 md:gap-3 text-xs md:text-sm font-medium text-green-700">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 mt-0.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -292,7 +293,7 @@ function CatalogCard({
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span>
+              <span className="break-words">
                 Auction Date: {upcomingMessageDate}
                 {timeRemaining && (
                   <>
@@ -304,9 +305,9 @@ function CatalogCard({
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
+            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm font-medium text-gray-500">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -325,9 +326,10 @@ function CatalogCard({
       </div>
 
       {/* Right: Action with enhanced button effects */}
-      <div className="flex-shrink-0 pt-3">
+      <div className="flex-shrink-0 pt-0 lg:pt-3 w-full lg:w-auto">
         <div
-          className="relative inline-flex items-center justify-center px-8 py-3 overflow-hidden font-medium text-white 
+          className="relative inline-flex items-center justify-center px-6 md:px-8 py-2.5 md:py-3 
+                   overflow-hidden font-medium text-white w-full lg:w-auto
                    transition duration-300 ease-out border-2 border-[#006D7E] rounded-lg shadow-md group/btn
                    hover:shadow-lg hover:shadow-luxury-gold/20"
         >
@@ -336,7 +338,7 @@ function CatalogCard({
                         bg-[#006D7E] group-hover/btn:translate-x-0 ease"
           >
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5 md:w-6 md:h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -351,11 +353,11 @@ function CatalogCard({
           </span>
           <span
             className="absolute flex items-center justify-center w-full h-full text-[#006D7E] transition-all 
-                        duration-300 transform group-hover/btn:translate-x-full ease"
+                        duration-300 transform group-hover/btn:translate-x-full ease text-sm md:text-base"
           >
             {isLive ? "Bid Now" : "Explore"}
           </span>
-          <span className="relative invisible">
+          <span className="relative invisible text-sm md:text-base">
             {isLive ? "Bid Now" : "Explore"}
           </span>
         </div>
@@ -383,7 +385,8 @@ export default function AuctionCalendar() {
     try {
       const headers = token ? { Authorization: `${token}` } : {};
       const timestamp = new Date().getTime();
-      const url = `${config.baseURL}/v1/api/auction/bulk?_t=${timestamp}`;
+      // 🔥 Use the new optimized endpoint that limits products per catalog to 3
+      const url = `${config.baseURL}/v1/api/auction/bulk-limited?productsPerCatalog=3&_t=${timestamp}`;
       
       console.log('Fetching catalogs from:', url); // Debug log
       
@@ -447,7 +450,8 @@ export default function AuctionCalendar() {
       const headers = token ? { Authorization: `${token}` } : {};
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
-      const url = `${config.baseURL}/v1/api/auction/bulk?status=ACTIVE&page=1&limit=5000&upcoming=true&_t=${timestamp}`;
+      // 🔥 Use the new optimized endpoint that limits products per catalog to 3
+      const url = `${config.baseURL}/v1/api/auction/bulk-limited?status=ACTIVE&page=1&limit=5000&upcoming=true&productsPerCatalog=3&_t=${timestamp}`;
       
       console.log('Fetching upcoming catalogs from:', url); // Debug log
       
@@ -608,12 +612,52 @@ export default function AuctionCalendar() {
   };
 
   const SkeletonCard = () => (
-    <div className="group relative overflow-hidden shadow-2xl bg-white/80 backdrop-blur-sm rounded-lg">
-      <div className="relative aspect-[4/3] bg-gray-200 animate-shimmer" />
-      <div className="p-6 space-y-4">
-        <div className="h-6 bg-gray-200 rounded w-3/4 animate-shimmer" />
-        <div className="h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
-        <div className="h-4 bg-gray-200 rounded w-1/3 animate-shimmer" />
+    <div className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-xl p-4 md:p-6 
+                    flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-10 items-start 
+                    shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100/20">
+      {/* Left: Image Skeleton */}
+      <div className="flex-shrink-0 w-full lg:w-[450px]">
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+          {/* Thumbnails skeleton */}
+          <div className="flex sm:flex-col gap-2 md:gap-4 w-full sm:w-[80px] md:w-[120px] order-2 sm:order-1">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="relative aspect-[4/3] bg-gray-200 rounded-lg flex-1 sm:flex-none animate-shimmer" />
+            ))}
+          </div>
+          {/* Main image skeleton */}
+          <div className="flex-1 relative aspect-[4/3] bg-gray-200 rounded-xl order-1 sm:order-2 animate-shimmer" />
+        </div>
+      </div>
+
+      {/* Middle: Content Skeleton */}
+      <div className="flex-1 py-0 lg:py-3 w-full space-y-3 md:space-y-4">
+        {/* Title skeleton */}
+        <div className="h-6 sm:h-7 lg:h-8 bg-gray-200 rounded w-3/4 animate-shimmer" />
+        {/* Description skeleton */}
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-full animate-shimmer" />
+          <div className="h-4 bg-gray-200 rounded w-5/6 animate-shimmer" />
+        </div>
+        {/* Info items skeleton */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-4 h-4 md:w-5 md:h-5 bg-gray-200 rounded animate-shimmer" />
+            <div className="h-3 md:h-4 bg-gray-200 rounded w-2/3 animate-shimmer" />
+          </div>
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-4 h-4 md:w-5 md:h-5 bg-gray-200 rounded animate-shimmer" />
+            <div className="h-3 md:h-4 bg-gray-200 rounded w-1/2 animate-shimmer" />
+          </div>
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-4 h-4 md:w-5 md:h-5 bg-gray-200 rounded animate-shimmer" />
+            <div className="h-3 md:h-4 bg-gray-200 rounded w-1/3 animate-shimmer" />
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Button Skeleton */}
+      <div className="flex-shrink-0 pt-0 lg:pt-3 w-full lg:w-auto">
+        <div className="h-10 md:h-12 bg-gray-200 rounded-lg w-full lg:w-32 animate-shimmer" />
       </div>
     </div>
   );
@@ -624,7 +668,7 @@ export default function AuctionCalendar() {
       <LuxuryBackground />
       <div className="container relative mx-auto px-4 mt-[40px] py-8 md:py-12">
         {/* Live Auctions Section */}
-        {liveCatalogs.length > 0 && (
+        {(loading || liveCatalogs.length > 0) && (
           <div className="mb-12">
             <div className="mb-6 text-center">
               <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">
@@ -641,19 +685,26 @@ export default function AuctionCalendar() {
               </p>
             </div>
             <div className="space-y-4">
-              {liveCatalogs.map((catalog) => (
-                <CatalogCard
-                  key={catalog.catalogName}
-                  catalog={catalog}
-                  isLive={true}
-                />
-              ))}
+              {loading ? (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
+              ) : (
+                liveCatalogs.map((catalog) => (
+                  <CatalogCard
+                    key={catalog.catalogName}
+                    catalog={catalog}
+                    isLive={true}
+                  />
+                ))
+              )}
             </div>
           </div>
         )}
 
         {/* Upcoming Auctions Section */}
-        {upcomingCatalogsFiltered.length > 0 && (
+        {(upcomingLoading || upcomingCatalogsFiltered.length > 0) && (
           <div className="mb-12">
             <div className="mb-6 text-center">
               <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-luxury-gold">

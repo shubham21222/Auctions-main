@@ -1143,6 +1143,360 @@ export const getbulkAuctions = async (req, res) => {
 };
 
 
+// ✨ NEW: Get bulk auctions with limited products per catalog (optimized for catalog list view)
+export const getbulkAuctionsLimited = async (req, res) => {
+  try {
+    const {
+      category,
+      status,
+      sortByPrice,
+      sortField,
+      sortOrder,
+      searchQuery,
+      page,
+      limit,
+      priceRange,
+      minPrice,
+      maxPrice,
+      auctionType,
+      catalog,
+      Date: queryDate,
+      upcoming,
+      payment_status,
+      shipping_status,
+      productsPerCatalog = 3 // New parameter to limit products per catalog
+    } = req.query;
+
+    // ✅ Compact Redis cache key
+    const cacheKey = `bulkAuctionsLimited:${Buffer.from(JSON.stringify(req.query)).toString("base64")}`;
+
+    // 1️⃣ Redis Cache Check
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("Cache Hit ✅ (Limited)");
+      return success(res, "Auctions retrieved successfully (from cache).", JSON.parse(cachedData));
+    }
+
+    console.log("Cache Miss ❌ (Limited)");
+
+    // ⚙️ Pagination
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10000;
+    const skip = (pageNumber - 1) * pageSize;
+    const productsLimit = parseInt(productsPerCatalog) || 3;
+
+    // 🧩 Build Query Filters
+    const matchStage = {};
+    if (category) matchStage.category = new mongoose.Types.ObjectId(category);
+    if (auctionType) matchStage.auctionType = { $in: auctionType.split(",").map(t => t.trim()) };
+    if (status) matchStage.status = status;
+    if (catalog) matchStage.catalog = catalog;
+    if (payment_status) matchStage.payment_status = payment_status;
+    if (shipping_status) matchStage.shipping_status = shipping_status;
+
+    // 📅 Upcoming auctions
+    if (upcoming === "true") {
+      const today = new Date();
+      const utcToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
+      matchStage.$or = [
+        { startDate: { $gte: utcToday } },
+        {
+          $and: [
+            { startDate: { $lte: utcToday } },
+            { $or: [{ endDate: { $gt: utcToday } }, { endDate: null }] }
+          ]
+        }
+      ];
+    }
+
+    // 📆 Specific date filter
+    if (queryDate) {
+      const [y, m, d] = queryDate.split("-").map(Number);
+      const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+      const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+      matchStage.createdAt = { $gte: start, $lte: end };
+    }
+
+    // 🔍 Search
+    if (searchQuery?.trim()) {
+      const regex = new RegExp(searchQuery, "i");
+      matchStage.$or = [
+        { "product.title": regex },
+        { "product.description": regex },
+        { lotNumber: regex }
+      ];
+    }
+
+    // 💰 Price range filter
+    if (minPrice || maxPrice || priceRange) {
+      const pMin = minPrice ? parseFloat(minPrice) : undefined;
+      const pMax = maxPrice ? parseFloat(maxPrice) : undefined;
+      const pRange = priceRange ? parseFloat(priceRange) : undefined;
+
+      matchStage.currentBid = {};
+      if (pMin) matchStage.currentBid.$gte = pMin;
+      if (pMax) matchStage.currentBid.$lte = pMax;
+      if (pRange && !pMax) matchStage.currentBid.$lte = pRange;
+    }
+
+    // 📊 Sorting
+    let sortStage = {};
+    if (sortByPrice) sortStage.currentBid = sortByPrice === "High Price" ? -1 : 1;
+    else if (sortField && sortOrder) sortStage[sortField] = sortOrder === "asc" ? 1 : -1;
+    else sortStage.startDate = -1;
+
+    console.log("🔍 Query Params (Limited):", { matchStage, pageNumber, pageSize, sortStage, productsLimit });
+
+    // ⚡ SUPER OPTIMIZED: Group first, limit early, then lookup only what we need
+    const pipeline = [
+      { $match: matchStage },
+      { $sort: sortStage },
+      // Group by catalog FIRST
+      {
+        $group: {
+          _id: "$catalog",
+          auctions: { $push: "$$ROOT" },
+          firstStartDate: { $first: "$startDate" }
+        }
+      },
+      // 🔥 LIMIT EARLY - only take N products per catalog BEFORE lookups
+      {
+        $project: {
+          _id: 1,
+          auctions: { $slice: ["$auctions", productsLimit] },
+          firstStartDate: 1,
+          totalProducts: { $size: "$auctions" }
+        }
+      },
+      { $sort: { firstStartDate: -1 } },
+      { $skip: skip },
+      { $limit: pageSize },
+      // Now unwind the limited auctions for lookups
+      { $unwind: "$auctions" },
+      // Do lookups only on the limited set
+      {
+        $lookup: {
+          from: "auctionproducts",
+          localField: "auctions.auctionProduct",
+          foreignField: "_id",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                image: { $slice: ["$image", 1] }, // Only first image
+                estimateprice: 1,
+                ReservePrice: 1
+              }
+            }
+          ],
+          as: "auctions.product"
+        }
+      },
+      {
+        $addFields: {
+          "auctions.product": { $arrayElemAt: ["$auctions.product", 0] }
+        }
+      },
+      // Group back together
+      {
+        $group: {
+          _id: "$_id",
+          auctions: { $push: "$auctions" },
+          firstStartDate: { $first: "$firstStartDate" },
+          totalProducts: { $first: "$totalProducts" }
+        }
+      },
+      { $sort: { firstStartDate: -1 } }
+    ];
+
+    // ✅ Run with disk usage + timeout protection
+    const auctions = await auctionModel.aggregate(pipeline, {
+      allowDiskUse: true,
+      maxTimeMS: 30000
+    });
+
+    if (!auctions?.length) {
+      return success(res, "No auctions found.", []);
+    }
+
+    // 🧾 Final Result
+    const result = {
+      catalogs: auctions.map(c => ({
+        catalogName: c._id || "Uncategorized",
+        auctions: c.auctions,
+        totalProducts: c.totalProducts // Include total products count
+      })),
+      totalCatalogs: auctions.length,
+      page: pageNumber,
+      limit: pageSize,
+      productsPerCatalog: productsLimit
+    };
+
+    // 2️⃣ Cache for 90 seconds
+    await redisClient.setEx(cacheKey, 90, JSON.stringify(result));
+
+    return success(res, "Auctions retrieved successfully (optimized).", result);
+
+  } catch (error) {
+    console.error("Error fetching limited auctions:", error);
+    return unknownError(res, error.message);
+  }
+};
+
+
+// ✨ NEW: Get single catalog by auction ID (optimized for catalog details page)
+export const getCatalogByAuctionId = async (req, res) => {
+  try {
+    const { auctionId } = req.params;
+    const {
+      page = 1,
+      limit = 60,
+      sortField = "lotNumber",
+      sortOrder = "asc",
+      minPrice,
+      maxPrice,
+      searchQuery,
+      status,
+      auctionType,
+      date
+    } = req.query;
+
+    // ✅ Compact Redis cache key
+    const cacheKey = `catalog:${auctionId}:${Buffer.from(JSON.stringify(req.query)).toString("base64")}`;
+
+    // 1️⃣ Redis Cache Check
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("Cache Hit ✅ (Catalog Details)");
+      return success(res, "Catalog retrieved successfully (from cache).", JSON.parse(cachedData));
+    }
+
+    console.log("Cache Miss ❌ (Catalog Details)");
+
+    // First, find the auction to get the catalog name
+    const auction = await auctionModel.findById(auctionId);
+    if (!auction) {
+      return notFound(res, "Auction not found");
+    }
+
+    const catalogName = auction.catalog;
+
+    // Build match stage for filtering
+    const matchStage = { catalog: catalogName };
+    if (status) matchStage.status = status;
+    if (auctionType) matchStage.auctionType = auctionType;
+    if (minPrice || maxPrice) {
+      matchStage.currentBid = {};
+      if (minPrice) matchStage.currentBid.$gte = parseFloat(minPrice);
+      if (maxPrice) matchStage.currentBid.$lte = parseFloat(maxPrice);
+    }
+    if (date) {
+      const [y, m, d] = date.split("-").map(Number);
+      const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+      const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+      matchStage.startDate = { $gte: start, $lte: end };
+    }
+
+    // Pagination
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Sorting
+    const sortStage = {};
+    sortStage[sortField] = sortOrder === "asc" ? 1 : -1;
+
+    // Pipeline for catalog auctions
+    const pipeline = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: "auctionproducts",
+          localField: "auctionProduct",
+          foreignField: "_id",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                price: 1,
+                description: 1,
+                image: 1,
+                estimateprice: 1,
+                sellPrice: 1,
+                ReservePrice: 1
+              }
+            }
+          ],
+          as: "product"
+        }
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+      // Search filter (must be after product lookup)
+      ...(searchQuery ? [{
+        $match: {
+          $or: [
+            { "product.title": { $regex: searchQuery, $options: "i" } },
+            { lotNumber: { $regex: searchQuery, $options: "i" } }
+          ]
+        }
+      }] : []),
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          auctions: [
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: pageSize },
+            {
+              $project: {
+                _id: 1,
+                catalog: 1,
+                product: 1,
+                lotNumber: 1,
+                currentBid: 1,
+                startingBid: 1,
+                status: 1,
+                auctionType: 1,
+                startDate: 1,
+                endDate: 1,
+                description: 1
+              }
+            }
+          ]
+        }
+      }
+    ];
+
+    const result = await auctionModel.aggregate(pipeline);
+    
+    const total = result[0]?.metadata[0]?.total || 0;
+    const auctions = result[0]?.auctions || [];
+
+    const response = {
+      catalogName,
+      currentAuction: auction,
+      auctions,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: pageSize,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    };
+
+    // 2️⃣ Cache for 60 seconds
+    await redisClient.setEx(cacheKey, 60, JSON.stringify(response));
+
+    return success(res, "Catalog retrieved successfully.", response);
+
+  } catch (error) {
+    console.error("Error fetching catalog:", error);
+    return unknownError(res, error.message);
+  }
+};
+
 
 // Update action via catalog and lot number //
 

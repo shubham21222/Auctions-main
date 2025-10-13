@@ -48,46 +48,64 @@ export default function CatalogDetails() {
 
   useEffect(() => {
     const fetchCatalogDetails = async () => {
+      setLoading(true); // Show loading when fetching new data
       try {
         const headers = token ? { Authorization: `${token}` } : {};
-        const response = await fetch(`${config.baseURL}/v1/api/auction/bulk`, {
-          method: "GET",
-          headers,
+        
+        // Build query params for filters and pagination
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: viewOption,
+          sortField: sortOption.includes('lot') ? 'lotNumber' : 'currentBid',
+          sortOrder: sortOption.includes('asc') ? 'asc' : 'desc',
         });
+        
+        if (filters.minPrice > 0) params.append('minPrice', filters.minPrice);
+        if (filters.maxPrice < 5000) params.append('maxPrice', filters.maxPrice);
+        if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+        if (filters.status) params.append('status', filters.status);
+        if (filters.auctionType) params.append('auctionType', filters.auctionType);
+        if (filters.date) params.append('date', filters.date);
+        
+        // 🔥 Use the new optimized endpoint - fetches only one catalog
+        const response = await fetch(
+          `${config.baseURL}/v1/api/auction/catalog/${slug}?${params.toString()}`,
+          {
+            method: "GET",
+            headers,
+            cache: 'no-store',
+          }
+        );
 
-        if (!response.ok) throw new Error("Failed to fetch catalog details");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API Error Response:", errorText);
+          throw new Error(`Failed to fetch catalog details: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log("Catalog API Response:", data); // Debug log
 
         if (data.status) {
-          const foundCatalog = data.items?.catalogs?.find((cat) =>
-            cat.auctions.some((auction) => auction._id === slug)
-          );
-
-          if (foundCatalog) {
-            const matchingAuction = foundCatalog.auctions.find((auction) => auction._id === slug);
-            const filteredAuctions = foundCatalog.auctions.filter(
-              (auction) => auction.catalog === matchingAuction.catalog
-            );
-
-            setCatalog({
-              ...foundCatalog,
-              auctions: filteredAuctions,
-              currentAuction: matchingAuction,
-            });
-          } else {
-            throw new Error("Catalog not found");
-          }
+          setCatalog({
+            catalogName: data.items.catalogName,
+            auctions: data.items.auctions || [],
+            currentAuction: data.items.currentAuction,
+            pagination: data.items.pagination,
+          });
+        } else {
+          throw new Error(data.message || "Catalog not found");
         }
       } catch (error) {
         console.error("Error fetching catalog details:", error);
-        toast.error("Failed to load catalog details");
+        toast.error(error.message || "Failed to load catalog details");
       } finally {
         setLoading(false);
       }
     };
 
     fetchCatalogDetails();
-  }, [slug, token]);
+  }, [slug, token, currentPage, viewOption, sortOption, filters.minPrice, filters.maxPrice, filters.searchQuery, filters.status, filters.auctionType, filters.date]);
 
   // Countdown Timer Logic
   useEffect(() => {
@@ -116,58 +134,10 @@ export default function CatalogDetails() {
     return () => clearInterval(interval);
   }, [catalog]);
 
-  // Updated sorting and filtering logic
-  const filteredAndSortedAuctions = catalog?.auctions
-    ? [...catalog.auctions]
-        .filter((auction) => {
-          // Price filter
-          const price = auction.product?.sellPrice || 0;
-          if (price < filters.minPrice || price > filters.maxPrice) return false;
-
-          // Date filter
-          if (filters.date) {
-            const auctionDate = new Date(auction.startDate).toISOString().split('T')[0];
-            if (auctionDate !== filters.date) return false;
-          }
-
-          // Status filter
-          if (filters.status && auction.status !== filters.status) return false;
-
-          // Search query filter
-          if (filters.searchQuery) {
-            const searchLower = filters.searchQuery.toLowerCase();
-            const titleMatch = auction.product?.title?.toLowerCase().includes(searchLower);
-            const lotMatch = auction.lotNumber?.toString().includes(searchLower);
-            if (!titleMatch && !lotMatch) return false;
-          }
-
-          // Auction type filter
-          if (filters.auctionType && auction.auctionType !== filters.auctionType) return false;
-
-          return true;
-        })
-        .sort((a, b) => {
-          switch (sortOption) {
-            case "lot-asc":
-              return parseInt(a.lotNumber) - parseInt(b.lotNumber);
-            case "lot-desc":
-              return parseInt(b.lotNumber) - parseInt(a.lotNumber);
-            case "price-asc":
-              return (a.product?.sellPrice || 0) - (b.product?.sellPrice || 0);
-            case "price-desc":
-              return (b.product?.sellPrice || 0) - (a.product?.sellPrice || 0);
-            default:
-              return 0;
-          }
-        })
-    : [];
-
-  const auctionsPerPage = parseInt(viewOption);
-  const totalPages = Math.ceil(filteredAndSortedAuctions.length / auctionsPerPage);
-  const displayedAuctions = filteredAndSortedAuctions.slice(
-    (currentPage - 1) * auctionsPerPage,
-    currentPage * auctionsPerPage
-  );
+  // Server handles filtering, sorting, and pagination now - just use the data
+  const displayedAuctions = catalog?.auctions || [];
+  const totalPages = catalog?.pagination?.totalPages || 1;
+  const totalAuctions = catalog?.pagination?.total || 0;
 
   // Update page when filters change
   useEffect(() => {
@@ -362,34 +332,51 @@ export default function CatalogDetails() {
               </p>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 mb-8">
-              <Select value={sortOption} onValueChange={setSortOption}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lot-asc">Lot Number: Lowest</SelectItem>
-                  <SelectItem value="lot-desc">Lot Number: Highest</SelectItem>
-                  <SelectItem value="price-asc">Price: Lowest</SelectItem>
-                  <SelectItem value="price-desc">Price: Highest</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={viewOption} onValueChange={setViewOption}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="View" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="60">60 per page</SelectItem>
-                  <SelectItem value="120">120 per page</SelectItem>
-                  <SelectItem value="240">240 per page</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Filters and Item Count */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+              <div className="text-sm text-gray-600">
+                Showing {displayedAuctions.length} of {totalAuctions} lots
+              </div>
+              <div className="flex gap-4">
+                <Select value={sortOption} onValueChange={setSortOption}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lot-asc">Lot Number: Lowest</SelectItem>
+                    <SelectItem value="lot-desc">Lot Number: Highest</SelectItem>
+                    <SelectItem value="price-asc">Price: Lowest</SelectItem>
+                    <SelectItem value="price-desc">Price: Highest</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={viewOption} onValueChange={setViewOption}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="View" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="60">60 per page</SelectItem>
+                    <SelectItem value="120">120 per page</SelectItem>
+                    <SelectItem value="240">240 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Lots Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {displayedAuctions.length === 0 ? (
+              {loading ? (
+                // Loading skeleton
+                Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm animate-pulse">
+                    <div className="aspect-[4/3] bg-gray-200" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                      <div className="h-3 bg-gray-200 rounded w-1/2" />
+                      <div className="h-8 bg-gray-200 rounded" />
+                    </div>
+                  </div>
+                ))
+              ) : displayedAuctions.length === 0 ? (
                 <div className="col-span-full text-center py-12">
                   <p className="text-lg text-gray-500">No auctions match your filters</p>
                   <Button
@@ -506,28 +493,61 @@ export default function CatalogDetails() {
                 <Button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal disabled:opacity-50"
                 >
                   Previous
                 </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    variant={currentPage === page ? "default" : "outline"}
-                    className={`w-8 h-8 ${
-                      currentPage === page
-                        ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
-                        : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
-                    }`}
-                  >
-                    {page}
-                  </Button>
-                ))}
+                
+                {/* Smart Pagination - Show first, last, and pages around current */}
+                {currentPage > 2 && (
+                  <>
+                    <Button
+                      onClick={() => handlePageChange(1)}
+                      variant="outline"
+                      className="w-8 h-8 border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
+                    >
+                      1
+                    </Button>
+                    {currentPage > 3 && <span className="px-2">...</span>}
+                  </>
+                )}
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = Math.max(1, currentPage - 2) + i;
+                  if (page > totalPages) return null;
+                  return (
+                    <Button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      variant={currentPage === page ? "default" : "outline"}
+                      className={`w-8 h-8 ${
+                        currentPage === page
+                          ? "bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                          : "border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+                
+                {currentPage < totalPages - 1 && (
+                  <>
+                    {currentPage < totalPages - 2 && <span className="px-2">...</span>}
+                    <Button
+                      onClick={() => handlePageChange(totalPages)}
+                      variant="outline"
+                      className="w-8 h-8 border-luxury-gold/20 text-luxury-charcoal hover:bg-luxury-gold/10"
+                    >
+                      {totalPages}
+                    </Button>
+                  </>
+                )}
+                
                 <Button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal"
+                  className="bg-luxury-gold text-white hover:bg-luxury-charcoal disabled:opacity-50"
                 >
                   Next
                 </Button>

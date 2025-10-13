@@ -46,12 +46,33 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 .animate-slide-in {
   animation: slide-in 0.3s ease-out forwards;
 }
 
 .animate-slide-out {
   animation: slide-out 0.3s ease-in forwards;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    to right,
+    #e5e7eb 0%,
+    #f3f4f6 20%,
+    #e5e7eb 40%,
+    #e5e7eb 100%
+  );
+  background-size: 1000px 100%;
 }
 
 /* Ensure noscroll is only applied when needed */
