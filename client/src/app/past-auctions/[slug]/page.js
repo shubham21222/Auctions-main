@@ -7,6 +7,7 @@ import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import config from "@/app/config_BASE_URL";
 import { format } from "date-fns";
+import { formatPriceWithCurrency, formatEstimatePrice } from "@/utils/priceFormatter";
 
 const AuctionDetailsPage = () => {
   const { id } = useParams(); // Get auction ID from URL
@@ -105,10 +106,10 @@ const AuctionDetailsPage = () => {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700 text-lg">
             <p><strong className="text-gray-900">Lot Number:</strong> {auction.lotNumber}</p>
-            <p><strong className="text-gray-900">Starting Bid:</strong> ${auction.startingBid}</p>
-            <p><strong className="text-gray-900">Current Bid:</strong> ${auction.currentBid}</p>
-            <p><strong className="text-gray-900">Reserve Price:</strong> ${auction.product?.ReservePrice || 0}</p>
-            <p><strong className="text-gray-900">Estimate Price:</strong> ${auction.product?.estimateprice || "N/A"}</p>
+            <p><strong className="text-gray-900">Starting Bid:</strong> {formatPriceWithCurrency(auction.startingBid, true)}</p>
+            <p><strong className="text-gray-900">Current Bid:</strong> {formatPriceWithCurrency(auction.currentBid, true)}</p>
+            <p><strong className="text-gray-900">Reserve Price:</strong> {formatPriceWithCurrency(auction.product?.ReservePrice || 0, true)}</p>
+            <p><strong className="text-gray-900">Estimate Price:</strong> ${formatEstimatePrice(auction.product?.estimateprice)}</p>
             <p><strong className="text-gray-900">Winner:</strong> {auction.winner?.name || "No winner"}</p>
             <p><strong className="text-gray-900">Winning Time:</strong> {auction.winnerBidTime ? format(new Date(auction.winnerBidTime), "PPp") : "N/A"}</p>
             <p><strong className="text-gray-900">Payment Status:</strong>{" "}

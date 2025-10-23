@@ -22,9 +22,7 @@ import Link from "next/link";
 import { WishlistProvider } from "./components/WishlistProvider";
 
 // Add price formatting function
-const formatPrice = (price) => {
-  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
+import { formatPriceWithCurrency } from "@/utils/priceFormatter";
 
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
@@ -421,7 +419,7 @@ export default function Home() {
                     const productData = {
                       image: product.image?.[0] || "/placeholder.svg",
                       name: product.title || "Untitled Product",
-                      price: formatPrice(product.estimateprice),
+                      price: formatPriceWithCurrency(product.estimateprice, false, ""),
                       slug: product._id,
                     };
                     return (

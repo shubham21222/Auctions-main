@@ -15,6 +15,7 @@ import Footer from "../components/Footer";
 import config from "@/app/config_BASE_URL";
 import { format } from "date-fns";
 import useEmblaCarousel from 'embla-carousel-react';
+import { formatPrice, formatPriceWithCurrency } from "@/utils/priceFormatter";
 import {
   Dialog,
   DialogContent,
@@ -144,11 +145,6 @@ const CatalogCardSkeleton = () => (
     </div>
   </div>
 );
-
-const formatPrice = (price) => {
-  if (!price && price !== 0) return "N/A";
-  return Number(price).toFixed(2);
-};
 
 // Global image cache to prevent duplicate requests
 const imageCache = new Map();
@@ -1157,27 +1153,27 @@ export default function PastAuctions() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600">Starting Price</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.startPrice)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.startPrice, true)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Final Price</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.finalPrice)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.finalPrice, true)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Low Estimate</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.lowEstimate)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.lowEstimate, true)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">High Estimate</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.highEstimate)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.highEstimate, true)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Reserve Price</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.reservePrice)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.reservePrice, true)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Online Price</p>
-                        <p className="font-medium text-gray-900">${formatPrice(selectedAuction.onlinePrice)}</p>
+                        <p className="font-medium text-gray-900">{formatPriceWithCurrency(selectedAuction.onlinePrice, true)}</p>
                       </div>
                     </div>
                   </div>

@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatPriceWithCurrency } from "@/utils/priceFormatter";
 
 const AuctionDetails = ({ currentAuction, upcomingLots }) => {
   if (!currentAuction) return null;
@@ -22,15 +23,15 @@ const AuctionDetails = ({ currentAuction, upcomingLots }) => {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-600">Starting Bid</p>
-            <p className="text-lg font-semibold">${currentAuction.startingBid?.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatPriceWithCurrency(currentAuction.startingBid, true)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Current Bid</p>
-            <p className="text-lg font-semibold">${currentAuction.currentBid?.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatPriceWithCurrency(currentAuction.currentBid, true)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Reserve Price</p>
-            <p className="text-lg font-semibold">${currentAuction.reservePrice?.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatPriceWithCurrency(currentAuction.reservePrice, true)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Time Remaining</p>

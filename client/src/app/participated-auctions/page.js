@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import config from "@/app/config_BASE_URL";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { formatPriceWithCurrency } from "@/utils/priceFormatter";
 
 const UserAuctionsPage = () => {
   const [auctions, setAuctions] = useState([]);
@@ -106,10 +107,10 @@ const UserAuctionsPage = () => {
           <span className="font-medium">Lot Number:</span> {auction?.lotNumber || 'N/A'}
         </p>
         <p className="text-gray-600 mb-1">
-          <span className="font-medium">Starting Bid:</span> ${(auction?.startingBid || 0).toLocaleString()}
+          <span className="font-medium">Starting Bid:</span> {formatPriceWithCurrency(auction?.startingBid || 0, true)}
         </p>
         <p className="text-gray-600 mb-1">
-          <span className="font-medium">Current Bid:</span> ${(auction?.currentBid || 0).toLocaleString()}
+          <span className="font-medium">Current Bid:</span> {formatPriceWithCurrency(auction?.currentBid || 0, true)}
         </p>
         <p className="text-gray-600 mb-1">
           <span className="font-medium">Start Date:</span>{" "}
@@ -152,7 +153,7 @@ const UserAuctionsPage = () => {
           </p>
         )}
         <p className="text-gray-600">
-          <span className="font-medium">Product Price:</span> ${(auction?.product?.price || 0).toLocaleString()}
+          <span className="font-medium">Product Price:</span> {formatPriceWithCurrency(auction?.product?.price || 0, true)}
         </p>
       </div>
     );

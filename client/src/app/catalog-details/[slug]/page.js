@@ -20,6 +20,7 @@ import {
 import { Calendar, Clock, MapPin, Heart, ChevronRight } from "lucide-react";
 import { AuctionFilters } from "../auction-filters";
 import Link from "next/link";
+import { formatEstimatePrice, formatPriceWithCurrency } from "@/utils/priceFormatter";
 
 export default function CatalogDetails() {
   const { slug } = useParams();
@@ -229,12 +230,6 @@ export default function CatalogDetails() {
     window.open(url, "_blank");
   };
 
-  // Parse estimateprice
-  const parseEstimatePrice = (estimate) => {
-    if (!estimate || typeof estimate !== "string") return "N/A";
-    const [min, max] = estimate.split("-").map((val) => parseFloat(val).toFixed(0));
-    return `${min} - ${max}`;
-  };
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -454,7 +449,7 @@ export default function CatalogDetails() {
                               Estimated Price
                             </p>
                             <p className="text-sm font-semibold">
-                              ${parseEstimatePrice(auction.product?.estimateprice)}
+                              ${formatEstimatePrice(auction.product?.estimateprice)}
                             </p>
                           </div>
                           <div className="text-right space-y-1">
@@ -462,7 +457,7 @@ export default function CatalogDetails() {
                               Current Bid
                             </p>
                             <p className="text-sm font-semibold text-luxury-charcoal">
-                              ${Number(auction.currentBid).toFixed(2)}
+                              {formatPriceWithCurrency(auction.currentBid, true)}
                             </p>
                           </div>
                         </div>

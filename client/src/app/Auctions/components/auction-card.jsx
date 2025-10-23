@@ -13,6 +13,7 @@ import { Clock, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
+import { formatPriceWithCurrency } from "@/utils/priceFormatter";
 import { useSelector } from "react-redux";
 import LoginModal from "@/app/components/LoginModal";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
@@ -308,7 +309,7 @@ export function AuctionCard({ auction, walletBalance, currentTime }) {
                 Current Bid:
               </span>
               <span className="text-lg font-semibold text-luxury-charcoal">
-                ${auction.currentBid.toLocaleString()}
+                {formatPriceWithCurrency(auction.currentBid, true)}
               </span>
             </motion.div>
           )}

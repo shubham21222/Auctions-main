@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import LoginModal from "@/app/components/LoginModal";
 import { VerificationModal } from "@/app/components/VerificationModal";
 import BillingPaymentModal from "@/app/components/BillingPaymentModal";
+import { formatPriceWithCurrency, formatEstimatePrice } from "@/utils/priceFormatter";
 
 export default function ItemDetails() {
   const { id } = useParams();
@@ -275,13 +276,13 @@ export default function ItemDetails() {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Current Bid</h3>
                   <p className="text-2xl font-bold text-luxury-gold">
-                    ${Number(item.currentBid).toFixed(2)}
+                    {formatPriceWithCurrency(item.currentBid, true)}
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Estimated Price</h3>
                   <p className="text-lg font-semibold">
-                    ${item.product?.estimateprice || "N/A"}
+                    ${formatEstimatePrice(item.product?.estimateprice)}
                   </p>
                 </div>
               </div>

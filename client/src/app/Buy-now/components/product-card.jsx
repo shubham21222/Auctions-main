@@ -11,9 +11,7 @@ import { VerificationModal } from "@/app/components/VerificationModal"
 import { useWishlist } from "./WishlistProvider"
 
 // Add price formatting function
-const formatPrice = (price) => {
-  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
+import { formatPriceWithCurrency } from "@/utils/priceFormatter";
 
 // Memoized ProductCard component to prevent unnecessary re-renders
 const ProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
@@ -138,7 +136,7 @@ const ProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
           </h3>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-              {formatPrice(price)}
+              {formatPriceWithCurrency(price, false, "")}
             </span>
           </div>
         </div>

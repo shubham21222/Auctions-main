@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useState, memo } from "react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
+import { formatPriceWithCurrency } from "@/utils/priceFormatter"
 
 // Add price formatting function
 const formatPrice = (price) => {
@@ -77,7 +78,7 @@ const GeneralProductCardComponent = ({ image, name, price, estimatePrice, slug }
         </h3>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-            {formatPrice(price)}
+            {formatPriceWithCurrency(price, false, "")}
           </span>
         </div>
       </div>
