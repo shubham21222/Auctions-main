@@ -3,6 +3,16 @@ import mongoose from "mongoose";
 
 const router = express.Router();
 
+import rateLimit from 'express-rate-limit';
+
+const filterLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: "Too many requests from this IP, please try again after 15 minutes",
+    standardHeaders: true, 
+    legacyHeaders: false,
+});
+
 import {
     createProduct,
     getFilteredProducts,
@@ -21,7 +31,7 @@ import { IsAuthenticated, authorizeBackendRole } from "../../middlewares/authica
 // Routes
 router.post("/create", IsAuthenticated, authorizeBackendRole, createProduct);
 router.get("/fast", getProductsFast); // Fast endpoint for initial load
-router.get("/filter", getFilteredProducts);
+router.get("/filter", filterLimiter, getFilteredProducts);
 router.put("/update/:productId", IsAuthenticated, authorizeBackendRole, updateProduct);
 router.delete("/delete/:productId", IsAuthenticated, authorizeBackendRole, deleteProduct);
 router.get("/:productId", getProductById);

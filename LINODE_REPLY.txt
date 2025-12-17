@@ -1,0 +1,24 @@
+Subject: Response to Abuse Report - High Resource Usage / Traffic Alert
+
+Dear Linode Trust & Safety Team,
+
+I am writing regarding the recent abuse report/alert concerning high traffic and resource usage on my server.
+
+Upon investigation, I identified that the high traffic and CPU usage were caused by a misconfiguration in my application's code, specifically within the public `/filter` API endpoint.
+
+**Root Cause:**
+1. The API endpoint lacked a maximum limit on pagination (e.g., `?limit=10000` was allowed), which caused heavy database queries and excessive data transfer.
+2. There was no rate limiting in place, allowing external bots/scrapers to hit this expensive endpoint repeatedly, resulting in a denial-of-service (DoS) like scenario.
+3. This was NOT an intentional attack launched by my server, but rather my server being overwhelmed by external requests due to these missing safeguards.
+
+**Remedial Actions Taken:**
+1. **Code Patch Implemented:** I have deployed a fix that enforces a strict maximum limit (capped at 50 items) on the API, regardless of the requested value.
+2. **Rate Limiting Configured:** I have implemented global and route-specific rate limiting to block abusive IP addresses automatically.
+3. **Security Hardening:** I am reviewing server logs for any other signs of compromise and have rotated all access credentials.
+
+Please consider this ticket resolved as the underlying vulnerability causing the traffic spike has been patched. I am closely monitoring the server to ensure stability.
+
+Thank you for your understanding.
+
+Best regards,
+[Your Name/Company]

@@ -402,13 +402,22 @@ export const getFilteredProducts = async (req, res) => {
             sortField,
             sortOrder,
             searchQuery,
-            sku,
-            page = 1,
-            limit = 10
+            sku
         } = req.query;
 
-        // ✅ Create unique cache key based on request query
-        const cacheKey = `products:${JSON.stringify(req.query)}`;
+        // Security: Input sanitization and limits
+        // Force page to be at least 1
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        // Force limit to be between 1 and 50 (Hard Cap)
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+
+        // Create normalized query object for cache key to prevent fragmentation/abuse and ignore junk params
+        const normalizedQuery = {
+            category, status, sortByPrice, sortField, sortOrder, searchQuery, sku, page, limit
+        };
+
+        // ✅ Create unique cache key based on normalized query
+        const cacheKey = `products:${JSON.stringify(normalizedQuery)}`;
 
         // 1️⃣ Try Redis cache first
         const cachedData = await redisClient.get(cacheKey);
