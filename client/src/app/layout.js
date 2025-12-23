@@ -30,17 +30,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <ReduxProvider>
-        <SocketProvider>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          {children}
-          {/* Add the Toaster component here */}
-          <Toaster />
-        </body>
-        </SocketProvider>
-      </ReduxProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ReduxProvider>
+          <SocketProvider>
+            {children}
+            <Toaster />
+          </SocketProvider>
+        </ReduxProvider>
+      </body>
     </html>
   );
 }
