@@ -7,7 +7,6 @@ import postmark from 'postmark'
 import dotenv from 'dotenv';
 dotenv.config();
 
-
 // cron.schedule("*/1 * * * *", async () => {  // Runs every 1 minute
 //     try {
 //         console.log("Running auction expiry check...");
@@ -34,6 +33,7 @@ dotenv.config();
 //         console.error("❌ Error in cron job:", error);
 //     }
 // });
+
 
 
 export const createPaymentLink = async (amount, currency, productName, metadata) => {
@@ -143,8 +143,7 @@ export const sendPaymentEmail = async (email, paymentLink, auctionTitle, bidAmou
     }
   };
 
-
-
+export const initCron = () => {
 
 cron.schedule("*/1 * * * *", async () => {
     try {
@@ -330,6 +329,8 @@ cron.schedule("*/1 * * * *", async () => {  // Runs every minute
         console.error("❌ Error in auction status cron job:", error);
     }
 });
+
+};
 
 
 

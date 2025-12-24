@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
-app.options('*', cors());
+app.options('*any', cors());
 
 // Add performance monitoring middleware
 app.use(performanceMiddleware);
