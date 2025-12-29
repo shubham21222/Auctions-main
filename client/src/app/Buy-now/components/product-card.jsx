@@ -40,7 +40,7 @@ const ProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
       }
 
       const result = await toggleWishlist(slug, name)
-      
+
       if (result.success) {
         toast.success(result.message)
       } else {
@@ -136,7 +136,7 @@ const ProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
           </h3>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-              {formatPriceWithCurrency(price, false, "")}
+              {formatPriceWithCurrency(price, false)}
             </span>
           </div>
         </div>

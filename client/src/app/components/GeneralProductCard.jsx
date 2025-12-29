@@ -7,11 +7,6 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatPriceWithCurrency } from "@/utils/priceFormatter"
 
-// Add price formatting function
-const formatPrice = (price) => {
-  return price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
-
 // General ProductCard component without wishlist functionality
 const GeneralProductCardComponent = ({ image, name, price, estimatePrice, slug }) => {
   const [isHovered, setIsHovered] = useState(false) // State to track hover effect
@@ -78,7 +73,7 @@ const GeneralProductCardComponent = ({ image, name, price, estimatePrice, slug }
         </h3>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-luxury-gold">
-            {formatPriceWithCurrency(price, false, "")}
+            {formatPriceWithCurrency(price, false)}
           </span>
         </div>
       </div>

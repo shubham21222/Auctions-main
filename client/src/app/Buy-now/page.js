@@ -419,7 +419,7 @@ export default function Home() {
                     const productData = {
                       image: product.image?.[0] || "/placeholder.svg",
                       name: product.title || "Untitled Product",
-                      price: product.estimateprice, // Pass raw estimateprice
+                      price: product.estimateprice,
                       slug: product._id,
                     };
                     return (

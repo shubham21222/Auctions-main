@@ -865,7 +865,7 @@ export default function PastAuctions() {
                             </p>
                             <p className="flex justify-between">
                               <span className="font-medium">Estimate:</span>
-                              <span>${formatPrice(product.lowEstimate)} - ${formatPrice(product.highEstimate)}</span>
+                              <span>{formatPriceWithCurrency(product.lowEstimate)} - {formatPriceWithCurrency(product.highEstimate)}</span>
                             </p>
                             <p className="flex justify-between">
                               <span className="font-medium">Condition:</span>
