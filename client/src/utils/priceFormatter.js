@@ -28,44 +28,60 @@ export const formatPrice = (price, showDecimals = false) => {
 };
 
 /**
- * Formats an estimate price range (e.g., "1000-2000" or "1000 - 2000") or single price
+ * Formats an estimate price range (e.g., "$1000 - $2000" or "1000-2000") or single price
  * @param {string|number} estimate - The estimate string or number to parse and format
+ * @param {string} currency - Currency symbol (default: "$")
  * @returns {string} Formatted estimate range or single price
  */
-export const formatEstimatePrice = (estimate) => {
+export const formatEstimatePrice = (estimate, currency = "$") => {
   if (!estimate && estimate !== 0) return "N/A";
   
   // If it's already a number, format it directly
   if (typeof estimate === "number") {
-    return formatPrice(estimate);
+    return `${currency}${formatPrice(estimate)}`;
   }
   
   // If it's a string, try to parse it
   if (typeof estimate === "string") {
-    // Remove any existing currency symbols or commas
+    // Check if it's already formatted or has complex structure
+    // but we want to re-format it to ensure commas are correct
+    
+    // Remove any existing currency symbols or commas for parsing
     const cleanEstimate = estimate.replace(/[$,\s]/g, '');
     
     // Handle different separator formats
-    const separator = cleanEstimate.includes(' - ') ? ' - ' : '-';
-    const parts = cleanEstimate.split(separator);
+    const separator = cleanEstimate.includes('-') ? '-' : null;
     
-    if (parts.length === 2) {
-      // It's a range
-      const min = Number(parts[0].trim());
-      const max = Number(parts[1].trim());
+    if (separator) {
+      const parts = cleanEstimate.split('-');
       
-      if (!isNaN(min) && !isNaN(max)) {
-        return `${formatPrice(min)} - ${formatPrice(max)}`;
-      }
-    } else if (parts.length === 1) {
-      // It's a single price
-      const price = Number(parts[0].trim());
-      if (!isNaN(price)) {
-        return formatPrice(price);
+      if (parts.length === 2) {
+        // It's a range
+        const min = Number(parts[0].trim());
+        const max = Number(parts[1].trim());
+        
+        if (!isNaN(min) && !isNaN(max)) {
+          return `${currency}${formatPrice(min)} - ${currency}${formatPrice(max)}`;
+        }
       }
     }
     
-    // If we can't parse it, return as-is
+    // It might be a single price string
+    const singlePrice = Number(cleanEstimate);
+    if (!isNaN(singlePrice)) {
+      return `${currency}${formatPrice(singlePrice)}`;
+    }
+    
+    // If we can't parse it as numbers but it has a '-', try to just clean individual parts
+    if (estimate.includes('-')) {
+        return estimate.split('-').map(part => {
+            const cleanPart = part.replace(/[$,\s]/g, '');
+            const num = Number(cleanPart);
+            return isNaN(num) ? part.trim() : `${currency}${formatPrice(num)}`;
+        }).join(' - ');
+    }
+    
+    // If we can't parse it at all, return as-is
     return estimate;
   }
   
@@ -80,6 +96,13 @@ export const formatEstimatePrice = (estimate) => {
  * @returns {string} Formatted price with currency
  */
 export const formatPriceWithCurrency = (price, showDecimals = false, currency = "$") => {
+  if (!price && price !== 0) return "N/A";
+
+  // If it's a range string, use formatEstimatePrice
+  if (typeof price === "string" && (price.includes("-") || isNaN(Number(price.replace(/[$,\s]/g, ''))))) {
+    return formatEstimatePrice(price, currency);
+  }
+
   const formatted = formatPrice(price, showDecimals);
   return formatted === "N/A" ? formatted : `${currency}${formatted}`;
 };
