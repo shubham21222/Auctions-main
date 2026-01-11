@@ -11,13 +11,13 @@ export default function AboutUs() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center mb-16 md:mb-20">
           {/* Left Column: Image */}
           <motion.div
-            className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden "
+            className="relative w-full h-[300px] md:h-[500px] rounded-r-[150px] overflow-hidden "
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
             <Image
-              src="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/Rectangle-23-min.webp"
+              src="/about_us_auction.png"
               alt="About Us Image 1"
               fill
               className="object-cover"
@@ -57,9 +57,9 @@ export default function AboutUs() {
               </div>
             </div>
             <Link href="/about-us">
-            <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
-              Learn More
-            </button>
+              <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
+                Learn More
+              </button>
             </Link>
           </motion.div>
         </div>
@@ -97,22 +97,22 @@ export default function AboutUs() {
                 </p>
               </div>
             </div>
-            <Link href="/about-us"> 
-            <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
-              Learn More
-            </button>
+            <Link href="/about-us">
+              <button className="mt-4 md:mt-6 px-6 py-2 md:px-8 md:py-3 bg-yellow-500 text-white font-semibold rounded-full hover:bg-yellow-600 transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base">
+                Learn More
+              </button>
             </Link>
           </motion.div>
 
           {/* Right Column: Image */}
           <motion.div
-            className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden  order-1 lg:order-2"
+            className="relative w-full h-[300px] md:h-[500px] rounded-l-[150px] overflow-hidden  order-1 lg:order-2"
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <Image
-              src="https://beta.nyelizabeth.com/wp-content/uploads/2024/11/Rectangle-23-1-min.webp"
+              src="/our_mission_bidding.png"
               alt="About Us Image 2"
               fill
               className="object-cover"

@@ -14,13 +14,13 @@ export default function AboutUs() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center mb-16 md:mb-20">
                         {/* Left Column: Image */}
                         <motion.div
-                            className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden shadow-2xl"
+                            className="relative w-full h-[300px] md:h-[500px] rounded-r-[150px] overflow-hidden shadow-2xl"
                             initial={{ opacity: 0, x: -50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8 }}
                         >
                             <Image
-                                src="https://beta.nyelizabeth.com/wp-content/uploads/2025/01/product612dfd189b8b384cb5fbcf7319435a69.webp"
+                                src="/about_us_auction.png"
                                 alt="About Us Image 1"
                                 fill
                                 className="object-cover"
@@ -105,13 +105,13 @@ export default function AboutUs() {
 
                         {/* Right Column: Image */}
                         <motion.div
-                            className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden shadow-2xl order-1 lg:order-2"
+                            className="relative w-full h-[300px] md:h-[500px] rounded-l-[150px] overflow-hidden shadow-2xl order-1 lg:order-2"
                             initial={{ opacity: 0, x: 50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8, delay: 0.2 }}
                         >
                             <Image
-                                src="https://beta.nyelizabeth.com/wp-content/uploads/2025/01/c1.webp"
+                                src="/our_mission_bidding.png"
                                 alt="About Us Image 2"
                                 fill
                                 className="object-cover"
